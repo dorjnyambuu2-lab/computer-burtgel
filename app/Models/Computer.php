@@ -67,6 +67,7 @@ class Computer extends Model
             $computer->created_by ??= Auth::id();
 
             // Салбар: Админ бүртгэвэл заавал өөрийн салбар; бусад үед сонгосон, эсвэл ганц салбар байвал түүнийг
+            /** @var User|null $actor */
             $actor = Auth::user();
             if ($actor?->isAdmin()) {
                 $computer->branch_id = $actor->branch_id;
@@ -137,7 +138,9 @@ class Computer extends Model
         // Супер админ хариуцагчгүй төхөөрөмж олгох, буцаан авах боломжтой. Олгох, олноор олгох, засах форм аль замаар ч хамаарна.
         static::updating(function (Computer $computer) {
             $from = $computer->getOriginal('assigned_user_id');
-            if (Auth::user()?->isSuperadmin() && $computer->isDirty('assigned_user_id')
+            /** @var User|null $actor */
+            $actor = Auth::user();
+            if ($actor?->isSuperadmin() && $computer->isDirty('assigned_user_id')
                 && $from && $computer->assigned_user_id && (int) $from !== (int) $computer->assigned_user_id) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'user_id' => $computer->activityLabel().' ажилтанд оноогдсон байна. Өөр ажилтанд шилжүүлэх эрх зөвхөн салбарын Админд байна.',
