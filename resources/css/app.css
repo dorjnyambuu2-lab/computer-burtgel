@@ -1,0 +1,79 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Segoe UI', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* Үндсэн стиль: Tailwind классууд эдгээрийг дарж чадна */
+@layer base {
+    body {
+        font-size: 15px;
+        line-height: 1.55;
+    }
+
+    button,
+    a.btn {
+        min-height: 2.5rem;
+        cursor: pointer;
+    }
+
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    textarea {
+        min-height: 2.5rem;
+    }
+
+    textarea {
+        min-height: 5rem;
+    }
+
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+        outline: 2px solid #6366f1;
+        outline-offset: 1px;
+    }
+
+    /* Цэс: нэр мөр таслахгүй, багтахгүй бол доош шилжинэ */
+    nav a,
+    nav button,
+    nav span {
+        white-space: nowrap;
+    }
+
+    nav {
+        flex-wrap: wrap;
+        row-gap: 0.25rem;
+    }
+}
+
+/* Компонентууд */
+@layer components {
+    .card {
+        transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+
+    a.card:hover {
+        box-shadow: 0 8px 24px rgb(15 23 42 / 0.1);
+        transform: translateY(-2px);
+    }
+
+    table tbody tr {
+        transition: background-color 0.1s ease;
+    }
+
+    table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    /* Нарийн дэлгэц дээр хүснэгт хажуу тийш гүйлгэгдэнэ */
+    .table-wrap {
+        overflow-x: auto;
+    }
+}
