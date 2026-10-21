@@ -54,8 +54,6 @@ class ComputerController extends Controller
             ->when($request->filled('created_by'), fn ($q) => $q->where('created_by', (int) $request->query('created_by')))
             ->when($this->date($request, 'date_from'), fn ($q, $d) => $q->where('created_at', '>=', $d->startOfDay()))
             ->when($this->date($request, 'date_to'), fn ($q, $d) => $q->where('created_at', '<=', $d->endOfDay()))
-            // Дэс дугаар салбар бүрт тусдаа тул «№»-ээр эрэмбэлэхэд салбараар бүлэглэнэ (Төв-1, Төв-2 … IT-1, IT-2 …)
-            ->when($sort === 'sequence_number', fn ($q) => $q->orderBy('branch_id'))
             ->orderBy($sort, $dir)
             ->when($sort !== 'id', fn ($q) => $q->orderBy('id', $dir));
     }
@@ -125,7 +123,7 @@ class ComputerController extends Controller
         $perPage = in_array((int) $request->query('per_page'), [15, 30, 50, 100], true) ? (int) $request->query('per_page') : 15;
 
         return view('computers.index', [
-            'computers' => $this->filtered($request)->with('branch:id,name,code')->paginate($perPage)->withQueryString(),
+            'computers' => $this->filtered($request)->with('branch:id,name')->paginate($perPage)->withQueryString(),
             'branches' => $request->user()->isSuperadmin() ? \App\Models\Branch::query()->orderBy('name')->pluck('name', 'id') : collect(),
             // Төлөвийн табуудын тоо: бусад шүүлтүүрийг тооцож, төлөвийг тооцохгүй
             'statusCounts' => $this->filtered($request, withStatus: false)->reorder()

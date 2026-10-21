@@ -59,7 +59,7 @@ class ComputersRegistered extends Notification
         $verb = $deleted ? 'устгалаа' : 'бүртгэлээ';
 
         $names = collect($this->computers)->take(5)
-            ->map(fn (Computer $c) => ($deleted ? '' : $c->branchSequenceLabel().' ').$c->name.' ('.$c->inventory_number.')')
+            ->map(fn (Computer $c) => ($deleted ? '' : $c->sequenceLabel().' ').$c->name.' ('.$c->inventory_number.')')
             ->implode("\n");
 
         $url = match (true) {

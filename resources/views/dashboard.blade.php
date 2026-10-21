@@ -19,7 +19,7 @@
         $byDept['Бусад ('.($deptRows->count() - 5).' хэлтэс)'] = (int) $deptRows->slice(5)->sum('c');
     }
     $maxDept = max(1, ...array_values($byDept ?: [1]));
-    $recent = Computer::with('branch:id,name,code')->latest()->limit(6)->get();
+    $recent = Computer::latest()->limit(6)->get();
     try { $expiring = Computer::warrantyExpiringWithin(60)->limit(5)->get(); } catch (\Throwable $e) { $expiring = collect(); }
 
     $slices = [
