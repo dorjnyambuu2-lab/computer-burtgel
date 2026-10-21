@@ -404,7 +404,23 @@ class Computer extends Model
     /** Жагсаалтад харагдах дэс дугаар: #12 */
     public function sequenceLabel(): string
     {
+        // Дэс дугаар салбар бүрт тусдаа тул бүх салбарыг хардаг хэрэглэгчид (Супер админ) салбартай нь: «IT-3»
+        $viewer = Auth::user();
+        if ($this->sequence_number && $viewer && ! $viewer->isBranchScoped() && $viewer->canManageComputers()) {
+            return $this->branchSequenceLabel();
+        }
+
         return $this->sequence_number ? '#'.$this->sequence_number : '—';
+    }
+
+    /** Салбарын код (байхгүй бол нэр) + дэс дугаар: «TOV-12», «IT-3» */
+    public function branchSequenceLabel(): string
+    {
+        if (! $this->sequence_number) {
+            return '—';
+        }
+
+        return $this->branch ? ($this->branch->code ?: $this->branch->name).'-'.$this->sequence_number : '#'.$this->sequence_number;
     }
 
     public function assignedUser(): BelongsTo
@@ -505,6 +521,14 @@ class Computer extends Model
         // "#12" гэж хайвал дэс дугаараар нь яг олно
         if (preg_match('/^#(\d+)$/', $term, $m)) {
             return $query->where('sequence_number', (int) $m[1]);
+        }
+
+        // «IT-3», «TOV-12» гэж хайвал тухайн салбарын дэс дугаараар (салбарын код эсвэл нэр)
+        if (preg_match('/^(.+)-(\d+)$/u', $term, $m)) {
+            $branch = Branch::query()->where('code', $m[1])->orWhere('name', $m[1])->value('id');
+            if ($branch) {
+                return $query->where('branch_id', $branch)->where('sequence_number', (int) $m[2]);
+            }
         }
 
         $like = '%'.addcslashes($term, '%_\\').'%';
