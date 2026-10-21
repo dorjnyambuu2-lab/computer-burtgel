@@ -26,18 +26,6 @@
         <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $errors->first() }}</div>
     @endif
 
-    {{-- Ангилаагүй төхөөрөмжүүдийг нэг дор автоматаар ангилах --}}
-    @if (($uncategorizedCount ?? 0) > 0)
-        <form method="POST" action="{{ route('computers.auto-categorize') }}"
-              class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            @csrf
-            <span>Ангилаагүй {{ $uncategorizedCount }} төхөөрөмж байна. Нэрээс нь автоматаар ангилах уу?</span>
-            <button type="submit" class="rounded-lg border border-amber-300 bg-white px-4 py-1.5 text-sm font-semibold text-amber-800 hover:bg-amber-100">
-                Бүгдийг автоматаар ангилах
-            </button>
-        </form>
-    @endif
-
     {{-- 1. Ажилтан сонгох --}}
     <form method="GET" action="{{ route('computers.bulk-assign') }}"
           class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

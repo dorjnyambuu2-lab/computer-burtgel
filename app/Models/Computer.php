@@ -377,16 +377,6 @@ class Computer extends Model
         $this->save();
     }
 
-    /** Иж бүрдлийн код: суурь дугаар (PC-20261020-001) */
-    public function kitCode(): ?string
-    {
-        if ($this->kit_parent_id) {
-            return $this->kitParent?->kitBase();
-        }
-
-        return $this->kitItems()->exists() ? $this->kitBase() : null;
-    }
-
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
@@ -415,10 +405,6 @@ class Computer extends Model
         return $this->belongsTo(User::class, 'assigned_user_id');
     }
 
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
 
     public function deleter(): BelongsTo
     {

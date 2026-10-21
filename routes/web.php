@@ -78,9 +78,6 @@ Route::middleware('auth')->group(function () {
         Route::get('requests', [AssetRequestController::class, 'index'])->name('requests.index');
         // "Төлөв ба хариу" маягтаас (PATCH) хадгалах
         Route::patch('requests/{assetRequest}', [AssetRequestController::class, 'update'])->name('requests.update');
-        // Доорх хоёр нь controller дотор approve()/reject() функцгүй тул ажилладаггүй. Хаана ч ашиглаагүй бол устгана.
-        Route::post('requests/{assetRequest}/approve', [AssetRequestController::class, 'approve'])->name('requests.approve');
-        Route::post('requests/{assetRequest}/reject', [AssetRequestController::class, 'reject'])->name('requests.reject');
 
 
         // Компьютерийн бүртгэл: харах, хайх, CSV татах, QR шошго, нэмэх/засах/устгах
@@ -104,7 +101,6 @@ Route::middleware('auth')->group(function () {
         Route::post('computers/multi', [ComputerBulkController::class, 'storeMultiple'])->name('computers.store-multi');
         // Компьютерийн мэдээллийг автоматаар уншиж бүртгэх скрипт (.bat)
         Route::get('computers/detect-script', [ComputerDetectController::class, 'script'])->name('computers.detect-script');
-        Route::post('computers/auto-categorize', [ComputerActionController::class, 'autoCategorize'])->name('computers.auto-categorize');
 
         // Компьютерийн мэдээллийн хуудаснаас: олгох, буцаан авах, засварт бүртгэх
         Route::post('computers/{computer}/assign', [ComputerActionController::class, 'assign'])->name('computers.assign');
