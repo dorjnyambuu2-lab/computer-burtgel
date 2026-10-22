@@ -17,6 +17,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $data = $request->validate([
+            'surname' => ['nullable', 'string', 'max:255'],
             'name'  => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
         ], [
@@ -26,6 +27,7 @@ class ProfileController extends Controller
             'email.unique'   => 'Энэ имэйл өөр хэрэглэгч дээр бүртгэлтэй байна.',
         ]);
 
+        $user->surname = filled($data['surname'] ?? null) ? trim($data['surname']) : null;
         $user->name = $data['name'];
         $user->email = $data['email'];
         $user->save();
