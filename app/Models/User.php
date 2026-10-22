@@ -63,7 +63,23 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
+            'last_seen_at' => 'datetime',
+            'is_online' => 'boolean',
         ];
+    }
+
+    /** Сүүлийн хэдэн минутад үйлдэл хийсэн бол онлайн гэж тооцно */
+    public const ONLINE_MINUTES = 5;
+
+    /** Одоо системд байгаа эсэх: гараагүй, сүүлийн 5 минутад хуудас нээсэн */
+    public function isOnline(): bool
+    {
+        return $this->is_online && $this->last_seen_at?->gte(now()->subMinutes(self::ONLINE_MINUTES));
+    }
+
+    public function scopeOnline($query)
+    {
+        return $query->where('is_online', true)->where('last_seen_at', '>=', now()->subMinutes(self::ONLINE_MINUTES));
     }
 
     /** Энэ хэрэглэгчид хариуцуулсан компьютерууд */

@@ -8,7 +8,8 @@
     $q = trim((string) request('q'));
     $role = request('role');
     $status = request('status');
-    $hasLast = Schema::hasColumn('users', 'last_login_at');
+    $hasLast = Schema::hasColumn('users', 'last_seen_at');
+    $presence = request('presence');
 
     $query = \App\Models\User::query();
     // Админ: зөвхөн өөрийн салбарын ажилтнууд (Супер админ, бусад админ, бусад салбар харагдахгүй)
@@ -27,6 +28,9 @@
     }
     if ($status === 'active') $query->where('is_active', true);
     if ($status === 'inactive') $query->where('is_active', false);
+    // Одоо системд байгаа (онлайн) эсэхээр шүүх
+    if ($hasLast && $presence === 'online') $query->online();
+    if ($hasLast && $presence === 'offline') $query->whereNot(fn ($w) => $w->online());
 
     // Салбараар шүүх
     $branchOptions = \App\Models\Branch::query()->orderBy('name')->pluck('name', 'id');
@@ -43,8 +47,8 @@
         }
     }
 
-    // Эрэмбэлэх: ?sort=name|username|role|email|last_login_at|created_at&dir=asc|desc
-    $sorts = ['name', 'username', 'role', 'email', 'created_at'] + ($hasLast ? [5 => 'last_login_at'] : []);
+    // Эрэмбэлэх: ?sort=name|username|role|email|last_seen_at|created_at&dir=asc|desc
+    $sorts = ['name', 'username', 'role', 'email', 'created_at'] + ($hasLast ? [5 => 'last_seen_at'] : []);
     $sort = in_array(request('sort'), $sorts, true) ? request('sort') : 'name';
     $dir = request('dir') === 'desc' ? 'desc' : 'asc';
     $sortLink = function (string $key, string $label) use ($sort, $dir) {
@@ -55,7 +59,7 @@
     };
 
     $users = \App\Support\RowNumber::paginate($query->orderBy($sort, $dir)->orderBy('id'), request(), 15, $rowNumber);
-    $filtered = $q !== '' || $role || $status || $branchFilter !== '' || request('date_from') || request('date_to');
+    $filtered = $q !== '' || $role || $status || $presence || $branchFilter !== '' || request('date_from') || request('date_to');
     $inp = 'rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
 @endphp
 
@@ -95,6 +99,13 @@
         <option value="active" @selected($status === 'active')>Идэвхтэй</option>
         <option value="inactive" @selected($status === 'inactive')>Идэвхгүй</option>
     </select>
+    @if ($hasLast)
+        <select name="presence" class="{{ $inp }}">
+            <option value="">Онлайн / офлайн</option>
+            <option value="online" @selected($presence === 'online')>🟢 Онлайн</option>
+            <option value="offline" @selected($presence === 'offline')>Офлайн</option>
+        </select>
+    @endif
     <input type="date" name="date_from" value="{{ request('date_from') }}" title="Бүртгэсэн: -аас" class="{{ $inp }}">
     <input type="date" name="date_to" value="{{ request('date_to') }}" title="Бүртгэсэн: хүртэл" class="{{ $inp }}">
     <input type="hidden" name="sort" value="{{ $sort }}"><input type="hidden" name="dir" value="{{ $dir }}">
@@ -112,19 +123,24 @@
                     <th class="w-12">№</th>
                     <th>{!! $sortLink('name', 'Нэр') !!}</th><th>{!! $sortLink('username', 'Нэвтрэх нэр') !!}</th>
                     <th>{!! $sortLink('role', 'Эрх') !!}</th><th>Салбар</th><th>{!! $sortLink('email', 'Имэйл') !!}</th>
-                    <th>{!! $hasLast ? $sortLink('last_login_at', 'Сүүлд идэвхтэй байсан') : 'Сүүлд идэвхтэй байсан' !!}</th>
+                    <th>{!! $hasLast ? $sortLink('last_seen_at', 'Сүүлд идэвхтэй байсан') : 'Сүүлд идэвхтэй байсан' !!}</th>
                     <th>{!! $sortLink('created_at', 'Бүртгэсэн') !!}</th><th>Төлөв</th><th class="text-right">Үйлдэл</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($users as $u)
                     @php
-                        $raw = $hasLast ? $u->getRawOriginal('last_login_at') : null;
-                        $last = $raw ? \Illuminate\Support\Carbon::parse($raw) : null;
+                        $last = $hasLast ? $u->last_seen_at : null;
+                        $online = $hasLast && $u->isOnline();
                     @endphp
                     <tr>
                         <td class="font-mono text-xs font-semibold text-slate-500">#{{ $users->firstItem() + $loop->index }}</td>
-                        <td class="font-semibold text-slate-900">{{ $u->name }}</td>
+                        <td class="font-semibold text-slate-900">
+                            <span class="inline-flex items-center gap-2">
+                                <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $online ? 'bg-emerald-500 ring-2 ring-emerald-100' : 'bg-slate-300' }}"
+                                      title="{{ $online ? 'Онлайн' : 'Офлайн' }}"></span>{{ $u->name }}
+                            </span>
+                        </td>
                         <td class="text-slate-600">{{ $u->username ?: '—' }}</td>
                         <td><span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $u->roleBadgeClass() }}">{{ $u->roleLabel() }}</span></td>
                         <td class="text-slate-600">
@@ -138,7 +154,11 @@
                         </td>
                         <td class="text-slate-600">{{ $u->email }}</td>
                         <td class="text-slate-600" @if ($last) title="{{ $last->format('Y-m-d H:i') }}" @endif>
-                            {{ $last ? $last->locale('mn')->diffForHumans() : '—' }}
+                            @if ($online)
+                                <span class="font-medium text-emerald-700">Онлайн</span>
+                            @else
+                                {{ $last ? $last->locale('mn')->diffForHumans() : '—' }}
+                            @endif
                         </td>
                         <td class="whitespace-nowrap text-slate-600">{{ $u->created_at?->format('Y-m-d') ?? '—' }}</td>
                         <td>

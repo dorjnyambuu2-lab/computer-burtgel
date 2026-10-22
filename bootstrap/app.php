@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
 
+        // Хэрэглэгч онлайн эсэхийг тодорхойлох «сүүлд харагдсан» цаг (доорх чиглүүлэлтүүдээс өмнө ажиллана)
+        $middleware->appendToGroup('web', \App\Http\Middleware\TrackLastSeen::class);
+
         // Ажилтан зөвхөн өөрийн хяналтын самбар руу хандана
         $middleware->appendToGroup('web', \App\Http\Middleware\RestrictEmployee::class);
 
