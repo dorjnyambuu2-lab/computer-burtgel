@@ -324,6 +324,16 @@
                                     @endforeach
                                 </datalist>
                             @endif
+                            @if ($name === 'ip_address')
+                                {{-- Энэ хуудсыг нээсэн компьютерийн дотоод сүлжээний IP, MAC-г серверээс авна --}}
+                                <div class="mt-2 flex flex-wrap items-center gap-2">
+                                    <button type="button" id="network-detect" data-url="{{ route('computers.network-info') }}"
+                                            class="!rounded-lg !border-blue-300 !bg-blue-50 !px-3 !py-1.5 !text-xs font-semibold !text-blue-700 hover:!bg-blue-100">
+                                        📡 IP, MAC автоматаар авах
+                                    </button>
+                                    <span id="network-status" class="text-xs text-slate-500">Бүртгэж буй компьютер дээрээ энэ хуудсыг нээсэн бол дарна</span>
+                                </div>
+                            @endif
                         @endif
 
                         @error($name)<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
@@ -422,6 +432,42 @@
 </script>
 
 @include('computers._warranty_script', ['purchaseId' => 'purchase_date', 'monthsId' => 'warranty_months', 'untilId' => 'warranty_until'])
+
+<script>
+// «IP, MAC автоматаар авах»: энэ хуудсыг нээсэн компьютерийн дотоод сүлжээний IP, MAC-г серверээс авч бөглөнө
+(function () {
+    const button = document.getElementById('network-detect');
+    if (!button) return;
+    const status = document.getElementById('network-status');
+    const ip = document.getElementById('ip_address');
+    const mac = document.getElementById('mac_address');
+    const say = function (text, cls) { status.textContent = text; status.className = 'text-xs ' + cls; };
+
+    button.addEventListener('click', function () {
+        button.disabled = true;
+        say('Сүлжээг шалгаж байна…', 'text-slate-500');
+        fetch(button.dataset.url, { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+            .then(function (d) {
+                if (!d.ip) {
+                    say('IP олдсонгүй. Компьютер дотоод сүлжээнд залгагдсан эсэхийг шалгаад дахин оролдоно уу.', 'text-rose-600');
+                    return;
+                }
+                // Гараар бичсэн өөр утгыг асуулгүй дарж бичихгүй
+                const replace = function (input, value) {
+                    if (!input || !value || input.value === value) return;
+                    if (input.value.trim() === '' || confirm(input.value + ' гэсэн утгыг ' + value + ' болгох уу?')) input.value = value;
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                };
+                replace(ip, d.ip);
+                replace(mac, d.mac);
+                say('✓ IP ' + d.ip + (d.mac ? ', MAC ' + d.mac : ' (MAC олдсонгүй, гараар бичнэ үү)'), 'font-semibold text-emerald-700');
+            })
+            .catch(function () { say('Сүлжээний мэдээлэл авч чадсангүй.', 'text-rose-600'); })
+            .finally(function () { button.disabled = false; });
+    });
+})();
+</script>
 
 <script>
 // Үйлдвэрлэгчийг сонгоход тухайн брэндийн загваруудыг эхэнд санал болгоно
