@@ -16,7 +16,7 @@ class ClientNetwork
     /** Компьютер гэж тооцох ангилал (IP, MAC-тай): процессор, нөүтбүк, ангилалгүй */
     private const COMPUTER_CATEGORIES = ['processor', 'laptop'];
 
-    /** @return array{ip: ?string, mac: ?string, local: bool} */
+    /** @return array{ip: ?string, mac: ?string, local: bool, random: bool} */
     public static function detect(Request $request): array
     {
         $ip = (string) $request->ip();
@@ -33,6 +33,8 @@ class ClientNetwork
             'ip' => filter_var($ip, FILTER_VALIDATE_IP) && ! in_array($ip, ['127.0.0.1', '::1'], true) ? $ip : null,
             'mac' => $mac,
             'local' => $local,
+            // Санамсаргүй MAC хожим өөрчлөгддөг тул компьютерийг таних боломжгүй
+            'random' => Computer::isRandomMac($mac),
         ];
     }
 
@@ -41,7 +43,7 @@ class ClientNetwork
      *  - MAC нь таарсан компьютер байвал IP-г нь шинэчилнэ
      *  - Ажилтанд ганц компьютер байгаа бөгөөд MAC нь хоосон бол IP, MAC-г бөглөнө
      *  - Аль компьютер болохыг тодорхойлох боломжгүй (хэд хэдэн, эсвэл өөр MAC-тай) бол юу ч өөрчлөхгүй
-     * Сервер дээрээс (127.0.0.1) нэвтэрсэн бол алгасна — тэр нь ажилтны компьютер биш.
+     * Сервер дээрээс (127.0.0.1) нэвтэрсэн, эсвэл санамсаргүй (random) MAC-тай бол алгасна.
      *
      * @return Computer|null шинэчилсэн компьютер
      */
@@ -52,7 +54,7 @@ class ClientNetwork
         }
 
         $net = self::detect($request);
-        if ($net['local'] || ! $net['ip']) {
+        if ($net['local'] || ! $net['ip'] || $net['random']) {
             return null;
         }
 
@@ -110,8 +112,6 @@ class ClientNetwork
 
     private static function cleanMac(?string $mac): ?string
     {
-        $mac = strtoupper(str_replace('-', ':', trim((string) $mac)));
-
-        return preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/', $mac) && $mac !== 'FF:FF:FF:FF:FF:FF' ? $mac : null;
+        return Computer::normalizeMac($mac);
     }
 }

@@ -446,6 +446,12 @@
                     say('Бөглөсөнгүй: энэ бол серверийн хаяг. Бүртгэж буй компьютер дээрээ системийг нээгээд дарна уу, эсвэл ажилтан нэвтрэхэд автоматаар бүртгэгдэнэ.', 'text-amber-700');
                     return;
                 }
+                // Санамсаргүй MAC хожим өөрчлөгддөг — IP-г л бөглөнө
+                if (d.random) {
+                    if (ip && (ip.value.trim() === '' || confirm(ip.value + ' гэсэн утгыг ' + d.ip + ' болгох уу?'))) ip.value = d.ip;
+                    say('IP ' + d.ip + ' бөглөлөө. MAC ' + d.mac + ' нь санамсаргүй (random) тул бүртгэхгүй: Wi-Fi тохиргооноос «Random hardware addresses»-ийг унтраагаад дахин дарна уу.', 'text-amber-700');
+                    return;
+                }
                 // Гараар бичсэн өөр утгыг асуулгүй дарж бичихгүй
                 const replace = function (input, value) {
                     if (!input || !value || input.value === value) return;

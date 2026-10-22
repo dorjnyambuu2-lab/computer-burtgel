@@ -114,6 +114,25 @@ class Computer extends Model
         static::saving(fn (Computer $computer) => \App\Support\SpecSuggestions::canonicalize($computer));
         static::saved(fn () => \App\Support\SpecSuggestions::flush());
 
+        // MAC-г нэг хэлбэрээр хадгална: aa-bb-cc-dd-ee-ff → AA:BB:CC:DD:EE:FF
+        static::saving(function (Computer $computer) {
+            if ($computer->isDirty('mac_address')) {
+                $computer->mac_address = self::normalizeMac($computer->mac_address) ?? (filled($computer->mac_address) ? $computer->mac_address : null);
+            }
+        });
+
+        // Нэг IP нэг зэрэг ганц компьютерт байна: шинэ компьютер авсан IP-г хуучин эзэмшигчээс нь чөлөөлнө (DHCP дахин олгосон)
+        static::saved(function (Computer $computer) {
+            if ($computer->wasChanged('ip_address') && filled($computer->ip_address)) {
+                static::withoutGlobalScopes()->whereNull('deleted_at')
+                    ->where('ip_address', $computer->ip_address)->whereKeyNot($computer->id)
+                    ->get()->each(function (Computer $old) {
+                        $old->ip_address = null;
+                        $old->save(); // үйлдлийн түүхэнд бичигдэнэ
+                    });
+            }
+        });
+
         // Засварын дараалал: төлөв «Засварт» болмогц дарааллын төгсгөлд орж, өөр төлөвт шилжихэд гарна.
         // Ингэснээр засах форм, засварт бүртгэх товч, хүсэлтээс гээд аль ч замаар орсон дараалал зөв байна.
         static::saving(function (Computer $computer) {
@@ -204,11 +223,31 @@ class Computer extends Model
      * «Овог», «Нэр» талбарт бичсэн хүнтэй таарах системийн хэрэглэгч:
      * тухайн салбарын идэвхтэй хэрэглэгчдээс нэр (овог бичсэн бол овог нь ч) таарах ганц хүн. Олон бол null.
      */
+    /** MAC-г AA:BB:CC:DD:EE:FF хэлбэрт; буруу бол null */
+    public static function normalizeMac(?string $mac): ?string
+    {
+        $mac = strtoupper(str_replace('-', ':', trim((string) $mac)));
+
+        return preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/', $mac) && $mac !== 'FF:FF:FF:FF:FF:FF' ? $mac : null;
+    }
+
+    /**
+     * Санамсаргүй (random / locally administered) MAC эсэх: эхний байтын 2-р бит асаалттай —
+     * 2-р тэмдэгт нь 2, 6, A, E. Windows-ийн «Random hardware addresses», виртуал машин ийм MAC өгдөг
+     * бөгөөд хожим өөрчлөгддөг тул компьютерийг таних боломжгүй.
+     */
+    public static function isRandomMac(?string $mac): bool
+    {
+        $mac = self::normalizeMac($mac);
+
+        return $mac !== null && in_array($mac[1], ['2', '6', 'A', 'E'], true);
+    }
+
     public function matchHolderUser(): ?User
     {
         $name = trim((string) $this->holder_name);
         // Шинэ бүртгэлд салбарыг дараа нь (creating) онооно — Админы салбараар тооцно
-        $branchId = $this->branch_id ?? auth()->user()?->branch_id;
+        $branchId = $this->branch_id ?? \Illuminate\Support\Facades\Auth::user()?->branch_id;
         if ($name === '' || ! $branchId) {
             return null;
         }

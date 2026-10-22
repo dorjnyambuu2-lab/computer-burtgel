@@ -38,6 +38,11 @@ class ComputerRequest extends FormRequest
             'mac_address' => ['nullable', 'regex:/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/',
                 // MAC нь төхөөрөмж бүрт өөр — өөр компьютерт бүртгэлтэй бол хадгалахгүй (AA-BB.. / aa:bb.. бичлэгийг ижил гэж үзнэ)
                 function (string $attribute, mixed $value, \Closure $fail) use ($id) {
+                    if (\App\Models\Computer::isRandomMac((string) $value)) {
+                        $fail('Энэ бол санамсаргүй (random) MAC — хожим өөрчлөгдөнө. Компьютерийн Wi-Fi тохиргооноос «Random hardware addresses»-ийг унтраагаад дахин авна уу.');
+
+                        return;
+                    }
                     $other = \App\Models\Computer::withoutGlobalScopes()->whereNull('deleted_at')
                         ->whereRaw("upper(replace(mac_address, '-', ':')) = ?", [strtoupper(str_replace('-', ':', (string) $value))])
                         ->when($id, fn ($q) => $q->whereKeyNot($id))
