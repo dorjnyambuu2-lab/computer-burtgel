@@ -121,15 +121,27 @@ class Computer extends Model
             }
         });
 
-        // Нэг IP нэг зэрэг ганц компьютерт байна: шинэ компьютер авсан IP-г хуучин эзэмшигчээс нь чөлөөлнө (DHCP дахин олгосон)
-        static::saved(function (Computer $computer) {
-            if ($computer->wasChanged('ip_address') && filled($computer->ip_address)) {
+        // Нэг IP нэг зэрэг ганц компьютерт байна (өгөгдлийн санд unique): ажилтан нэвтрэхэд автоматаар авсан IP
+        // өөр компьютерт бүртгэлтэй бол тэр нь хуучирсан (DHCP дахин олгосон) тул хадгалахаас өмнө чөлөөлнө.
+        // Формоор бичихэд UniqueNetworkAddress алдаа өгнө.
+        static::saving(function (Computer $computer) {
+            if ($computer->isDirty('ip_address') && filled($computer->ip_address)) {
                 static::withoutGlobalScopes()->whereNull('deleted_at')
-                    ->where('ip_address', $computer->ip_address)->whereKeyNot($computer->id)
+                    ->where('ip_address', $computer->ip_address)
+                    ->when($computer->exists, fn ($q) => $q->whereKeyNot($computer->id))
                     ->get()->each(function (Computer $old) {
                         $old->ip_address = null;
                         $old->save(); // үйлдлийн түүхэнд бичигдэнэ
                     });
+            }
+        });
+
+        // Хогийн сав руу хийхэд IP, MAC-г чөлөөлнө — тэр хаягаар шинэ төхөөрөмж бүртгэж болно (хуучин утга түүхэнд үлдэнэ)
+        static::deleted(function (Computer $computer) {
+            if (! $computer->isForceDeleting() && ($computer->ip_address || $computer->mac_address)) {
+                $computer->ip_address = null;
+                $computer->mac_address = null;
+                $computer->save();
             }
         });
 

@@ -13,6 +13,7 @@ use App\Support\Warranty;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Rules\UniqueNetworkAddress;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -94,8 +95,8 @@ class ComputerBulkController extends Controller
             'rows.*.ram_gb' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'rows.*.storage' => ['nullable', 'string', 'max:255'],
             'rows.*.os' => ['nullable', 'string', 'max:255'],
-            'rows.*.ip_address' => ['nullable', 'ip'],
-            'rows.*.mac_address' => ['nullable', 'regex:/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/'],
+            'rows.*.ip_address' => ['nullable', 'ip', 'distinct:ignore_case', new UniqueNetworkAddress('ip_address')],
+            'rows.*.mac_address' => ['nullable', 'regex:/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/', 'distinct:ignore_case', new UniqueNetworkAddress('mac_address')],
             'rows.*.specs' => ['nullable', 'string', 'max:500'],
             'rows.*.purchase_price' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
         ], [
@@ -103,6 +104,8 @@ class ComputerBulkController extends Controller
             'warranty_until.after_or_equal' => 'Баталгаа дуусах огноо худалдан авсан огнооноос хойш байх ёстой.',
             'user_id.exists' => 'Сонгосон хэрэглэгч идэвхгүй эсвэл олдсонгүй.',
             'rows.*.ip_address.ip' => 'IP хаяг буруу байна.',
+            'rows.*.ip_address.distinct' => 'Ижил IP хаяг хоёр төхөөрөмжид бичигдсэн байна.',
+            'rows.*.mac_address.distinct' => 'Ижил MAC хаяг хоёр төхөөрөмжид бичигдсэн байна.',
             'rows.*.mac_address.regex' => 'MAC хаяг AA:BB:CC:DD:EE:FF хэлбэртэй байх ёстой.',
             'rows.*.ram_gb.integer' => 'RAM бүхэл тоо байх ёстой.',
         ]);
@@ -236,8 +239,8 @@ class ComputerBulkController extends Controller
             'items.*.ram_gb' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'items.*.storage' => ['nullable', 'string', 'max:255'],
             'items.*.os' => ['nullable', 'string', 'max:255'],
-            'items.*.ip_address' => ['nullable', 'ip'],
-            'items.*.mac_address' => ['nullable', 'regex:/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/'],
+            'items.*.ip_address' => ['nullable', 'ip', 'distinct:ignore_case', new UniqueNetworkAddress('ip_address')],
+            'items.*.mac_address' => ['nullable', 'regex:/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/', 'distinct:ignore_case', new UniqueNetworkAddress('mac_address')],
             'items.*.specs' => ['nullable', 'string', 'max:500'],
             'name' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::enum(ComputerStatus::class)],
@@ -256,6 +259,8 @@ class ComputerBulkController extends Controller
         ], [
             'categories.required_without' => 'Ангилал сонгоно уу.',
             'items.*.ip_address.ip' => 'IP хаяг буруу байна.',
+            'items.*.ip_address.distinct' => 'Ижил IP хаяг хоёр төхөөрөмжид бичигдсэн байна.',
+            'items.*.mac_address.distinct' => 'Ижил MAC хаяг хоёр төхөөрөмжид бичигдсэн байна.',
             'items.*.mac_address.regex' => 'MAC хаяг AA:BB:CC:DD:EE:FF хэлбэртэй байх ёстой.',
             'items.*.ram_gb.integer' => 'RAM бүхэл тоо байх ёстой.',
             'assigned_user_id.exists' => 'Сонгосон хэрэглэгч идэвхгүй эсвэл олдсонгүй.',
