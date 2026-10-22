@@ -10,34 +10,43 @@
     $defaultRole = request('role', array_key_exists('admin', $roles) ? 'admin' : 'employee');
     $branchAdmin = $me->isBranchScoped();
     $isSelf = $isEdit && $user->id === $me->id;
+    // Хэсгийн дугаарын тэмдэг
+    $step = fn (int $n) => '<span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">'.$n.'</span>';
 @endphp
 
 <div class="mx-auto max-w-3xl space-y-6">
+    <p class="text-sm text-slate-500"><span class="text-rose-500">*</span> тэмдэгтэй талбарыг заавал бөглөнө.</p>
+
     @if ($errors->any())
         <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             Мэдээллээ шалгана уу: {{ $errors->count() }} талбарт алдаа байна.
         </div>
     @endif
 
+    {{-- 1. Хувийн мэдээлэл --}}
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="mb-4 text-base font-bold">Үндсэн мэдээлэл</h2>
+        <h2 class="mb-1 flex items-center gap-2 text-base font-bold">{!! $step(1) !!} Хувийн мэдээлэл</h2>
+        <p class="mb-4 text-xs text-slate-500">Төхөөрөмж олгоход хариуцагчийн овог, нэр болж бичигдэнэ.</p>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
+                <label for="surname" class="{{ $lb }}">Овог</label>
+                <input id="surname" name="surname" type="text" value="{{ old('surname', $user->surname) }}" maxlength="255" class="{{ $in }}" placeholder="Жишээ: Батын" autocomplete="off">
+                @error('surname')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
+            <div>
                 <label for="name" class="{{ $lb }}">Нэр <span class="text-rose-500">*</span></label>
-                <input id="name" name="name" type="text" value="{{ old('name', $user->name) }}" required class="{{ $in }}" placeholder="Бүтэн нэр">
+                <input id="name" name="name" type="text" value="{{ old('name', $user->name) }}" required class="{{ $in }}" placeholder="Жишээ: Тулга">
                 @error('name')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
             </div>
-            <div>
-                <label for="username" class="{{ $lb }}">Нэвтрэх нэр <span class="text-rose-500">*</span></label>
-                <input id="username" name="username" type="text" value="{{ old('username', $user->username) }}" required class="{{ $in }}" placeholder="Жишээ: bat.erdene" autocomplete="off">
-                @error('username')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-            </div>
-            <div>
-                <label for="email" class="{{ $lb }}">Имэйл <span class="text-rose-500">*</span></label>
-                <input id="email" name="email" type="email" value="{{ old('email', $user->email) }}" required class="{{ $in }}" placeholder="name@company.mn">
-                @error('email')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-            </div>
-            <div>
+        </div>
+    </section>
+
+    {{-- 2. Нэвтрэх эрх: эрх, нэвтрэх нэр, имэйл, нууц үг, төлөв --}}
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 class="mb-1 flex items-center gap-2 text-base font-bold">{!! $step(2) !!} Нэвтрэх эрх</h2>
+        <p class="mb-4 text-xs text-slate-500">Хэрэглэгч системд эдгээр мэдээллээр нэвтэрнэ.</p>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div class="md:col-span-2">
                 <label for="role" class="{{ $lb }}">Эрх <span class="text-rose-500">*</span></label>
                 @if ($isSelf)
                     <input type="hidden" name="role" value="{{ $user->role }}">
@@ -51,48 +60,48 @@
                             <option value="{{ $k }}" @selected(old('role', $user->role ?: $defaultRole) === $k)>{{ $v }}</option>
                         @endforeach
                     </select>
-                    @if ($branchAdmin)
-                        <p class="mt-1 text-xs text-slate-500">Та өөрийн салбарын ажилтныг бүртгэнэ.</p>
-                    @elseif (! $isEdit)
-                        <p class="mt-1 text-xs text-slate-500">Ажилтныг тухайн салбарын админ бүртгэнэ.</p>
-                    @endif
+                    <p class="mt-1 text-xs text-slate-500">
+                        @if ($branchAdmin)
+                            Ажилтан зөвхөн өөрт олгосон төхөөрөмжөө харж, хүсэлт илгээнэ.
+                        @else
+                            Админ — салбарынхаа төхөөрөмж, ажилтныг удирдана. Ажилтан — өөрт олгосон төхөөрөмжөө харна.
+                        @endif
+                    </p>
                 @endif
                 @error('role')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
             </div>
-        </div>
-    </section>
-
-    {{-- Ажлын мэдээлэл: компьютерт энэ хэрэглэгчийг хариуцагчаар сонгоход «Байршил ба хариуцагч» хэсэгт автоматаар бөглөгдөнө --}}
-    @php
-        $jobFields = [
-            'surname'    => ['Овог', 'Жишээ: Батын'],
-            'unit'       => ['Нэгж', 'Жишээ: Захиргааны нэгж'],
-            'department' => ['Алба', 'Жишээ: Мэдээллийн технологийн алба'],
-            'position'   => ['Албан тушаал', 'Жишээ: Ахлах мэргэжилтэн'],
-        ];
-        // Өмнө бичигдсэн утгуудыг санал болгоно (ижил нэрийг өөр өөрөөр бичихээс сэргийлнэ)
-        $jobComputerField = ['surname' => 'holder_surname', 'unit' => 'unit', 'department' => 'department', 'position' => 'position'];
-        $jobSuggest = fn (string $field) => \App\Models\User::query()->whereNotNull($field)->distinct()->pluck($field)
-            ->merge(\App\Models\Computer::query()->whereNotNull($jobComputerField[$field])->distinct()->pluck($jobComputerField[$field]))
-            ->map(fn ($v) => trim((string) $v))->filter()->unique()->sort()->values();
-    @endphp
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="mb-1 text-base font-bold">Ажлын мэдээлэл</h2>
-        <p class="mb-4 text-xs text-slate-500">Компьютерт энэ хэрэглэгчийг хариуцагчаар сонгоход эдгээр нь автоматаар бөглөгдөнө.</p>
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            @foreach ($jobFields as $field => [$label, $placeholder])
-                <div>
-                    <label for="{{ $field }}" class="{{ $lb }}">{{ $label }}</label>
-                    <input id="{{ $field }}" name="{{ $field }}" type="text" value="{{ old($field, $user->$field) }}" maxlength="255"
-                           list="{{ $field }}-options" class="{{ $in }}" placeholder="{{ $placeholder }}" autocomplete="off">
-                    <datalist id="{{ $field }}-options">
-                        @foreach ($jobSuggest($field) as $option)
-                            <option value="{{ $option }}"></option>
-                        @endforeach
-                    </datalist>
-                    @error($field)<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-                </div>
-            @endforeach
+            <div>
+                <label for="username" class="{{ $lb }}">Нэвтрэх нэр <span class="text-rose-500">*</span></label>
+                <input id="username" name="username" type="text" value="{{ old('username', $user->username) }}" required class="{{ $in }}" placeholder="Жишээ: tulga.b" autocomplete="off">
+                <p class="mt-1 text-xs text-slate-500">Нэвтрэхдээ бичнэ. Латин үсэг, тоо ашиглана.</p>
+                @error('username')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                <label for="email" class="{{ $lb }}">Имэйл <span class="text-rose-500">*</span></label>
+                <input id="email" name="email" type="email" value="{{ old('email', $user->email) }}" required class="{{ $in }}" placeholder="name@company.mn">
+                @error('email')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                <label for="password" class="{{ $lb }}">Нууц үг @unless($isEdit)<span class="text-rose-500">*</span>@endunless</label>
+                <input id="password" name="password" type="password" @required(! $isEdit) autocomplete="new-password" class="{{ $in }}">
+                <p class="mt-1 text-xs text-slate-500">{{ $isEdit ? 'Солихгүй бол хоосон үлдээнэ.' : 'Хамгийн багадаа 8 тэмдэгт.' }}</p>
+                @error('password')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                <label for="password_confirmation" class="{{ $lb }}">Нууц үг давтах @unless($isEdit)<span class="text-rose-500">*</span>@endunless</label>
+                <input id="password_confirmation" name="password_confirmation" type="password" @required(! $isEdit) autocomplete="new-password" class="{{ $in }}">
+            </div>
+            <div class="md:col-span-2">
+                <input type="hidden" name="is_active" value="0">
+                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm has-[:checked]:border-emerald-300 has-[:checked]:bg-emerald-50">
+                    <input type="checkbox" name="is_active" value="1" @checked($active) @disabled($isSelf) class="mt-0.5 h-4 w-4 rounded border-slate-300">
+                    <span>
+                        <span class="block font-semibold text-slate-900">Идэвхтэй</span>
+                        <span class="block text-xs text-slate-500">Тэмдэглээгүй бол хэрэглэгч системд нэвтэрч чадахгүй.</span>
+                    </span>
+                </label>
+                @error('is_active')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
         </div>
     </section>
 
@@ -106,12 +115,12 @@
     @if ($branchAdmin)
         {{-- Админ: ажилтан үргэлж өөрийн салбарт --}}
         <section class="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700">
-            <h2 class="mb-1 text-base font-bold text-slate-900">Салбар</h2>
+            <h2 class="mb-1 flex items-center gap-2 text-base font-bold text-slate-900">{!! $step(3) !!} Салбар</h2>
             <b>{{ $me->branch?->name }}</b> — таны салбар. Ажилтан энэ салбарт бүртгэгдэнэ.
         </section>
     @else
     <section id="branch-section" class="rounded-2xl border-2 border-blue-200 bg-white p-6 shadow-sm">
-        <h2 class="mb-1 text-base font-bold">Хариуцах салбар <span class="text-rose-500">*</span></h2>
+        <h2 class="mb-1 flex items-center gap-2 text-base font-bold">{!! $step(3) !!} Салбар <span class="text-rose-500">*</span></h2>
         <p id="branch-help" class="mb-4 text-xs text-slate-500"></p>
 
         <div>
@@ -161,6 +170,7 @@
         @error('branch_id')<p class="mt-2 text-xs text-rose-600">{{ $message }}</p>@enderror
     </section>
     <section id="branch-all" class="hidden rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+        <h2 class="mb-1 flex items-center gap-2 text-base font-bold text-slate-900">{!! $step(3) !!} Салбар</h2>
         <b>Супер админ</b> бүх салбарыг хариуцдаг тул салбар сонгох шаардлагагүй.
     </section>
     <script>
@@ -262,30 +272,37 @@
     </script>
     @endif
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="mb-1 text-base font-bold">Нууц үг</h2>
-        @if ($isEdit)<p class="mb-4 text-xs text-slate-500">Солихгүй бол хоосон үлдээнэ.</p>@else<p class="mb-4 text-xs text-slate-500">Хамгийн багадаа 8 тэмдэгт.</p>@endif
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-                <label for="password" class="{{ $lb }}">Нууц үг @unless($isEdit)<span class="text-rose-500">*</span>@endunless</label>
-                <input id="password" name="password" type="password" @required(! $isEdit) autocomplete="new-password" class="{{ $in }}">
-                @error('password')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-            </div>
-            <div>
-                <label for="password_confirmation" class="{{ $lb }}">Нууц үг давтах</label>
-                <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" class="{{ $in }}">
-            </div>
-        </div>
-    </section>
 
+    {{-- 4. Ажлын мэдээлэл: төхөөрөмж олгоход «Байршил ба хариуцагч» хэсэгт автоматаар бичигдэнэ --}}
+    @php
+        $jobFields = [
+            'unit'       => ['Нэгж', 'Жишээ: Захиргааны нэгж'],
+            'department' => ['Алба', 'Жишээ: МТ алба'],
+            'position'   => ['Албан тушаал', 'Жишээ: Ахлах мэргэжилтэн'],
+        ];
+        // Өмнө бичигдсэн утгуудыг санал болгоно (ижил нэрийг өөр өөрөөр бичихээс сэргийлнэ)
+        $jobSuggest = fn (string $field) => \App\Models\User::query()->whereNotNull($field)->distinct()->pluck($field)
+            ->merge(\App\Models\Computer::query()->whereNotNull($field)->distinct()->pluck($field))
+            ->map(fn ($v) => trim((string) $v))->filter()->unique()->sort()->values();
+    @endphp
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="mb-3 text-base font-bold">Төлөв</h2>
-        <input type="hidden" name="is_active" value="0">
-        <label class="inline-flex cursor-pointer items-center gap-3 text-sm">
-            <input type="checkbox" name="is_active" value="1" @checked($active) @disabled($isSelf) class="h-4 w-4 rounded border-slate-300">
-            Идэвхтэй (системд нэвтрэх эрхтэй)
-        </label>
-        @error('is_active')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+        <h2 class="mb-1 flex items-center gap-2 text-base font-bold">{!! $step(4) !!} Ажлын мэдээлэл <span class="text-xs font-normal text-slate-400">· заавал биш</span></h2>
+        <p class="mb-4 text-xs text-slate-500">Төхөөрөмж олгоход «Байршил ба хариуцагч» хэсэгт автоматаар бичигдэнэ. Бичиж эхлэхэд өмнө бүртгэсэн утгууд санал болгогдоно.</p>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            @foreach ($jobFields as $field => [$label, $placeholder])
+                <div>
+                    <label for="{{ $field }}" class="{{ $lb }}">{{ $label }}</label>
+                    <input id="{{ $field }}" name="{{ $field }}" type="text" value="{{ old($field, $user->$field) }}" maxlength="255"
+                           list="{{ $field }}-options" class="{{ $in }}" placeholder="{{ $placeholder }}" autocomplete="off">
+                    <datalist id="{{ $field }}-options">
+                        @foreach ($jobSuggest($field) as $option)
+                            <option value="{{ $option }}"></option>
+                        @endforeach
+                    </datalist>
+                    @error($field)<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                </div>
+            @endforeach
+        </div>
     </section>
 
     <div class="sticky bottom-0 -mx-4 flex items-center justify-end gap-3 border-t border-slate-200 bg-white/90 px-4 py-4 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
