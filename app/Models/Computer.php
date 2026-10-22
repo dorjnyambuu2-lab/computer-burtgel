@@ -199,7 +199,7 @@ class Computer extends Model
         static::saving(function (Computer $computer) {
             // Хариуцагчгүй компьютерт бичсэн овог, нэр салбарын ганц хэрэглэгчтэй таарвал тэр ажилтанд олгоно
             // (буцааж авч хариуцагчийг арилгаж буй үед биш)
-            if (! $computer->assigned_user_id && ! $computer->isDirty('assigned_user_id') && ($owner = $computer->matchHolderUser())) {
+            if (! $computer->assigned_user_id && ! $computer->getOriginal('assigned_user_id') && ($owner = $computer->matchHolderUser())) {
                 $computer->assigned_user_id = $owner->id;
             }
 
