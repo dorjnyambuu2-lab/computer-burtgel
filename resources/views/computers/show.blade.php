@@ -60,9 +60,12 @@
         ]),
         'Байршил ба хариуцагч' => [
             'Салбар' => $computer->branch?->name,
-            'Алба хэлтэс' => $computer->department,
+            'Нэгж' => $computer->unit,
+            'Алба' => $computer->department,
+            'Албан тушаал' => $computer->position,
             'Байршил' => $computer->location,
             'Хариуцагч' => $holderName,
+            'Овог нэр' => trim($computer->holder_surname.' '.$computer->holder_name) ?: null,
             'Хүлээн авсан баталгаа' => $acknowledgement,
         ],
         'Худалдан авалт ба баталгаа' => [

@@ -75,9 +75,13 @@
         ],
         'Байршил ба хариуцагч' => [
             ['branch_id', 'Салбар', 'branch', ['required' => true]],
-            ['department', 'Алба хэлтэс', 'text', []],
+            ['unit', 'Нэгж', 'text', ['placeholder' => 'Жишээ: Захиргааны нэгж']],
+            ['department', 'Алба', 'text', ['placeholder' => 'Жишээ: Мэдээллийн технологийн алба']],
+            ['position', 'Албан тушаал', 'text', ['placeholder' => 'Жишээ: Ахлах мэргэжилтэн']],
             ['location', 'Байршил', 'text', ['placeholder' => 'Байр, давхар, өрөө']],
-            ['assigned_user_id', 'Хариуцагч', 'assigned_user', []],
+            ['assigned_user_id', 'Хариуцагч (системийн хэрэглэгч)', 'assigned_user', []],
+            ['holder_surname', 'Овог', 'text', ['placeholder' => 'Хариуцагчийн овог']],
+            ['holder_name', 'Нэр', 'text', ['placeholder' => 'Хариуцагчийн нэр']],
         ],
         'Худалдан авалт ба баталгаа' => [
             ['purchase_date', 'Худалдан авсан огноо', 'date', []],
@@ -294,7 +298,7 @@
                             <select id="{{ $name }}" name="{{ $name }}" class="{{ $in }}">
                                 <option value="">— Оноогоогүй —</option>
                                 @foreach ($employeeList as $emp)
-                                    <option value="{{ $emp->id }}" @selected((string) $val($name) === (string) $emp->id)>
+                                    <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" @selected((string) $val($name) === (string) $emp->id)>
                                         {{ $emp->name }} ({{ $emp->username ?: $emp->email }}) · {{ $emp->roleLabel() }}
                                     </option>
                                 @endforeach
@@ -434,6 +438,21 @@
 @include('computers._warranty_script', ['purchaseId' => 'purchase_date', 'monthsId' => 'warranty_months', 'untilId' => 'warranty_until'])
 
 <script>
+// Хариуцагч (системийн хэрэглэгч) сонгоход «Нэр» хоосон эсвэл өмнө автоматаар бөглөсөн бол хэрэглэгчийн нэрээр бөглөнө
+(function () {
+    const holder = document.getElementById('assigned_user_id');
+    const name = document.getElementById('holder_name');
+    if (!holder || !name) return;
+    let autoValue = null;
+    holder.addEventListener('change', function () {
+        const picked = holder.selectedOptions[0] && holder.selectedOptions[0].dataset.name;
+        if (name.value.trim() === '' || name.value === autoValue) {
+            name.value = picked || '';
+            autoValue = name.value;
+        }
+    });
+})();
+
 // «IP, MAC автоматаар авах»: энэ хуудсыг нээсэн компьютерийн дотоод сүлжээний IP, MAC-г серверээс авч бөглөнө
 (function () {
     const button = document.getElementById('network-detect');

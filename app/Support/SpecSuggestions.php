@@ -89,7 +89,7 @@ class SpecSuggestions
     private const COMPUTER_CATEGORIES = ['processor', 'laptop'];
 
     /** Гараар бичсэн утгыг жагсаалтын хэлбэрт оруулах талбарууд («dell» → «Dell») */
-    public const LEARNED_FIELDS = ['brand', 'model', 'cpu', 'storage', 'os', 'specs', 'department', 'location'];
+    public const LEARNED_FIELDS = ['brand', 'model', 'cpu', 'storage', 'os', 'specs', 'department', 'unit', 'position', 'location'];
 
     private static ?array $suggest = null;
     private static ?array $modelsByBrand = null;
@@ -112,6 +112,8 @@ class SpecSuggestions
             'storage' => self::merge(self::STORAGE, self::learned('storage')),
             'os' => self::merge(self::OS, self::learned('os')),
             'department' => self::learned('department'),
+            'unit' => self::learned('unit'),
+            'position' => self::learned('position'),
             'location' => self::learned('location'),
         ];
     }

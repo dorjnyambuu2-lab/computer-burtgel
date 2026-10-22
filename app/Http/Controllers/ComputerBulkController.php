@@ -168,7 +168,11 @@ class ComputerBulkController extends Controller
                     'warranty_until' => $data['warranty_until'] ?? null,
                     'branch_id' => $data['branch_id'] ?? null, // Админд model өөрийн салбарыг онооно
                     'department' => $data['department'] ?? null,
+                    'unit' => $data['unit'] ?? null,
+                    'position' => $data['position'] ?? null,
                     'location' => $data['location'] ?? null,
+                    'holder_surname' => $data['holder_surname'] ?? null,
+                    'holder_name' => $data['holder_name'] ?? null,
                     'status' => $status,
                     'assigned_user_id' => $user?->id, // model нь assigned_to-г синк хийнэ
                     'kit_parent_id' => $main?->id,
@@ -239,7 +243,11 @@ class ComputerBulkController extends Controller
             'status' => ['nullable', Rule::enum(ComputerStatus::class)],
             'branch_id' => [$request->user()->isSuperadmin() ? 'required' : 'nullable', 'integer', 'exists:branches,id'],
             'department' => ['nullable', 'string', 'max:255'],
+            'unit' => ['nullable', 'string', 'max:255'],
+            'position' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
+            'holder_surname' => ['nullable', 'string', 'max:255'],
+            'holder_name' => ['nullable', 'string', 'max:255'],
             'assigned_user_id' => ['nullable', 'integer', User::assignableRule($request->user())],
             'purchase_date' => ['nullable', 'date'],
             'warranty_until' => ['nullable', 'date', 'after_or_equal:purchase_date'],
@@ -319,7 +327,11 @@ class ComputerBulkController extends Controller
                     'specs' => $value('specs'),
                     'branch_id' => $data['branch_id'] ?? null, // Админд model өөрийн салбарыг онооно
                     'department' => $data['department'] ?? null,
+                    'unit' => $data['unit'] ?? null,
+                    'position' => $data['position'] ?? null,
                     'location' => $data['location'] ?? null,
+                    'holder_surname' => $data['holder_surname'] ?? null,
+                    'holder_name' => $data['holder_name'] ?? null,
                     'status' => $status,
                     'assigned_user_id' => $user?->id, // model нь assigned_to-г синк хийнэ
                     'purchase_date' => $data['purchase_date'] ?? null,

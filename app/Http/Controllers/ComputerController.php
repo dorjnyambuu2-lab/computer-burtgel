@@ -144,7 +144,7 @@ class ComputerController extends Controller
     /** Шинэ компьютерт урьдчилан бөглөх талбарууд (давтагдах боломжгүй серийн, IP, MAC гэх мэтийг хуулахгүй) */
     private const PREFILL = [
         'type', 'category', 'status', 'brand', 'model', 'cpu', 'ram_gb', 'storage', 'os', 'specs',
-        'department', 'location', 'purchase_date', 'purchase_price', 'warranty_until',
+        'department', 'unit', 'location', 'purchase_date', 'purchase_price', 'warranty_until',
     ];
 
     /**
@@ -163,7 +163,7 @@ class ComputerController extends Controller
             : Computer::where('created_by', $request->user()->id)->latest('id')->first();
 
         if ($source) {
-            $fields = $request->filled('from') ? self::PREFILL : ['department', 'location'];
+            $fields = $request->filled('from') ? self::PREFILL : ['department', 'unit', 'location'];
             $computer->fill($source->only($fields));
         }
 
@@ -171,7 +171,7 @@ class ComputerController extends Controller
         $kitParent = $request->filled('kit') ? Computer::find((int) $request->query('kit')) : null;
         if ($kitParent?->canBeKitMain()) {
             $computer->kit_parent_id = $kitParent->id;
-            $computer->fill($kitParent->only(['department', 'location', 'assigned_user_id', 'status']));
+            $computer->fill($kitParent->only(['department', 'unit', 'position', 'location', 'assigned_user_id', 'holder_surname', 'holder_name', 'status']));
             $computer->category = null;
             $computer->type = ComputerType::Other;
         }

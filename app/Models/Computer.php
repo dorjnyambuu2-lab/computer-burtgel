@@ -23,7 +23,7 @@ class Computer extends Model
     protected $fillable = [
         'inventory_number', 'name', 'type', 'brand', 'model', 'serial_number',
         'cpu', 'ram_gb', 'storage', 'os', 'ip_address', 'mac_address', 'specs',
-        'category', 'department', 'location', 'assigned_to', 'assigned_user_id', 'status',
+        'category', 'department', 'unit', 'position', 'location', 'assigned_to', 'assigned_user_id', 'holder_surname', 'holder_name', 'status',
         'purchase_date', 'purchase_price', 'warranty_until', 'notes',
         'kit_parent_id', 'kit_index', 'branch_id',
     ];
@@ -504,7 +504,7 @@ class Computer extends Model
 
         return $query->where(function (Builder $q) use ($like) {
             foreach (['inventory_number', 'name', 'brand', 'model', 'serial_number',
-                'ip_address', 'mac_address', 'cpu', 'specs', 'assigned_to', 'department', 'location'] as $col) {
+                'ip_address', 'mac_address', 'cpu', 'specs', 'assigned_to', 'department', 'unit', 'position', 'location', 'holder_surname', 'holder_name'] as $col) {
                 $q->orWhere($col, 'like', $like);
             }
         });
