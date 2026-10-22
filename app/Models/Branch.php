@@ -41,6 +41,12 @@ class Branch extends Model
     }
 
     /** Сонгох жагсаалтад: «Төв салбар (TOV)» */
+    /** Салбарын ID код — бүртгэлийн дугаарын «B» хэсэгтэй ижил (жишээ: B1) */
+    public function idCode(): string
+    {
+        return 'B'.$this->id;
+    }
+
     public function label(): string
     {
         return $this->name.($this->code ? ' ('.$this->code.')' : '');

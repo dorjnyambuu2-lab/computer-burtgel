@@ -31,7 +31,7 @@
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <div class="text-base font-bold text-slate-900">{{ $b->name }} @if ($b->code)<span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">{{ $b->code }}</span>@endif</div>
+                        <div class="text-base font-bold text-slate-900">{{ $b->name }} <span class="ml-1 rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs text-blue-700" title="Салбарын ID">{{ $b->idCode() }}</span> @if ($b->code)<span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">{{ $b->code }}</span>@endif</div>
                         @if ($b->address)<div class="text-xs text-slate-500">{{ $b->address }}</div>@endif
                     </div>
                     <div class="flex gap-4 text-center text-xs text-slate-500">

@@ -121,6 +121,7 @@
             <thead>
                 <tr>
                     <th class="w-12">№</th>
+                    <th>ID</th>
                     <th>{!! $sortLink('name', 'Нэр') !!}</th><th>{!! $sortLink('username', 'Нэвтрэх нэр') !!}</th>
                     <th>{!! $sortLink('role', 'Эрх') !!}</th><th>Салбар</th><th>{!! $sortLink('email', 'Имэйл') !!}</th>
                     <th>{!! $hasLast ? $sortLink('last_seen_at', 'Сүүлд идэвхтэй байсан') : 'Сүүлд идэвхтэй байсан' !!}</th>
@@ -135,13 +136,14 @@
                     @endphp
                     <tr>
                         <td class="font-mono text-xs font-semibold text-slate-500">#{{ $users->firstItem() + $loop->index }}</td>
+                        <td><span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-600">{{ $u->idCode() }}</span></td>
                         <td class="font-semibold text-slate-900">
-                            <span class="inline-flex items-center gap-2">
+                            <span class="inline-flex items-center gap-2 whitespace-nowrap">
                                 <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $online ? 'bg-emerald-500 ring-2 ring-emerald-100' : 'bg-slate-300' }}"
                                       title="{{ $online ? 'Онлайн' : 'Офлайн' }}"></span>{{ trim($u->surname.' '.$u->name) }}
                             </span>
                             @if ($u->department || $u->position)
-                                <span class="mt-0.5 block pl-[18px] text-xs font-normal text-slate-500">{{ collect([$u->department, $u->position])->filter()->implode(' · ') }}</span>
+                                <span class="mt-0.5 block whitespace-nowrap pl-[18px] text-xs font-normal text-slate-500">{{ collect([$u->department, $u->position])->filter()->implode(' · ') }}</span>
                             @endif
                         </td>
                         <td class="text-slate-600">{{ $u->username ?: '—' }}</td>
@@ -150,7 +152,7 @@
                             @if ($u->isSuperadmin())
                                 <span class="text-xs text-slate-400">Бүх салбар</span>
                             @elseif ($u->branch)
-                                {{ $u->branch->name }}
+                                {{ $u->branch->name }} <span class="font-mono text-xs text-slate-400">{{ $u->branch->idCode() }}</span>
                             @else
                                 <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">⚠ Оноогоогүй</span>
                             @endif
@@ -191,7 +193,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="10" class="py-10 text-center text-slate-400">Хэрэглэгч олдсонгүй.</td></tr>
+                    <tr><td colspan="11" class="py-10 text-center text-slate-400">Хэрэглэгч олдсонгүй.</td></tr>
                 @endforelse
             </tbody>
         </table>

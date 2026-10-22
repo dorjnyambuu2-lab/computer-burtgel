@@ -71,6 +71,15 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Хэрэглэгчийн ID код — бүртгэлийн дугаарын хэсэгтэй ижил:
+     * Superadmin, Админ (бүртгэсэн хүн) → A2, Ажилтан (хариуцагч) → U82
+     */
+    public function idCode(): string
+    {
+        return ($this->role === 'employee' ? 'U' : 'A').$this->id;
+    }
+
     /** Сүүлийн хэдэн минутад үйлдэл хийсэн бол онлайн гэж тооцно */
     public const ONLINE_MINUTES = 5;
 
