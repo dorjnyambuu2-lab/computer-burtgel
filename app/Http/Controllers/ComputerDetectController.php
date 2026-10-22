@@ -41,12 +41,6 @@ class ComputerDetectController extends Controller
     private const JUNK = ['to be filled by o.e.m.', 'default string', 'system serial number', 'system product name',
         'system manufacturer', 'not applicable', 'none', 'o.e.m.', 'oem', '0', '00000000', '123456789', 'chassis serial number'];
 
-    /** Системийг нээсэн компьютерийн дотоод сүлжээний IP, MAC (бүртгэлийн формын «IP, MAC автоматаар авах») */
-    public function network(Request $request): \Illuminate\Http\JsonResponse
-    {
-        return response()->json(\App\Support\ClientNetwork::detect($request));
-    }
-
     public function script(Request $request): Response
     {
         // ?target=bulk: «Багцаар бүртгэх» хуудсыг бөглөж нээнэ, үгүй бол «Шинэ компьютер бүртгэх»

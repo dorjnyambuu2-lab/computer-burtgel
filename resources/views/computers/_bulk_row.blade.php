@@ -7,7 +7,7 @@
 @php
     $f = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
     $lbl = 'mb-0.5 block text-[11px] font-medium text-slate-500';
-    $placeholders = ['brand' => 'Сонгох эсвэл бичих', 'mac_address' => 'AA:BB:CC:DD:EE:FF', 'ip_address' => '192.168.1.10'];
+    $placeholders = ['brand' => 'Сонгох эсвэл бичих'];
     $auto = ! empty($row['_auto']);
     $input = fn (string $field) => 'rows['.$i.']['.$field.']';
 @endphp
@@ -50,7 +50,7 @@
             <label class="{{ $lbl }}">Үнэ (₮)</label>
             <input type="text" name="{{ $input('purchase_price') }}" value="{{ $row['purchase_price'] ?? '' }}" inputmode="decimal" placeholder="Жишээ: 450,000" class="{{ $f }}">
         </div>
-        @foreach (['cpu', 'ram_gb', 'storage', 'os', 'ip_address', 'mac_address', 'specs'] as $field)
+        @foreach (['cpu', 'ram_gb', 'storage', 'os', 'specs'] as $field)
             <div data-field="{{ $field }}">
                 <label class="{{ $lbl }}">{{ \App\Support\SpecSuggestions::LABELS[$field] }}</label>
                 <input type="{{ $field === 'ram_gb' ? 'number' : 'text' }}" name="{{ $input($field) }}" value="{{ $row[$field] ?? '' }}"

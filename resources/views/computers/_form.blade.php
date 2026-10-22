@@ -66,10 +66,6 @@
             ['os', 'Үйлдлийн систем', 'text', ['placeholder' => 'Windows 11 Pro']],
             ['specs', 'Үзүүлэлт', 'text', ['placeholder' => 'Дэлгэцийн хэмжээ, printer-ийн төрөл гэх мэт']],
         ],
-        'Сүлжээ' => [
-            ['ip_address', 'IP хаяг', 'text', ['placeholder' => '192.168.1.10']],
-            ['mac_address', 'MAC хаяг', 'text', ['placeholder' => 'AA:BB:CC:DD:EE:FF']],
-        ],
         'Байршил ба хариуцагч' => [
             ['branch_id', 'Салбар', 'branch', ['required' => true]],
             ['unit', 'Нэгж', 'text', ['placeholder' => 'Жишээ: Захиргааны нэгж']],
@@ -147,7 +143,7 @@
 
     @foreach ($sections as $title => $fields)
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-                 @if (in_array($title, ['Техникийн үзүүлэлт', 'Сүлжээ'], true)) data-per-item @endif>
+                 @if ($title === 'Техникийн үзүүлэлт') data-per-item @endif>
             <h2 class="mb-4 text-base font-bold text-slate-900">{{ $title }}</h2>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 @foreach ($fields as [$name, $text, $kind, $o])
@@ -311,16 +307,6 @@
                                     @endforeach
                                 </datalist>
                             @endif
-                            @if ($name === 'ip_address')
-                                {{-- Энэ хуудсыг нээсэн компьютерийн дотоод сүлжээний IP, MAC-г серверээс авна --}}
-                                <div class="mt-2 flex flex-wrap items-center gap-2">
-                                    <button type="button" id="network-detect" data-url="{{ route('computers.network-info') }}"
-                                            class="!rounded-lg !border-blue-300 !bg-blue-50 !px-3 !py-1.5 !text-xs font-semibold !text-blue-700 hover:!bg-blue-100">
-                                        📡 IP, MAC автоматаар авах
-                                    </button>
-                                    <span id="network-status" class="text-xs text-slate-500">Бүртгэж буй компьютер дээрээ энэ хуудсыг нээсэн бол дарна</span>
-                                </div>
-                            @endif
                         @endif
 
                         @if (! empty($o['hint']))<p class="mt-1 text-xs text-slate-500">{{ $o['hint'] }}</p>@endif
@@ -359,7 +345,7 @@
 
 <script>
 // Ангилалд хамааралгүй техникийн талбарыг нууна (жишээ нь дэлгэц, mouse-д CPU, RAM, ҮС).
-// Утга бөглөгдсөн талбар үргэлж харагдана. Сүлжээний талбар бүгд нуугдвал «Сүлжээ» хэсгийг нууна.
+// Утга бөглөгдсөн талбар үргэлж харагдана. Талбар бүгд нуугдсан хэсгийг нууна.
 (function () {
     const specFields = @json(collect(\App\Enums\EquipmentCategory::cases())->mapWithKeys(fn ($c) => [$c->value => \App\Enums\EquipmentCategory::specFieldsFor($c)]));
     const select = document.querySelector('select[name="category"]');
@@ -422,51 +408,6 @@
 @include('computers._warranty_script', ['purchaseId' => 'purchase_date', 'monthsId' => 'warranty_months', 'untilId' => 'warranty_until'])
 
 <script>
-// «IP, MAC автоматаар авах»: энэ хуудсыг нээсэн компьютерийн дотоод сүлжээний IP, MAC-г серверээс авч бөглөнө
-(function () {
-    const button = document.getElementById('network-detect');
-    if (!button) return;
-    const status = document.getElementById('network-status');
-    const ip = document.getElementById('ip_address');
-    const mac = document.getElementById('mac_address');
-    const say = function (text, cls) { status.textContent = text; status.className = 'text-xs ' + cls; };
-
-    button.addEventListener('click', function () {
-        button.disabled = true;
-        say('Сүлжээг шалгаж байна…', 'text-slate-500');
-        fetch(button.dataset.url, { headers: { 'Accept': 'application/json' } })
-            .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
-            .then(function (d) {
-                if (!d.ip) {
-                    say('IP олдсонгүй. Компьютер дотоод сүлжээнд залгагдсан эсэхийг шалгаад дахин оролдоно уу.', 'text-rose-600');
-                    return;
-                }
-                // Сервер дээрээс нээсэн бол серверийн өөрийн хаяг гарна — тэр компьютер сервер биш бол бөглөхгүй
-                // Сервер дээрээс нээсэн бол серверийн өөрийн хаяг гарна — бүртгэж буй компьютерт хэзээ ч бөглөхгүй
-                if (d.local) {
-                    say('Бөглөсөнгүй: та системийг сервер компьютер дээрээс нээсэн тул ' + d.ip + ' / ' + (d.mac || '—') + ' нь СЕРВЕРИЙН хаяг. Бүртгэж буй компьютер дээрээ системийг нээгээд дарна уу, эсвэл ажилтан өөрийн компьютероос нэвтрэхэд автоматаар бүртгэгдэнэ.', 'text-amber-700');
-                    return;
-                }
-                // Санамсаргүй MAC хожим өөрчлөгддөг — IP-г л бөглөнө
-                if (d.random) {
-                    if (ip && (ip.value.trim() === '' || confirm(ip.value + ' гэсэн утгыг ' + d.ip + ' болгох уу?'))) ip.value = d.ip;
-                    say('IP ' + d.ip + ' бөглөлөө. MAC ' + d.mac + ' нь санамсаргүй (random) тул бүртгэхгүй: Wi-Fi тохиргооноос «Random hardware addresses»-ийг унтраагаад дахин дарна уу.', 'text-amber-700');
-                    return;
-                }
-                // Гараар бичсэн өөр утгыг асуулгүй дарж бичихгүй
-                const replace = function (input, value) {
-                    if (!input || !value || input.value === value) return;
-                    if (input.value.trim() === '' || confirm(input.value + ' гэсэн утгыг ' + value + ' болгох уу?')) input.value = value;
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                };
-                replace(ip, d.ip);
-                replace(mac, d.mac);
-                say('✓ IP ' + d.ip + (d.mac ? ', MAC ' + d.mac : ' (MAC олдсонгүй, гараар бичнэ үү)'), 'font-semibold text-emerald-700');
-            })
-            .catch(function () { say('Сүлжээний мэдээлэл авч чадсангүй.', 'text-rose-600'); })
-            .finally(function () { button.disabled = false; });
-    });
-})();
 </script>
 
 <script>
@@ -626,7 +567,6 @@
             if (list) input.setAttribute('list', list);
             if (f === 'specs') input.placeholder = cfg.specsPlaceholder[cat] || '';
             if (f === 'brand') input.placeholder = 'Сонгох эсвэл бичих';
-            if (f === 'mac_address') input.placeholder = 'AA:BB:CC:DD:EE:FF';
             if (values && values[f] !== undefined && values[f] !== null) input.value = values[f];
             wrap.appendChild(input);
             grid.appendChild(wrap);

@@ -102,7 +102,6 @@ Route::middleware('auth')->group(function () {
         // Компьютерийн мэдээллийг автоматаар уншиж бүртгэх скрипт (.bat)
         Route::get('computers/detect-script', [ComputerDetectController::class, 'script'])->name('computers.detect-script');
         // Системийг нээсэн компьютерийн дотоод сүлжээний IP, MAC (формын «IP, MAC автоматаар авах»)
-        Route::get('computers/network-info', [ComputerDetectController::class, 'network'])->name('computers.network-info');
 
         // Компьютерийн мэдээллийн хуудаснаас: олгох, буцаан авах, засварт бүртгэх
         Route::post('computers/{computer}/assign', [ComputerActionController::class, 'assign'])->name('computers.assign');

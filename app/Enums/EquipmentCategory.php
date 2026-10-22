@@ -57,13 +57,14 @@ enum EquipmentCategory: string
      * Ангилалгүй (хуучин) бүртгэлд бүх талбар хамаарна.
      */
     public const SPEC_FIELDS = [
-        'computer' => ['brand', 'model', 'serial_number', 'cpu', 'ram_gb', 'storage', 'os', 'ip_address', 'mac_address'],
-        'network' => ['brand', 'model', 'serial_number', 'ip_address', 'mac_address', 'specs'],
+        // IP, MAC-г формд оруулахгүй: ажилтан нэвтрэхэд автоматаар бүртгэгдэнэ (App\Support\ClientNetwork)
+        'computer' => ['brand', 'model', 'serial_number', 'cpu', 'ram_gb', 'storage', 'os'],
+        'network' => ['brand', 'model', 'serial_number', 'specs'],
         'basic' => ['brand', 'model', 'serial_number', 'specs'],
     ];
 
     /** Бүх техникийн талбар (ангилалгүй бүртгэлд бүгд хамаарна) */
-    public const ALL_SPEC_FIELDS = ['brand', 'model', 'serial_number', 'cpu', 'ram_gb', 'storage', 'os', 'ip_address', 'mac_address', 'specs'];
+    public const ALL_SPEC_FIELDS = ['brand', 'model', 'serial_number', 'cpu', 'ram_gb', 'storage', 'os', 'specs'];
 
     public function specGroup(): string
     {
