@@ -9,7 +9,6 @@
     $role = request('role');
     $status = request('status');
     $hasLast = Schema::hasColumn('users', 'last_seen_at');
-    $presence = request('presence');
 
     $query = \App\Models\User::query();
     // Админ: зөвхөн өөрийн салбарын ажилтнууд (Супер админ, бусад админ, бусад салбар харагдахгүй)
@@ -28,9 +27,6 @@
     }
     if ($status === 'active') $query->where('is_active', true);
     if ($status === 'inactive') $query->where('is_active', false);
-    // Одоо системд байгаа (онлайн) эсэхээр шүүх
-    if ($hasLast && $presence === 'online') $query->online();
-    if ($hasLast && $presence === 'offline') $query->whereNot(fn ($w) => $w->online());
 
     // Салбараар шүүх
     $branchOptions = \App\Models\Branch::query()->orderBy('name')->pluck('name', 'id');
@@ -59,7 +55,7 @@
     };
 
     $users = \App\Support\RowNumber::paginate($query->orderBy($sort, $dir)->orderBy('id'), request(), 15, $rowNumber);
-    $filtered = $q !== '' || $role || $status || $presence || $branchFilter !== '' || request('date_from') || request('date_to');
+    $filtered = $q !== '' || $role || $status || $branchFilter !== '' || request('date_from') || request('date_to');
     $inp = 'rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
 @endphp
 
@@ -99,13 +95,6 @@
         <option value="active" @selected($status === 'active')>Идэвхтэй</option>
         <option value="inactive" @selected($status === 'inactive')>Идэвхгүй</option>
     </select>
-    @if ($hasLast)
-        <select name="presence" class="{{ $inp }}">
-            <option value="">Онлайн / офлайн</option>
-            <option value="online" @selected($presence === 'online')>🟢 Онлайн</option>
-            <option value="offline" @selected($presence === 'offline')>Офлайн</option>
-        </select>
-    @endif
     <input type="date" name="date_from" value="{{ request('date_from') }}" title="Бүртгэсэн: -аас" class="{{ $inp }}">
     <input type="date" name="date_to" value="{{ request('date_to') }}" title="Бүртгэсэн: хүртэл" class="{{ $inp }}">
     <input type="hidden" name="sort" value="{{ $sort }}"><input type="hidden" name="dir" value="{{ $dir }}">
@@ -132,18 +121,14 @@
                 @forelse ($users as $u)
                     @php
                         $last = $hasLast ? $u->last_seen_at : null;
-                        $online = $hasLast && $u->isOnline();
                     @endphp
                     <tr>
                         <td class="font-mono text-xs font-semibold text-slate-500">#{{ $users->firstItem() + $loop->index }}</td>
                         <td><span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-600">{{ $u->idCode() }}</span></td>
                         <td class="font-semibold text-slate-900">
-                            <span class="inline-flex items-center gap-2 whitespace-nowrap">
-                                <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $online ? 'bg-emerald-500 ring-2 ring-emerald-100' : 'bg-slate-300' }}"
-                                      title="{{ $online ? 'Онлайн' : 'Офлайн' }}"></span>{{ trim($u->surname.' '.$u->name) }}
-                            </span>
+                            <span class="whitespace-nowrap">{{ trim($u->surname.' '.$u->name) }}</span>
                             @if ($u->department || $u->position)
-                                <span class="mt-0.5 block whitespace-nowrap pl-[18px] text-xs font-normal text-slate-500">{{ collect([$u->department, $u->position])->filter()->implode(' · ') }}</span>
+                                <span class="mt-0.5 block whitespace-nowrap text-xs font-normal text-slate-500">{{ collect([$u->department, $u->position])->filter()->implode(' · ') }}</span>
                             @endif
                         </td>
                         <td class="text-slate-600">{{ $u->username ?: '—' }}</td>
@@ -159,11 +144,7 @@
                         </td>
                         <td class="text-slate-600">{{ $u->email }}</td>
                         <td class="text-slate-600" @if ($last) title="{{ $last->format('Y-m-d H:i') }}" @endif>
-                            @if ($online)
-                                <span class="font-medium text-emerald-700">Онлайн</span>
-                            @else
-                                {{ $last ? $last->locale('mn')->diffForHumans() : '—' }}
-                            @endif
+                            {{ $last ? $last->locale('mn')->diffForHumans() : '—' }}
                         </td>
                         <td class="whitespace-nowrap text-slate-600">{{ $u->created_at?->format('Y-m-d') ?? '—' }}</td>
                         <td>

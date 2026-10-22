@@ -80,6 +80,16 @@ class User extends Authenticatable
         return ($this->role === 'employee' ? 'U' : 'A').$this->id;
     }
 
+    /** ID-ийн нэр: «Superadmin ID», «Админ ID», «Ажилтны ID» */
+    public function idLabel(): string
+    {
+        return match ($this->role) {
+            'superadmin' => 'Superadmin ID',
+            'admin' => 'Админ ID',
+            default => 'Ажилтны ID',
+        };
+    }
+
     /** Сүүлийн хэдэн минутад үйлдэл хийсэн бол онлайн гэж тооцно */
     public const ONLINE_MINUTES = 5;
 

@@ -7,7 +7,7 @@
     $fullName = trim($user->surname.' '.$user->name);
     // Ажлын мэдээллийг Админ бүртгэнэ — энд зөвхөн харагдана
     $job = [
-        'Хэрэглэгчийн ID' => $user->idCode(),
+        $user->idLabel() => $user->idCode(),
         'Салбарын ID'  => $user->isSuperadmin() ? null : $user->branch?->idCode(),
         'Салбар'       => $user->isSuperadmin() ? 'Бүх салбар' : $user->branch?->name,
         'Нэгж'         => $user->unit,
@@ -25,7 +25,7 @@
         </div>
         <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2 text-lg font-bold">{{ $fullName }}
-                <span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-600" title="Хэрэглэгчийн ID">{{ $user->idCode() }}</span>
+                <span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-600" title="{{ $user->idLabel() }}">{{ $user->idCode() }}</span>
             </div>
             @if ($user->department || $user->position)
                 <div class="text-sm text-slate-600">{{ collect([$user->department, $user->position])->filter()->implode(' · ') }}</div>
