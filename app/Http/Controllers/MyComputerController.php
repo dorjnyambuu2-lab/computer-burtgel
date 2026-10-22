@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Computer;
 use App\Models\ComputerTransfer;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class MyComputerController extends Controller
@@ -56,6 +55,8 @@ class MyComputerController extends Controller
             $computer->acknowledged_at = now();
             $computer->save();
         }
+        // Акт баталгаажуулж буй компьютерийн IP, MAC-г автоматаар бүртгэнэ
+        rescue(fn () => \App\Support\ClientNetwork::syncForEmployee($request->user(), $request), null, report: true);
 
         return back()->with('success', 'Хүлээн авснаа баталгаажууллаа.');
     }

@@ -41,63 +41,10 @@ class ComputerDetectController extends Controller
     private const JUNK = ['to be filled by o.e.m.', 'default string', 'system serial number', 'system product name',
         'system manufacturer', 'not applicable', 'none', 'o.e.m.', 'oem', '0', '00000000', '123456789', 'chassis serial number'];
 
-    /**
-     * Системийг нээсэн компьютерийн дотоод сүлжээний IP, MAC (бүртгэлийн формын «IP, MAC автоматаар авах»).
-     *  - Сервер дээрээ нээсэн бол (127.0.0.1): gateway-тэй, асаалттай сүлжээний адаптерийн IP, MAC
-     *  - Дотоод сүлжээний өөр компьютероос: хүсэлтийн IP, MAC-г серверийн ARP хүснэгтээс
-     */
+    /** Системийг нээсэн компьютерийн дотоод сүлжээний IP, MAC (бүртгэлийн формын «IP, MAC автоматаар авах») */
     public function network(Request $request): \Illuminate\Http\JsonResponse
     {
-        $ip = (string) $request->ip();
-        $local = in_array($ip, ['127.0.0.1', '::1'], true);
-        $mac = null;
-
-        if ($local) {
-            [$ip, $mac] = self::localAdapter();
-        } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            $mac = self::macFromArp($ip);
-        }
-
-        return response()->json([
-            'ip' => filter_var($ip, FILTER_VALIDATE_IP) && ! in_array($ip, ['127.0.0.1', '::1'], true) ? $ip : null,
-            'mac' => $mac,
-            'local' => $local,
-        ]);
-    }
-
-    /** Сервер компьютерийн дотоод сүлжээнд холбогдсон (gateway-тэй) адаптер: [IP, MAC] */
-    private static function localAdapter(): array
-    {
-        if (PHP_OS_FAMILY !== 'Windows') {
-            return [null, null];
-        }
-        // WMI: gateway-тэй, идэвхтэй адаптер (Get-NetIPConfiguration-оос ~7 дахин хурдан)
-        $ps = '$a = Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" | Where-Object { $_.DefaultIPGateway } | Select-Object -First 1; '
-            .'if ($a) { ($a.IPAddress | Where-Object { $_ -match "^\d+\.\d+\.\d+\.\d+$" } | Select-Object -First 1) + "|" + $a.MACAddress }';
-        // -EncodedCommand (UTF-16LE base64): хашилт, тусгай тэмдэгт тушаалын мөрөнд гэмтэхгүй
-        $encoded = base64_encode(mb_convert_encoding($ps, 'UTF-16LE', 'UTF-8'));
-        $out = trim((string) shell_exec('powershell -NoProfile -NonInteractive -EncodedCommand '.$encoded.' 2>NUL'));
-        [$ip, $mac] = array_pad(explode('|', $out, 2), 2, null);
-
-        return [filter_var($ip, FILTER_VALIDATE_IP) ? $ip : null, self::cleanMac($mac)];
-    }
-
-    /** Дотоод сүлжээний компьютерийн MAC-г ARP хүснэгтээс (тухайн IP-тэй саяхан холбогдсон тул хүснэгтэд байна) */
-    private static function macFromArp(string $ip): ?string
-    {
-        $out = (string) shell_exec('arp -a '.escapeshellarg($ip));
-        if (preg_match('/'.preg_quote($ip, '/').'\s+([0-9a-f]{2}([-:][0-9a-f]{2}){5})/i', $out, $m)) {
-            return self::cleanMac($m[1]);
-        }
-
-        return null;
-    }
-
-    private static function cleanMac(?string $mac): ?string
-    {
-        $mac = strtoupper(str_replace('-', ':', trim((string) $mac)));
-
-        return preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/', $mac) && $mac !== 'FF:FF:FF:FF:FF:FF' ? $mac : null;
+        return response()->json(\App\Support\ClientNetwork::detect($request));
     }
 
     public function script(Request $request): Response

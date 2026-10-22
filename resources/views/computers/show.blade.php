@@ -57,6 +57,8 @@
         'Сүлжээ' => $specRows([
             'IP хаяг' => ['ip_address', $computer->ip_address],
             'MAC хаяг' => ['mac_address', $computer->mac_address],
+            // Ажилтан өөрийн компьютероос нэвтрэхэд IP, MAC автоматаар шинэчлэгдсэн огноо
+            'Автоматаар шинэчилсэн' => ['ip_address', $computer->network_updated_at?->format('Y-m-d H:i')],
         ]),
         'Байршил ба хариуцагч' => [
             'Салбар' => $computer->branch?->name,

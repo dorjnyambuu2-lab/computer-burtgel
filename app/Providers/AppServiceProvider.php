@@ -28,6 +28,12 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, function (Login $event) {
             User::whereKey($event->user->getAuthIdentifier())
                 ->update(['last_login_at' => now()]);
+
+            // Ажилтан өөрийн компьютероос нэвтэрвэл тэр компьютерийн IP, MAC-г бүртгэлд автоматаар бичнэ.
+            // Сүлжээ шалгахад алдаа гарсан ч нэвтрэлтэд нөлөөлөхгүй.
+            if ($event->user instanceof User) {
+                rescue(fn () => \App\Support\ClientNetwork::syncForEmployee($event->user, request()), null, report: true);
+            }
         });
 
         // Супер админы нууц үг сэргээх имэйл (монголоор)

@@ -52,6 +52,8 @@ class AssetRequestController extends Controller
     public function acknowledge(Request $request)
     {
         $this->mine($request)->whereNull('acknowledged_at')->update(['acknowledged_at' => now()]);
+        // Акт баталгаажуулж буй компьютерийн IP, MAC-г автоматаар бүртгэнэ
+        rescue(fn () => \App\Support\ClientNetwork::syncForEmployee($request->user(), $request), null, report: true);
 
         return back()->with('success', 'Акт баталгаажлаа. Баярлалаа!');
     }

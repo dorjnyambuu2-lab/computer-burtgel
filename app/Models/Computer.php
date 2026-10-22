@@ -40,6 +40,7 @@ class Computer extends Model
             'purchase_date' => 'date',
             'purchase_price' => 'decimal:2',
             'warranty_until' => 'date',
+            'network_updated_at' => 'datetime',
             'ram_gb' => 'integer',
             'assigned_user_id' => 'integer',
             'created_by' => 'integer',
