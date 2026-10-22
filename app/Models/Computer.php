@@ -170,10 +170,19 @@ class Computer extends Model
                 && $computer->assigned_user_id != $computer->getOriginal('assigned_user_id');
 
             if ($ownerChanged) {
-                $computer->assigned_to = $computer->assigned_user_id
-                    ? User::whereKey($computer->assigned_user_id)->value('name')
-                    : null;
+                $owner = $computer->assigned_user_id ? User::find($computer->assigned_user_id) : null;
+                $computer->assigned_to = $owner?->name;
                 $computer->acknowledged_at = null;
+
+                // Хариуцагчийн овог, нэрийг профайлаас авна (буцааж авахад арилна);
+                // нэгж, алба, албан тушаалыг профайлд бөглөгдсөн бол шинэ хариуцагчийнхаар солино
+                $computer->holder_surname = $owner?->surname;
+                $computer->holder_name = $owner?->name;
+                foreach (['unit', 'department', 'position'] as $field) {
+                    if (filled($owner?->$field)) {
+                        $computer->$field = $owner->$field;
+                    }
+                }
             } elseif ($computer->isDirty('assigned_to')) {
                 $previous = $computer->assigned_user_id;
                 $computer->assigned_user_id = User::findByIdentifier($computer->assigned_to)?->id;

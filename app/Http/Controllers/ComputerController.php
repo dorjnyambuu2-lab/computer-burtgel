@@ -204,7 +204,6 @@ class ComputerController extends Controller
             'inventoryDate' => now()->format('Ymd'),
             'nextSequence' => Computer::peekSequenceNumber($request->user()->branch_id),
             'departments' => $this->departments(),
-            'employees' => $this->employees(),
             'kitParents' => $this->kitParents(),
         ]);
     }
@@ -276,7 +275,6 @@ class ComputerController extends Controller
         return view('computers.edit', [
             'computer' => $computer,
             'departments' => $this->departments(),
-            'employees' => $this->employees($computer->assigned_user_id),
         ]);
     }
 

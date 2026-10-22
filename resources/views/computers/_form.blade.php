@@ -3,9 +3,6 @@
     $isEdit = $computer->exists;
     $detectedFields = $detected ?? []; // скриптээр автоматаар бөглөгдсөн талбарууд
 
-    // Хариуцагчаар сонгож болох хэрэглэгчид (ComputerController дамжуулна)
-    $employeeList = $employees ?? collect();
-
     // Утгыг (enum, огноо, string) input-д тохирох текст болгох
     $val = function (string $f) use ($computer) {
         $v = old($f, $computer->{$f});
@@ -79,7 +76,6 @@
             ['department', 'Алба', 'text', ['placeholder' => 'Жишээ: Мэдээллийн технологийн алба']],
             ['position', 'Албан тушаал', 'text', ['placeholder' => 'Жишээ: Ахлах мэргэжилтэн']],
             ['location', 'Байршил', 'text', ['placeholder' => 'Байр, давхар, өрөө']],
-            ['assigned_user_id', 'Хариуцагч (системийн хэрэглэгч)', 'assigned_user', []],
             ['holder_surname', 'Овог', 'text', ['placeholder' => 'Хариуцагчийн овог']],
             ['holder_name', 'Нэр', 'text', ['placeholder' => 'Хариуцагчийн нэр']],
         ],
@@ -144,6 +140,10 @@
             Мэдээллээ шалгана уу: {{ $errors->count() }} талбарт алдаа байна.
         </div>
     @endif
+
+    {{-- Хариуцагчийг «Ажилтанд олгох» үйлдлээр онооно; энд одоогийн утгыг хэвээр хадгална --}}
+    <input type="hidden" id="assigned_user_id" name="assigned_user_id" value="{{ old('assigned_user_id', $computer->assigned_user_id) }}">
+    @error('user_id')<p class="text-sm text-rose-600">{{ $message }}</p>@enderror
 
     @foreach ($sections as $title => $fields)
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
@@ -294,24 +294,6 @@
                                 @endforeach
                             </select>
                             <p id="kit-hint" class="mt-1 text-xs text-slate-400">Компьютерийн дагалдах хэрэгсэл бол сонгоно: дугаар нь компьютерийн дугаар + дэд дугаар болно.</p>
-                        @elseif ($kind === 'assigned_user')
-                            <select id="{{ $name }}" name="{{ $name }}" class="{{ $in }}">
-                                <option value="">— Оноогоогүй —</option>
-                                @foreach ($employeeList as $emp)
-                                    <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" data-surname="{{ $emp->surname }}" data-unit="{{ $emp->unit }}"
-                                            data-department="{{ $emp->department }}" data-position="{{ $emp->position }}" data-branch="{{ $emp->branch_id }}" @selected((string) $val($name) === (string) $emp->id)>
-                                        {{ $emp->name }} ({{ $emp->username ?: $emp->email }}) · {{ $emp->roleLabel() }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            {{-- Хуучин текстээр бичигдсэн, системийн хэрэглэгчтэй холбогдоогүй хариуцагч --}}
-                            @if (! $computer->assigned_user_id && filled($computer->assigned_to))
-                                <p class="mt-1 text-xs text-amber-600">
-                                    Бичигдсэн хариуцагч: «{{ $computer->assigned_to }}» — системийн хэрэглэгчтэй холбогдоогүй байна. Жагсаалтаас сонгоно уу.
-                                </p>
-                            @endif
-                            {{-- Супер админ хариуцагчийг өөр ажилтанд солих гэвэл (шилжүүлэх эрх Админд) --}}
-                            @error('user_id')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         @else
                             <input id="{{ $name }}" name="{{ $name }}" type="{{ $kind }}"
                                    value="{{ $val($name) }}" placeholder="{{ $o['placeholder'] ?? '' }}"
@@ -439,43 +421,6 @@
 @include('computers._warranty_script', ['purchaseId' => 'purchase_date', 'monthsId' => 'warranty_months', 'untilId' => 'warranty_until'])
 
 <script>
-// Хариуцагч (системийн хэрэглэгч) сонгоход түүний профайлаас салбар, нэгж, алба, албан тушаал, овог, нэрийг бөглөнө.
-// Гараар бичсэнийг дарахгүй: хуудас нээгдэхэд байсан (өмнөх бүртгэлээс бөглөсөн) утгыг профайлын утгаар солино,
-// профайлд хоосон бол хэвээр үлдээнэ; өмнө автоматаар бөглөсөн утгыг дараагийн хариуцагчийнхаар солино.
-(function () {
-    const holder = document.getElementById('assigned_user_id');
-    if (!holder) return;
-    const map = { holder_name: 'name', holder_surname: 'surname', unit: 'unit', department: 'department', position: 'position', branch_id: 'branch' };
-    const autoValues = {};
-    const initialValues = {};
-    Object.keys(map).forEach(function (id) {
-        const field = document.getElementById(id);
-        if (field) initialValues[id] = field.value;
-    });
-    holder.addEventListener('change', function () {
-        const option = holder.selectedOptions[0];
-        Object.keys(map).forEach(function (id) {
-            const field = document.getElementById(id);
-            if (!field) return;
-            const value = (option && option.value && option.dataset[map[id]]) || '';
-            if (id === 'branch_id') {
-                // Салбарыг зөвхөн хоосон үед, жагсаалтад байвал сонгоно
-                if (value && !field.value && field.querySelector('option[value="' + value + '"]')) {
-                    field.value = value;
-                    field.dispatchEvent(new Event('change'));
-                }
-                return;
-            }
-            const untouched = field.value.trim() === '' || field.value === autoValues[id];
-            const initial = field.value === initialValues[id] && value !== '';
-            if (untouched || initial) {
-                field.value = value;
-                autoValues[id] = value;
-            }
-        });
-    });
-})();
-
 // «IP, MAC автоматаар авах»: энэ хуудсыг нээсэн компьютерийн дотоод сүлжээний IP, MAC-г серверээс авч бөглөнө
 (function () {
     const button = document.getElementById('network-detect');
@@ -587,7 +532,6 @@
     }
     if (typeSelect) typeSelect.addEventListener('change', previewInventory);
     if (branchSelect) branchSelect.addEventListener('change', previewInventory);
-    if (holderSelect) holderSelect.addEventListener('change', previewInventory);
     if (kitSelect) kitSelect.addEventListener('change', previewInventory);
     const submitText = submit ? submit.textContent.trim() : '';
     const singleAction = form.getAttribute('action');
