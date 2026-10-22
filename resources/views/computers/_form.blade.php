@@ -77,7 +77,7 @@
             ['position', 'Албан тушаал', 'text', ['placeholder' => 'Жишээ: Ахлах мэргэжилтэн']],
             ['location', 'Байршил', 'text', ['placeholder' => 'Байр, давхар, өрөө']],
             ['holder_surname', 'Овог', 'text', ['placeholder' => 'Хариуцагчийн овог']],
-            ['holder_name', 'Нэр', 'text', ['placeholder' => 'Хариуцагчийн нэр']],
+            ['holder_name', 'Нэр', 'text', ['placeholder' => 'Хариуцагчийн нэр', 'hint' => 'Салбарын ажилтны нэртэй таарвал төхөөрөмж тэр ажилтанд автоматаар олгогдоно.']],
         ],
         'Худалдан авалт ба баталгаа' => [
             ['purchase_date', 'Худалдан авсан огноо', 'date', []],
@@ -323,6 +323,7 @@
                             @endif
                         @endif
 
+                        @if (! empty($o['hint']))<p class="mt-1 text-xs text-slate-500">{{ $o['hint'] }}</p>@endif
                         @error($name)<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                     </div>
                 @endforeach

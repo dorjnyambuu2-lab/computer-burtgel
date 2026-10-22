@@ -166,6 +166,12 @@ class Computer extends Model
         });
 
         static::saving(function (Computer $computer) {
+            // Хариуцагчгүй компьютерт бичсэн овог, нэр салбарын ганц хэрэглэгчтэй таарвал тэр ажилтанд олгоно
+            // (буцааж авч хариуцагчийг арилгаж буй үед биш)
+            if (! $computer->assigned_user_id && ! $computer->isDirty('assigned_user_id') && ($owner = $computer->matchHolderUser())) {
+                $computer->assigned_user_id = $owner->id;
+            }
+
             $ownerChanged = $computer->isDirty('assigned_user_id')
                 && $computer->assigned_user_id != $computer->getOriginal('assigned_user_id');
 
@@ -192,6 +198,31 @@ class Computer extends Model
                 }
             }
         });
+    }
+
+    /**
+     * «Овог», «Нэр» талбарт бичсэн хүнтэй таарах системийн хэрэглэгч:
+     * тухайн салбарын идэвхтэй хэрэглэгчдээс нэр (овог бичсэн бол овог нь ч) таарах ганц хүн. Олон бол null.
+     */
+    public function matchHolderUser(): ?User
+    {
+        $name = trim((string) $this->holder_name);
+        // Шинэ бүртгэлд салбарыг дараа нь (creating) онооно — Админы салбараар тооцно
+        $branchId = $this->branch_id ?? auth()->user()?->branch_id;
+        if ($name === '' || ! $branchId) {
+            return null;
+        }
+        $surname = trim((string) $this->holder_surname);
+
+        $matches = User::query()
+            ->where('is_active', true)
+            ->whereIn('role', ['admin', 'employee'])
+            ->where('branch_id', $branchId)
+            ->where('name', $name)
+            ->when($surname !== '', fn ($q) => $q->where(fn ($w) => $w->where('surname', $surname)->orWhereNull('surname')->orWhere('surname', '')))
+            ->limit(2)->get();
+
+        return $matches->count() === 1 ? $matches->first() : null;
     }
 
     /** Ангилал / төрлөөр бүртгэлийн дугаарын угтвар */
