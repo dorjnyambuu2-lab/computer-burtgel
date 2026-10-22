@@ -35,7 +35,17 @@ class ComputerRequest extends FormRequest
             'storage' => ['nullable', 'string', 'max:255'],
             'os' => ['nullable', 'string', 'max:255'],
             'ip_address' => ['nullable', 'ip'],
-            'mac_address' => ['nullable', 'regex:/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/'],
+            'mac_address' => ['nullable', 'regex:/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/',
+                // MAC нь төхөөрөмж бүрт өөр — өөр компьютерт бүртгэлтэй бол хадгалахгүй (AA-BB.. / aa:bb.. бичлэгийг ижил гэж үзнэ)
+                function (string $attribute, mixed $value, \Closure $fail) use ($id) {
+                    $other = \App\Models\Computer::withoutGlobalScopes()->whereNull('deleted_at')
+                        ->whereRaw("upper(replace(mac_address, '-', ':')) = ?", [strtoupper(str_replace('-', ':', (string) $value))])
+                        ->when($id, fn ($q) => $q->whereKeyNot($id))
+                        ->first(['id', 'sequence_number', 'name']);
+                    if ($other) {
+                        $fail("Энэ MAC хаяг «#{$other->sequence_number} {$other->name}» төхөөрөмжид бүртгэлтэй байна.");
+                    }
+                }],
             'specs' => ['nullable', 'string', 'max:500'],
             // Салбар: Супер админ сонгоно; Админд үргэлж өөрийн салбар (ComputerController::payload хасна)
             'branch_id' => [$this->user()?->isSuperadmin() ? 'required' : 'nullable', 'integer', 'exists:branches,id'],

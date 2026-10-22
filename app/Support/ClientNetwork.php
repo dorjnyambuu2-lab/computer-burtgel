@@ -62,7 +62,9 @@ class ClientNetwork
             ->get();
 
         $target = $net['mac'] ? $devices->first(fn ($c) => strtoupper((string) $c->mac_address) === $net['mac']) : null;
-        if (! $target && $devices->count() === 1 && blank($devices->first()->mac_address)) {
+        // MAC нь өөр компьютерт бүртгэлтэй бол (хамт ажиллагчийн компьютероос нэвтэрсэн) энэ ажилтных биш
+        $macTaken = $net['mac'] && Computer::withoutGlobalScopes()->whereNull('deleted_at')->where('mac_address', $net['mac'])->exists();
+        if (! $target && ! $macTaken && $devices->count() === 1 && blank($devices->first()->mac_address)) {
             $target = $devices->first();
         }
         if (! $target) {
