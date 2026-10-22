@@ -66,10 +66,7 @@
     </form>
 
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="font-semibold">Ажлын мэдээлэл</h2>
-        <p class="mb-4 mt-1 text-xs text-slate-500">
-            {{ $user->isSuperadmin() ? 'Хэрэглэгчийн хуудаснаас засна.' : 'Админ бүртгэнэ. Өөрчлөх шаардлагатай бол салбарынхаа админд хандана уу.' }}
-        </p>
+        <h2 class="mb-4 font-semibold">Ажлын мэдээлэл</h2>
         <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
             @foreach ($job as $label => $value)
                 <div>
