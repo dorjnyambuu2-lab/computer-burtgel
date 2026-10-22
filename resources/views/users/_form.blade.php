@@ -62,6 +62,40 @@
         </div>
     </section>
 
+    {{-- Ажлын мэдээлэл: компьютерт энэ хэрэглэгчийг хариуцагчаар сонгоход «Байршил ба хариуцагч» хэсэгт автоматаар бөглөгдөнө --}}
+    @php
+        $jobFields = [
+            'surname'    => ['Овог', 'Жишээ: Батын'],
+            'unit'       => ['Нэгж', 'Жишээ: Захиргааны нэгж'],
+            'department' => ['Алба', 'Жишээ: Мэдээллийн технологийн алба'],
+            'position'   => ['Албан тушаал', 'Жишээ: Ахлах мэргэжилтэн'],
+        ];
+        // Өмнө бичигдсэн утгуудыг санал болгоно (ижил нэрийг өөр өөрөөр бичихээс сэргийлнэ)
+        $jobComputerField = ['surname' => 'holder_surname', 'unit' => 'unit', 'department' => 'department', 'position' => 'position'];
+        $jobSuggest = fn (string $field) => \App\Models\User::query()->whereNotNull($field)->distinct()->pluck($field)
+            ->merge(\App\Models\Computer::query()->whereNotNull($jobComputerField[$field])->distinct()->pluck($jobComputerField[$field]))
+            ->map(fn ($v) => trim((string) $v))->filter()->unique()->sort()->values();
+    @endphp
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 class="mb-1 text-base font-bold">Ажлын мэдээлэл</h2>
+        <p class="mb-4 text-xs text-slate-500">Компьютерт энэ хэрэглэгчийг хариуцагчаар сонгоход эдгээр нь автоматаар бөглөгдөнө.</p>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            @foreach ($jobFields as $field => [$label, $placeholder])
+                <div>
+                    <label for="{{ $field }}" class="{{ $lb }}">{{ $label }}</label>
+                    <input id="{{ $field }}" name="{{ $field }}" type="text" value="{{ old($field, $user->$field) }}" maxlength="255"
+                           list="{{ $field }}-options" class="{{ $in }}" placeholder="{{ $placeholder }}" autocomplete="off">
+                    <datalist id="{{ $field }}-options">
+                        @foreach ($jobSuggest($field) as $option)
+                            <option value="{{ $option }}"></option>
+                        @endforeach
+                    </datalist>
+                    @error($field)<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                </div>
+            @endforeach
+        </div>
+    </section>
+
     {{-- Хариуцах / харьяалах салбар: Админ зөвхөн энэ салбарын төхөөрөмж, ажилтныг харж удирдана --}}
     @php
         $branches = \App\Models\Branch::query()->withCount(['computers', 'admins', 'users as employees_count' => fn ($q) => $q->where('role', 'employee')])->orderBy('name')->get();

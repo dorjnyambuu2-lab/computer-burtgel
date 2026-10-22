@@ -298,7 +298,8 @@
                             <select id="{{ $name }}" name="{{ $name }}" class="{{ $in }}">
                                 <option value="">— Оноогоогүй —</option>
                                 @foreach ($employeeList as $emp)
-                                    <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" @selected((string) $val($name) === (string) $emp->id)>
+                                    <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" data-surname="{{ $emp->surname }}" data-unit="{{ $emp->unit }}"
+                                            data-department="{{ $emp->department }}" data-position="{{ $emp->position }}" data-branch="{{ $emp->branch_id }}" @selected((string) $val($name) === (string) $emp->id)>
                                         {{ $emp->name }} ({{ $emp->username ?: $emp->email }}) · {{ $emp->roleLabel() }}
                                     </option>
                                 @endforeach
@@ -438,18 +439,40 @@
 @include('computers._warranty_script', ['purchaseId' => 'purchase_date', 'monthsId' => 'warranty_months', 'untilId' => 'warranty_until'])
 
 <script>
-// Хариуцагч (системийн хэрэглэгч) сонгоход «Нэр» хоосон эсвэл өмнө автоматаар бөглөсөн бол хэрэглэгчийн нэрээр бөглөнө
+// Хариуцагч (системийн хэрэглэгч) сонгоход түүний профайлаас салбар, нэгж, алба, албан тушаал, овог, нэрийг бөглөнө.
+// Гараар бичсэнийг дарахгүй: хуудас нээгдэхэд байсан (өмнөх бүртгэлээс бөглөсөн) утгыг профайлын утгаар солино,
+// профайлд хоосон бол хэвээр үлдээнэ; өмнө автоматаар бөглөсөн утгыг дараагийн хариуцагчийнхаар солино.
 (function () {
     const holder = document.getElementById('assigned_user_id');
-    const name = document.getElementById('holder_name');
-    if (!holder || !name) return;
-    let autoValue = null;
+    if (!holder) return;
+    const map = { holder_name: 'name', holder_surname: 'surname', unit: 'unit', department: 'department', position: 'position', branch_id: 'branch' };
+    const autoValues = {};
+    const initialValues = {};
+    Object.keys(map).forEach(function (id) {
+        const field = document.getElementById(id);
+        if (field) initialValues[id] = field.value;
+    });
     holder.addEventListener('change', function () {
-        const picked = holder.selectedOptions[0] && holder.selectedOptions[0].dataset.name;
-        if (name.value.trim() === '' || name.value === autoValue) {
-            name.value = picked || '';
-            autoValue = name.value;
-        }
+        const option = holder.selectedOptions[0];
+        Object.keys(map).forEach(function (id) {
+            const field = document.getElementById(id);
+            if (!field) return;
+            const value = (option && option.value && option.dataset[map[id]]) || '';
+            if (id === 'branch_id') {
+                // Салбарыг зөвхөн хоосон үед, жагсаалтад байвал сонгоно
+                if (value && !field.value && field.querySelector('option[value="' + value + '"]')) {
+                    field.value = value;
+                    field.dispatchEvent(new Event('change'));
+                }
+                return;
+            }
+            const untouched = field.value.trim() === '' || field.value === autoValues[id];
+            const initial = field.value === initialValues[id] && value !== '';
+            if (untouched || initial) {
+                field.value = value;
+                autoValues[id] = value;
+            }
+        });
     });
 })();
 

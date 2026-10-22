@@ -21,7 +21,7 @@
     // «#12» бол дэс дугаараар хайна (доор), бусад үед нэр, нэвтрэх нэр, имэйлээр
     $rowNumber = \App\Support\RowNumber::parse($q);
     if ($q !== '' && $rowNumber === null) {
-        $query->where(fn($w) => $w->where('name', 'like', "%$q%")->orWhere('username', 'like', "%$q%")->orWhere('email', 'like', "%$q%"));
+        $query->where(fn($w) => $w->where('name', 'like', "%$q%")->orWhere('surname', 'like', "%$q%")->orWhere('department', 'like', "%$q%")->orWhere('position', 'like', "%$q%")->orWhere('username', 'like', "%$q%")->orWhere('email', 'like', "%$q%"));
     }
     if ($role && array_key_exists($role, \App\Models\User::ROLES)) {
         $query->where('role', $role);
@@ -138,8 +138,11 @@
                         <td class="font-semibold text-slate-900">
                             <span class="inline-flex items-center gap-2">
                                 <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $online ? 'bg-emerald-500 ring-2 ring-emerald-100' : 'bg-slate-300' }}"
-                                      title="{{ $online ? 'Онлайн' : 'Офлайн' }}"></span>{{ $u->name }}
+                                      title="{{ $online ? 'Онлайн' : 'Офлайн' }}"></span>{{ trim($u->surname.' '.$u->name) }}
                             </span>
+                            @if ($u->department || $u->position)
+                                <span class="mt-0.5 block pl-[18px] text-xs font-normal text-slate-500">{{ collect([$u->department, $u->position])->filter()->implode(' · ') }}</span>
+                            @endif
                         </td>
                         <td class="text-slate-600">{{ $u->username ?: '—' }}</td>
                         <td><span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $u->roleBadgeClass() }}">{{ $u->roleLabel() }}</span></td>

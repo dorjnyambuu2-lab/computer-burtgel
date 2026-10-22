@@ -93,12 +93,14 @@ class UserController extends Controller
             'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
             'role'     => ['required', Rule::in(array_keys($me->assignableRoles()))],
             ...($me->isBranchScoped() ? [] : $this->branchRules($request)),
+            ...$this->jobRules(),
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'is_active' => ['nullable', 'boolean'],
         ], $this->messages());
 
         $user = DB::transaction(fn () => User::create([
             'name'      => $data['name'],
+            ...$this->jobData($data),
             'username'  => $data['username'],
             'email'     => $data['email'],
             'role'      => $data['role'],
@@ -131,6 +133,7 @@ class UserController extends Controller
             'email'    => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'role'     => [$isSelf ? 'nullable' : 'required', Rule::in(array_keys($me->assignableRoles($user)))],
             ...($isSelf || $me->isBranchScoped() ? [] : $this->branchRules($request)),
+            ...$this->jobRules(),
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'is_active' => ['nullable', 'boolean'],
         ], $this->messages());
@@ -138,6 +141,7 @@ class UserController extends Controller
         $user->name = $data['name'];
         $user->username = $data['username'];
         $user->email = $data['email'];
+        $user->fill($this->jobData($data));
 
         // Өөрийн эрх, төлөвийг өөрчилж чадахгүй (superadmin өөрийгөө түгжихээс сэргийлнэ)
         DB::transaction(function () use ($isSelf, $me, $user, $data, $request) {
@@ -158,6 +162,17 @@ class UserController extends Controller
         });
 
         return redirect()->route('users.index')->with('success', 'Хэрэглэгчийн мэдээлэл шинэчлэгдлээ'.($user->branch_id ? ' · салбар: '.$user->fresh()->branch?->name : '').'.');
+    }
+
+    /** Овог, нэгж, алба, албан тушаал — заавал биш */
+    private function jobRules(): array
+    {
+        return array_fill_keys(User::JOB_FIELDS, ['nullable', 'string', 'max:255']);
+    }
+
+    private function jobData(array $data): array
+    {
+        return collect(User::JOB_FIELDS)->mapWithKeys(fn ($f) => [$f => filled($data[$f] ?? null) ? trim($data[$f]) : null])->all();
     }
 
     public function destroy(User $user)
