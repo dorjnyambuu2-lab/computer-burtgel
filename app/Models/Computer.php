@@ -96,7 +96,7 @@ class Computer extends Model
             }
 
             // Бүртгэлийн дугаар, нэрийг оруулаагүй бол автоматаар үүсгэнэ: PC-B1-A2-U3-20261022-001
-            // (салбар, бүртгэсэн админ, хариуцагч хэрэглэгчийн ID нь бүртгэх үеийнх)
+            // (салбар, бүртгэсэн админ, хариуцагчийн код нь бүртгэх үеийнх)
             if (blank($computer->inventory_number)) {
                 $computer->inventory_number = static::nextInventoryNumber(
                     static::inventoryPrefix($computer->category, $computer->type),
@@ -362,7 +362,8 @@ class Computer extends Model
      */
     public static function nextInventoryNumber(string $prefix, ?int $branchId = null, ?int $adminId = null, ?int $userId = null): string
     {
-        return static::formatInventoryNumber($prefix, $branchId, $adminId, $userId, static::nextDailySerial($prefix));
+        // A, U хэсэгт хэрэглэгчийн id биш, кодын дугаар (A3, U5) орно
+        return static::formatInventoryNumber($prefix, $branchId, User::codeNumber($adminId), User::codeNumber($userId), static::nextDailySerial($prefix));
     }
 
     /**

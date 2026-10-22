@@ -138,7 +138,8 @@
     @endif
 
     {{-- Хариуцагчийг «Ажилтанд олгох» үйлдлээр онооно; энд одоогийн утгыг хэвээр хадгална --}}
-    <input type="hidden" id="assigned_user_id" name="assigned_user_id" value="{{ old('assigned_user_id', $computer->assigned_user_id) }}">
+    @php $holderId = old('assigned_user_id', $computer->assigned_user_id); @endphp
+    <input type="hidden" id="assigned_user_id" name="assigned_user_id" value="{{ $holderId }}" data-code-number="{{ \App\Models\User::codeNumber($holderId ? (int) $holderId : null) }}">
     @error('user_id')<p class="text-sm text-rose-600">{{ $message }}</p>@enderror
 
     @foreach ($sections as $title => $fields)
@@ -458,7 +459,7 @@
     // Бүртгэлийн дугаарын урьдчилсан харагдац: PC-B{салбар}-A{админ}-U{хариуцагч}-{огноо}-{өдрийн дугаар}
     const nextSerials = @json($nextSerials ?? []);
     const inventoryDate = @json($inventoryDate ?? now()->format('Ymd'));
-    const myId = @json(auth()->id());
+    const myId = @json(\App\Models\User::codeNumber(auth()->id()));
     const myBranchId = @json(auth()->user()->isBranchScoped() ? auth()->user()->branch_id : null);
     const branchSelect = document.getElementById('branch_id');
     const holderSelect = document.getElementById('assigned_user_id');
@@ -480,7 +481,7 @@
         const picked = boxes.find(function (b) { return b.checked; });
         const prefix = picked ? (categoryPrefixes[picked.value] || 'EQ') : (typePrefixes[typeSelect && typeSelect.value] || 'PC');
         const branch = (branchSelect ? branchSelect.value : myBranchId) || 0;
-        const holder = (holderSelect && holderSelect.value) || 0;
+        const holder = (holderSelect && holderSelect.value && holderSelect.dataset.codeNumber) || 0;
         const serial = String(nextSerials[prefix] || 1).padStart(3, '0');
         inventory.placeholder = prefix + '-B' + branch + '-A' + myId + '-U' + holder + '-' + inventoryDate + '-' + serial;
     }

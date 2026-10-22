@@ -34,6 +34,14 @@ class User extends Authenticatable
     {
         // Нэр солигдвол хариуцаж буй төхөөрөмжүүдийн «Хариуцагч» (computers.assigned_to) шинэ нэрээр харагдана.
         // Шууд DB-ээр шинэчилнэ: хариуцагч өөрчлөгдөөгүй тул «хүлээн авсан» акт, түүх хэвээр.
+        // Код: шинэ хэрэглэгчид, эсвэл эрхийн бүлэг солигдоход (ажилтан ↔ админ) тухайн бүлгийн дараагийн дугаар
+        static::saving(function (User $user) {
+            $prefix = self::codePrefix($user->role);
+            if (blank($user->code) || ! str_starts_with($user->code, $prefix)) {
+                $user->code = self::nextCode($prefix);
+            }
+        });
+
         static::updated(function (User $user) {
             if ($user->wasChanged('name')) {
                 \Illuminate\Support\Facades\DB::table('computers')->where('assigned_user_id', $user->id)
@@ -73,11 +81,34 @@ class User extends Authenticatable
 
     /**
      * Хэрэглэгчийн ID код — бүртгэлийн дугаарын хэсэгтэй ижил:
-     * Superadmin, Админ (бүртгэсэн хүн) → A2, Ажилтан (хариуцагч) → U82
+     * Superadmin, Админ (бүртгэсэн хүн) → A2, Ажилтан (хариуцагч) → U5 (бүлэг тус бүр дараалсан)
      */
     public function idCode(): string
     {
-        return ($this->role === 'employee' ? 'U' : 'A').$this->id;
+        return $this->code ?: self::codePrefix($this->role).$this->id;
+    }
+
+    /** Кодын үсэг: Ажилтан → U, Superadmin / Админ → A */
+    public static function codePrefix(?string $role): string
+    {
+        return $role === 'employee' ? 'U' : 'A';
+    }
+
+    /** Бүлгийн дараагийн код: A3, U6 … (бүлэг тус бүр 1-ээс дараалан) */
+    public static function nextCode(string $prefix): string
+    {
+        $max = static::query()->where('code', 'like', $prefix.'%')
+            ->selectRaw('max(cast(substring(code, 2) as unsigned)) as m')->value('m');
+
+        return $prefix.((int) $max + 1);
+    }
+
+    /** Бүртгэлийн дугаарт орох тоо: хэрэглэгчийн кодын тоон хэсэг (A3 → 3), хэрэглэгчгүй бол 0 */
+    public static function codeNumber(?int $userId): int
+    {
+        $code = $userId ? static::whereKey($userId)->value('code') : null;
+
+        return $code ? (int) substr($code, 1) : 0;
     }
 
     /** ID-ийн нэр: «Superadmin ID», «Админ ID», «Ажилтны ID» */
