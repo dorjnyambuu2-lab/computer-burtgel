@@ -37,7 +37,8 @@ class UniqueNetworkAddress implements ValidationRule
             ->first(['id', 'sequence_number', 'name']);
 
         if ($other) {
-            $fail(($isMac ? 'Энэ MAC' : 'Энэ IP')." хаяг «#{$other->sequence_number} {$other->name}» төхөөрөмжид бүртгэлтэй байна.");
+            $fail(($isMac ? 'Энэ MAC' : 'Энэ IP')." хаяг «#{$other->sequence_number} {$other->name}» төхөөрөмжид бүртгэлтэй байна. "
+                .'Нэг хаяг хоёр төхөөрөмжид байж болохгүй — тэнд буруу бүртгэгдсэн бол эхлээд тэндээс арилгана уу.');
         }
     }
 }
