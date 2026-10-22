@@ -94,9 +94,13 @@ class Computer extends Model
                 }
             }
 
-            // Бүртгэлийн дугаар, нэрийг оруулаагүй бол автоматаар үүсгэнэ (PC-20261019-001, MON-20261019-002 ...)
+            // Бүртгэлийн дугаар, нэрийг оруулаагүй бол автоматаар үүсгэнэ: PC-B1-A2-U3-20261022-001
+            // (салбар, бүртгэсэн админ, хариуцагч хэрэглэгчийн ID нь бүртгэх үеийнх)
             if (blank($computer->inventory_number)) {
-                $computer->inventory_number = static::nextInventoryNumber(static::inventoryPrefix($computer->category, $computer->type));
+                $computer->inventory_number = static::nextInventoryNumber(
+                    static::inventoryPrefix($computer->category, $computer->type),
+                    $computer->branch_id, $computer->created_by, $computer->assigned_user_id,
+                );
             }
             if (blank($computer->name)) {
                 $computer->name = trim(($computer->brand ?? '').' '.($computer->model ?? ''))
@@ -210,32 +214,31 @@ class Computer extends Model
     }
 
     /**
-     * Угтварын одоогийн хамгийн их дугаар (бүх салбар, устгагдсан ч): PC-0007 → 7.
-     * Иж бүрдлийн дэд дугаартай нь ч тоологдоно: PC-0007-1 → 7 (дараагийн компьютер PC-0007 авч давхцахгүй).
+     * Тухайн төрөл, өдрийн дараагийн дараалсан дугаар (бүх салбар, админ, хэрэглэгч, устгагдсан ч нийтдээ).
+     * Хуучин (PC-20261020-001) болон шинэ (PC-B1-A2-U3-20261022-001) хэлбэр, иж бүрдлийн дэд дугаар (-1) бүгд тоологдоно.
      */
-    public static function maxInventorySuffix(string $prefix): int
+    public static function nextDailySerial(string $prefix, ?\DateTimeInterface $date = null): int
     {
+        $day = ($date ?? now())->format('Ymd');
+        $pattern = '/^'.preg_quote($prefix, '/').'-(?:B\d+-A\d+-U\d+-)?'.$day.'-(\d+)(?:-\d+)?$/';
         $max = 0;
 
         static::global()
-            ->where('inventory_number', 'like', $prefix.'-%')
+            ->where('inventory_number', 'like', $prefix.'-%'.$day.'-%')
             ->pluck('inventory_number')
-            ->each(function ($number) use ($prefix, &$max) {
-                if (preg_match('/^'.preg_quote($prefix, '/').'-(\d+)(?:-\d+)?$/', (string) $number, $m)) {
+            ->each(function ($number) use ($pattern, &$max) {
+                if (preg_match($pattern, (string) $number, $m)) {
                     $max = max($max, (int) $m[1]);
                 }
             });
 
-        return $max;
+        return $max + 1;
     }
 
-    /**
-     * Бүртгэлийн дугаарын огноотой угтвар: PC → PC-20261019. Дугаар нь бүртгэсэн он сар өдрөөр
-     * ангилагдана, өдөр бүр 001-ээс эхэлнэ (хуучин PC-0001 маягийн дугаар өөрчлөгдөхгүй).
-     */
-    public static function datedPrefix(string $prefix, ?\DateTimeInterface $date = null): string
+    /** Бүртгэлийн дугаар угсрах: PC-B{салбар}-A{админ}-U{хэрэглэгч}-{огноо}-{дугаар}. Байхгүй ID нь 0 */
+    public static function formatInventoryNumber(string $prefix, ?int $branchId, ?int $adminId, ?int $userId, int $serial, ?\DateTimeInterface $date = null): string
     {
-        return $prefix.'-'.($date ?? now())->format('Ymd');
+        return sprintf('%s-B%d-A%d-U%d-%s-%03d', $prefix, (int) $branchId, (int) $adminId, (int) $userId, ($date ?? now())->format('Ymd'), $serial);
     }
 
     /**
@@ -261,12 +264,13 @@ class Computer extends Model
         return $this->qr_code;
     }
 
-    /** Дараагийн чөлөөтэй бүртгэлийн дугаар: PC-20261019-001 */
-    public static function nextInventoryNumber(string $prefix): string
+    /**
+     * Дараагийн чөлөөтэй бүртгэлийн дугаар: PC-B1-A2-U3-20261022-001
+     * (B = салбарын ID, A = бүртгэсэн админы ID, U = хариуцагч хэрэглэгчийн ID, дараа нь бүртгэсэн огноо, өдрийн дугаар)
+     */
+    public static function nextInventoryNumber(string $prefix, ?int $branchId = null, ?int $adminId = null, ?int $userId = null): string
     {
-        $dated = static::datedPrefix($prefix);
-
-        return sprintf('%s-%03d', $dated, static::maxInventorySuffix($dated) + 1);
+        return static::formatInventoryNumber($prefix, $branchId, $adminId, $userId, static::nextDailySerial($prefix));
     }
 
     /**

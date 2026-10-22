@@ -468,8 +468,13 @@
     const saveAndNew = document.getElementById('save-and-new');
     const typeSelect = document.getElementById('type');
 
-    // Бүртгэлийн дугаарын урьдчилсан харагдац: сонгосон ангилал (эсвэл төрөл)-ийн угтвараар дараагийн дугаар
-    const nextNumbers = @json($nextNumbers ?? []);
+    // Бүртгэлийн дугаарын урьдчилсан харагдац: PC-B{салбар}-A{админ}-U{хариуцагч}-{огноо}-{өдрийн дугаар}
+    const nextSerials = @json($nextSerials ?? []);
+    const inventoryDate = @json($inventoryDate ?? now()->format('Ymd'));
+    const myId = @json(auth()->id());
+    const myBranchId = @json(auth()->user()->isBranchScoped() ? auth()->user()->branch_id : null);
+    const branchSelect = document.getElementById('branch_id');
+    const holderSelect = document.getElementById('assigned_user_id');
     const categoryPrefixes = @json(\App\Models\Computer::INVENTORY_PREFIXES);
     const typePrefixes = { laptop: 'NB', server: 'SRV', other: 'EQ' };
     const kitSelect = document.getElementById('kit_parent_id');
@@ -487,9 +492,14 @@
         if (kitHint) kitHint.textContent = 'Компьютерийн дагалдах хэрэгсэл бол сонгоно: дугаар нь компьютерийн дугаар + дэд дугаар болно.';
         const picked = boxes.find(function (b) { return b.checked; });
         const prefix = picked ? (categoryPrefixes[picked.value] || 'EQ') : (typePrefixes[typeSelect && typeSelect.value] || 'PC');
-        inventory.placeholder = (nextNumbers[prefix] || prefix + '-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-001');
+        const branch = (branchSelect ? branchSelect.value : myBranchId) || 0;
+        const holder = (holderSelect && holderSelect.value) || 0;
+        const serial = String(nextSerials[prefix] || 1).padStart(3, '0');
+        inventory.placeholder = prefix + '-B' + branch + '-A' + myId + '-U' + holder + '-' + inventoryDate + '-' + serial;
     }
     if (typeSelect) typeSelect.addEventListener('change', previewInventory);
+    if (branchSelect) branchSelect.addEventListener('change', previewInventory);
+    if (holderSelect) holderSelect.addEventListener('change', previewInventory);
     if (kitSelect) kitSelect.addEventListener('change', previewInventory);
     const submitText = submit ? submit.textContent.trim() : '';
     const singleAction = form.getAttribute('action');

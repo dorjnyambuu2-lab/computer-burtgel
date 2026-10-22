@@ -22,9 +22,6 @@ use Illuminate\View\View;
  */
 class ComputerBulkController extends Controller
 {
-    /** Бүртгэлийн дугаар автоматаар үүсгэх угтвар (жишээ нь MS-20261019-001) */
-    private const PREFIXES = Computer::INVENTORY_PREFIXES;
-
     /** Мөр бүрийн техникийн талбарууд (ангиллаас хамааран формд харагдана) */
     private const ROW_FIELDS = ['brand', 'model', 'serial_number', 'cpu', 'ram_gb', 'storage', 'os', 'ip_address', 'mac_address', 'specs'];
 
@@ -135,16 +132,14 @@ class ComputerBulkController extends Controller
         $created = [];
 
         DB::transaction(function () use ($rows, $data, $user, $request, &$created) {
-            $counters = [];
             $status = $this->byLabel(ComputerStatus::class, $user ? 'Ашиглагдаж байгаа' : 'Агуулахад');
             $main = null; // иж бүрдлийн үндсэн компьютер
 
             foreach ($this->kitOrder($rows) as $i => $row) {
                 $category = EquipmentCategory::tryFrom((string) ($row['category'] ?? ''));
-                $prefix = self::PREFIXES[$category?->value ?? 'other'] ?? 'EQ';
 
-                // Иж бүрдлийн дагалдах хэрэгсэл бол дугаарыг model үүсгэнэ: PC-0012-1, PC-0012-2 ...
-                $inventory = $main ? null : $this->nextInventoryNumber($prefix, $counters);
+                // Бүртгэлийн дугаарыг model үүсгэнэ: PC-B1-A2-U3-20261022-001 (дагалдах хэрэгсэлд -2, -3 ...)
+                $inventory = null;
 
                 // Нэр бичээгүй бол «Үйлдвэрлэгч Загвар», тэр нь ч байхгүй бол model «Ангилал Дугаар» гэж өгнө
                 $name = filled($row['name'] ?? null)
@@ -282,7 +277,6 @@ class ComputerBulkController extends Controller
         $created = [];
 
         DB::transaction(function () use ($items, $data, $user, $status, $request, &$created) {
-            $counters = [];
             $perCategory = array_count_values(array_column($items, 'category'));
             $seen = [];
             // Иж бүрдлийн үндсэн компьютер: формоос сонгосон бол бүгд түүний дагалдах хэрэгсэл болно
@@ -292,8 +286,8 @@ class ComputerBulkController extends Controller
 
             foreach (($presetMain ? array_combine(range(1, count($items)), $items) : $this->kitOrder($items)) as $i => $item) {
                 $category = EquipmentCategory::from($item['category']);
-                // Иж бүрдлийн дагалдах хэрэгсэл бол дугаарыг model үүсгэнэ: PC-0012-1 ...
-                $inventory = $main ? null : $this->nextInventoryNumber(self::PREFIXES[$category->value] ?? 'EQ', $counters);
+                // Бүртгэлийн дугаарыг model үүсгэнэ: PC-B1-A2-U3-20261022-001 (дагалдах хэрэгсэлд -2, -3 ...)
+                $inventory = null;
                 $value = fn (string $key) => filled($item[$key] ?? null) ? $item[$key] : null;
 
                 // Нэр: «Нэр · Ангилал [2]», нэр бичээгүй бол «Үйлдвэрлэгч Загвар», эсвэл ангиллын нэр
@@ -420,16 +414,6 @@ class ComputerBulkController extends Controller
         }
 
         return $errors;
-    }
-
-    /** Угтварын дараагийн дугаар (PC-20261019-001): тухайн өдрийн (устгагдсан ч) хамгийн их дугаараас нэгээр нэмнэ */
-    private function nextInventoryNumber(string $prefix, array &$counters): string
-    {
-        $dated = Computer::datedPrefix($prefix);
-        // Нэг хүсэлтэд олныг бүртгэхэд баазаас нэг л удаа уншаад, цааш нь санах ойд тоолно
-        $counters[$dated] ??= Computer::maxInventorySuffix($dated);
-
-        return sprintf('%s-%03d', $dated, ++$counters[$dated]);
     }
 
     /** Ангиллаас "Төрөл"-ийг тааруулна (процессор → Суурин, ноутбук → Зөөврийн, бусад → Бусад) */
