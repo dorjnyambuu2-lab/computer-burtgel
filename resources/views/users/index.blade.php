@@ -63,9 +63,7 @@
 <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
     <div>
         @if ($isBranchAdmin)
-            <h1 class="!mb-0 text-xl font-bold">Ажилтан <span class="text-base font-normal text-slate-400">· {{ $me->branch?->name }}</span></h1>
-            <p class="mt-1 text-sm text-slate-500">Таны салбарын ажилтнууд. Шинэ ажилтан бүртгэхэд таны салбарт автоматаар орно.</p>
-        @else
+            <h1 class="!mb-0 text-xl font-bold">Ажилтан <span class="text-base font-normal text-slate-400">· {{ $me->branch?->name }}</span></h1>        @else
             <h1 class="!mb-0 text-xl font-bold">Хэрэглэгч</h1>
         @endif
     </div>

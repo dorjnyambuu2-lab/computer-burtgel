@@ -25,8 +25,7 @@
 
     {{-- 1. Хувийн мэдээлэл --}}
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="mb-1 flex items-center gap-2 text-base font-bold">{!! $step(1) !!} Хувийн мэдээлэл</h2>
-        <p class="mb-4 text-xs text-slate-500">Төхөөрөмж олгоход хариуцагчийн овог, нэр болж бичигдэнэ.</p>
+        <h2 class="mb-4 flex items-center gap-2 text-base font-bold">{!! $step(1) !!} Хувийн мэдээлэл</h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
                 <label for="surname" class="{{ $lb }}">Овог</label>
@@ -60,20 +59,15 @@
                             <option value="{{ $k }}" @selected(old('role', $user->role ?: $defaultRole) === $k)>{{ $v }}</option>
                         @endforeach
                     </select>
-                    <p class="mt-1 text-xs text-slate-500">
-                        @if ($branchAdmin)
-                            Ажилтан зөвхөн өөрт олгосон төхөөрөмжөө харж, хүсэлт илгээнэ.
-                        @else
-                            Админ — салбарынхаа төхөөрөмж, ажилтныг удирдана. Ажилтан — өөрт олгосон төхөөрөмжөө харна.
-                        @endif
-                    </p>
+                    @unless ($branchAdmin)
+                        <p class="mt-1 text-xs text-slate-500">Админ — салбарынхаа төхөөрөмж, ажилтныг удирдана. Ажилтан — өөрт олгосон төхөөрөмжөө харна.</p>
+                    @endunless
                 @endif
                 @error('role')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
             </div>
             <div>
                 <label for="username" class="{{ $lb }}">Нэвтрэх нэр <span class="text-rose-500">*</span></label>
                 <input id="username" name="username" type="text" value="{{ old('username', $user->username) }}" required class="{{ $in }}" placeholder="Жишээ: tulga.b" autocomplete="off">
-                <p class="mt-1 text-xs text-slate-500">Нэвтрэхдээ бичнэ. Латин үсэг, тоо ашиглана.</p>
                 @error('username')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
             </div>
             <div>
@@ -97,7 +91,6 @@
                     <input type="checkbox" name="is_active" value="1" @checked($active) @disabled($isSelf) class="mt-0.5 h-4 w-4 rounded border-slate-300">
                     <span>
                         <span class="block font-semibold text-slate-900">Идэвхтэй</span>
-                        <span class="block text-xs text-slate-500">Тэмдэглээгүй бол хэрэглэгч системд нэвтэрч чадахгүй.</span>
                     </span>
                 </label>
                 @error('is_active')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
@@ -286,8 +279,7 @@
             ->map(fn ($v) => trim((string) $v))->filter()->unique()->sort()->values();
     @endphp
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="mb-1 flex items-center gap-2 text-base font-bold">{!! $step(4) !!} Ажлын мэдээлэл <span class="text-xs font-normal text-slate-400">· заавал биш</span></h2>
-        <p class="mb-4 text-xs text-slate-500">Төхөөрөмж олгоход «Байршил ба хариуцагч» хэсэгт автоматаар бичигдэнэ. Бичиж эхлэхэд өмнө бүртгэсэн утгууд санал болгогдоно.</p>
+        <h2 class="mb-4 flex items-center gap-2 text-base font-bold">{!! $step(4) !!} Ажлын мэдээлэл <span class="text-xs font-normal text-slate-400">· заавал биш</span></h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
             @foreach ($jobFields as $field => [$label, $placeholder])
                 <div>

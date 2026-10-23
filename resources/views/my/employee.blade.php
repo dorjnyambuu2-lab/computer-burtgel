@@ -74,7 +74,7 @@
 {{-- Assets --}}
 <section class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
     <div class="flex items-center justify-between p-6 pb-3">
-        <div><h2 class="font-bold">Эзэмшиж буй хөрөнгө</h2><p class="text-xs text-slate-500">Танд хариуцуулсан тоног төхөөрөмж</p></div>
+        <div><h2 class="font-bold">Эзэмшиж буй хөрөнгө</h2></div>
         @if ($q !== '')<a href="{{ url('/') }}" class="text-xs font-semibold text-blue-600">Хайлт цэвэрлэх</a>@endif
     </div>
     <ul class="divide-y divide-slate-100">

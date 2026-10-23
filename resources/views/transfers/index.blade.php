@@ -8,9 +8,7 @@
 
 <div class="mx-auto max-w-6xl space-y-4">
     <div>
-        <h1 class="!mb-0 text-xl font-bold">Төхөөрөмж шилжүүлэх</h1>
-        <p class="mt-1 text-sm text-slate-500">Ажилтанд байгаа төхөөрөмжийг өөр ажилтанд шилжүүлнэ. Шилжүүлэх эрх зөвхөн салбарын Админд байна.</p>
-    </div>
+        <h1 class="!mb-0 text-xl font-bold">Төхөөрөмж шилжүүлэх</h1>    </div>
 
     @if ($errors->any())
         <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $errors->first() }}</div>

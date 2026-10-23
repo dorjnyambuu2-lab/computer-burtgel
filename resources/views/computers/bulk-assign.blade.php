@@ -17,9 +17,6 @@
     <div>
         <div class="text-xs text-slate-500">Удирдлага</div>
         <h1 class="!mb-0 text-xl font-bold">Төхөөрөмж олгох</h1>
-        <p class="mt-1 text-sm text-slate-500">
-            Ажилтнаа сонгоод процессор, дэлгэц, mouse, keyboard, printer зэрэг чөлөөтэй төхөөрөмжүүдээс олныг нэг дор олгоно.
-        </p>
     </div>
 
     @if ($errors->any())
