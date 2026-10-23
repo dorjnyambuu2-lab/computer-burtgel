@@ -95,13 +95,10 @@ class Computer extends Model
                 }
             }
 
-            // Бүртгэлийн дугаар, нэрийг оруулаагүй бол автоматаар үүсгэнэ: PC-B1-A2-U3-20261022-001
-            // (салбар, бүртгэсэн админ, хариуцагчийн код нь бүртгэх үеийнх)
+            // Бүртгэлийн дугаар, нэрийг оруулаагүй бол автоматаар үүсгэнэ: SA1-20261023-001
+            // (бүртгэсэн хүн + огноо + тухайн өдрийн дугаар)
             if (blank($computer->inventory_number)) {
-                $computer->inventory_number = static::nextInventoryNumber(
-                    static::inventoryPrefix($computer->category, $computer->type),
-                    $computer->branch_id, $computer->created_by, $computer->assigned_user_id,
-                );
+                $computer->inventory_number = static::nextInventoryNumber($computer->created_by);
             }
             if (blank($computer->name)) {
                 $computer->name = trim(($computer->brand ?? '').' '.($computer->model ?? ''))
@@ -276,26 +273,6 @@ class Computer extends Model
         return $matches->count() === 1 ? $matches->first() : null;
     }
 
-    /** Ангилал / төрлөөр бүртгэлийн дугаарын угтвар */
-    public const INVENTORY_PREFIXES = [
-        'processor' => 'PC', 'laptop' => 'NB', 'monitor' => 'MON', 'mouse' => 'MS', 'keyboard' => 'KB',
-        'printer' => 'PR', 'scanner' => 'SC', 'ups' => 'UPS', 'network' => 'NET', 'other' => 'EQ',
-    ];
-
-    public static function inventoryPrefix(?EquipmentCategory $category, ?ComputerType $type = null): string
-    {
-        if ($category) {
-            return self::INVENTORY_PREFIXES[$category->value] ?? 'EQ';
-        }
-
-        return match ($type) {
-            ComputerType::Laptop => 'NB',
-            ComputerType::Server => 'SRV',
-            ComputerType::Other => 'EQ',
-            default => 'PC',
-        };
-    }
-
     /**
      * Бүх салбарын (устгасан ч) төхөөрөмж. Бүртгэлийн дугаар, дэс дугаар, серийн дугаар зэрэг
      * бүх салбарт давхардах ёсгүй утгыг шалгахад ашиглана (Админы салбарын шүүлтгүй).
@@ -306,31 +283,25 @@ class Computer extends Model
     }
 
     /**
-     * Тухайн төрөл, өдрийн дараагийн дараалсан дугаар (бүх салбар, админ, хэрэглэгч, устгагдсан ч нийтдээ).
-     * Хуучин (PC-20261020-001) болон шинэ (PC-B1-A2-U3-20261022-001) хэлбэр, иж бүрдлийн дэд дугаар (-1) бүгд тоологдоно.
+     * Бүртгэсэн хүний тухайн өдрийн дараагийн дугаар: SA1-20261023-001, -002 ... (ангиллаас үл хамааран,
+     * устгагдсан ч тоологдоно). Иж бүрдлийн дэд дугаар (-1, -2) тусдаа тоологдохгүй.
      */
-    public static function nextDailySerial(string $prefix, ?\DateTimeInterface $date = null): int
+    public static function nextDailySerial(string $registrarCode, ?\DateTimeInterface $date = null): int
     {
-        $day = ($date ?? now())->format('Ymd');
-        $pattern = '/^'.preg_quote($prefix, '/').'-(?:B\d+-A\d+-U\d+-)?'.$day.'-(\d+)(?:-\d+)?$/';
-        $max = 0;
+        $prefix = $registrarCode.'-'.($date ?? now())->format('Ymd').'-';
+        $pattern = '/^'.preg_quote($prefix, '/').'(\d+)(?:-\d+)?$/';
 
-        static::global()
-            ->where('inventory_number', 'like', $prefix.'-%'.$day.'-%')
+        return 1 + (int) static::global()
+            ->where('inventory_number', 'like', $prefix.'%')
             ->pluck('inventory_number')
-            ->each(function ($number) use ($pattern, &$max) {
-                if (preg_match($pattern, (string) $number, $m)) {
-                    $max = max($max, (int) $m[1]);
-                }
-            });
-
-        return $max + 1;
+            ->map(fn ($number) => preg_match($pattern, (string) $number, $m) ? (int) $m[1] : 0)
+            ->max();
     }
 
-    /** Бүртгэлийн дугаар угсрах: PC-B{салбар}-A{админ}-U{хэрэглэгч}-{огноо}-{дугаар}. Байхгүй ID нь 0 */
-    public static function formatInventoryNumber(string $prefix, ?int $branchId, ?int $adminId, ?int $userId, int $serial, ?\DateTimeInterface $date = null): string
+    /** Бүртгэлийн дугаар угсрах: {бүртгэсэн хүн}-{огноо}-{дугаар}, жишээ нь SA1-20261023-001 */
+    public static function formatInventoryNumber(string $registrarCode, int $serial, ?\DateTimeInterface $date = null): string
     {
-        return sprintf('%s-B%d-A%d-U%d-%s-%03d', $prefix, (int) $branchId, (int) $adminId, (int) $userId, ($date ?? now())->format('Ymd'), $serial);
+        return sprintf('%s-%s-%03d', $registrarCode, ($date ?? now())->format('Ymd'), $serial);
     }
 
     /**
@@ -356,14 +327,12 @@ class Computer extends Model
         return $this->qr_code;
     }
 
-    /**
-     * Дараагийн чөлөөтэй бүртгэлийн дугаар: PC-B1-A2-U3-20261022-001
-     * (B = салбарын ID, A = бүртгэсэн админы ID, U = хариуцагч хэрэглэгчийн ID, дараа нь бүртгэсэн огноо, өдрийн дугаар)
-     */
-    public static function nextInventoryNumber(string $prefix, ?int $branchId = null, ?int $adminId = null, ?int $userId = null): string
+    /** Дараагийн чөлөөтэй бүртгэлийн дугаар: бүртгэсэн хүний код (SA1, A2) + огноо + тухайн өдрийн дугаар */
+    public static function nextInventoryNumber(?int $registrarId): string
     {
-        // A, U хэсэгт хэрэглэгчийн id биш, кодын дугаар (A3, U5) орно
-        return static::formatInventoryNumber($prefix, $branchId, User::codeNumber($adminId), User::codeNumber($userId), static::nextDailySerial($prefix));
+        $code = User::registrarCode($registrarId);
+
+        return static::formatInventoryNumber($code, static::nextDailySerial($code));
     }
 
     /**

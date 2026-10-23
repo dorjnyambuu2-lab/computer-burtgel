@@ -199,9 +199,20 @@ class ComputerController extends Controller
             // Угтвар бүрийн дараагийн дугаар: формд ангилал/төрөл сонгоход урьдчилан харуулна
             // Бүртгэлийн дугаарын урьдчилсан харагдац (PC-B1-A2-U3-20261022-001): угтвар бүрийн өдрийн дараагийн дугаар.
             // Салбар, хариуцагчийг формд сонгоход JS дугаарыг угсарна (A = бүртгэж буй админ)
-            'nextSerials' => collect([...array_values(Computer::INVENTORY_PREFIXES), 'PC', 'NB', 'SRV', 'EQ'])->unique()
-                ->mapWithKeys(fn ($p) => [$p => Computer::nextDailySerial($p)]),
+            'nextSerial' => Computer::nextDailySerial(\App\Models\User::registrarCode($request->user()->id)),
             'inventoryDate' => now()->format('Ymd'),
+            // Хариуцагчийн овог, нэрийг бичихэд бүртгэлийн дугаарын U хэсгийг тааруулах ажилтнууд (Computer::matchHolderUser-тэй ижил)
+            'holderCandidates' => \App\Models\User::query()
+                ->where('is_active', true)
+                ->whereIn('role', ['admin', 'employee'])
+                ->when($request->user()->isBranchScoped(), fn ($q) => $q->where('branch_id', $request->user()->branch_id))
+                ->get(['id', 'name', 'surname', 'branch_id', 'code'])
+                ->map(fn ($u) => [
+                    'name' => trim((string) $u->name),
+                    'surname' => trim((string) $u->surname),
+                    'branch' => $u->branch_id,
+                    'code' => $u->code ? (int) substr($u->code, 1) : 0,
+                ])->values(),
             'nextSequence' => Computer::peekSequenceNumber($request->user()->branch_id),
             'departments' => $this->departments(),
             'kitParents' => $this->kitParents(),

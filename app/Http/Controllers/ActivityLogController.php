@@ -127,7 +127,7 @@ class ActivityLogController extends Controller
                 if (filled($computer->inventory_number)) {
                     $notes[] = 'бүртгэлийн дугаар '.$computer->inventory_number.' өөр төхөөрөмжид олгогдсон тул шинэ дугаар авлаа';
                 }
-                $computer->inventory_number = Computer::nextInventoryNumber(Computer::inventoryPrefix($computer->category, $computer->type), $computer->branch_id, $computer->created_by, $computer->assigned_user_id);
+                $computer->inventory_number = Computer::nextInventoryNumber($computer->created_by);
             }
             if (filled($computer->serial_number)
                 && Computer::global()->where('serial_number', $computer->serial_number)->exists()) {

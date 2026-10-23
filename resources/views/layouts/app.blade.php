@@ -13,9 +13,8 @@
             '' => [$home],
             'Төхөөрөмж' => [
                 ['/computers', 'Бүх төхөөрөмж', 'M4 5h16v11H4zM8 20h8M12 16v4',
-                    fn() => request()->is('computers') || (request()->is('computers/*') && ! request()->is('computers/trash', 'computers/scan', 'computers/bulk-assign', 'computers/bulk-create', 'computers/create'))],
+                    fn() => request()->is('computers') || (request()->is('computers/*') && ! request()->is('computers/trash', 'computers/scan', 'computers/bulk-assign', 'computers/create'))],
                 ['/computers/create', 'Шинээр бүртгэх', 'M12 5v14M5 12h14', fn() => request()->is('computers/create')],
-                ['/computers/bulk-create', 'Багцаар бүртгэх', 'M4 4h16v16H4zM12 8v8M8 12h8', fn() => request()->is('computers/bulk-create')],
                 ['/computers/bulk-assign', 'Төхөөрөмж олгох', 'M15 7a4 4 0 11-8 0 4 4 0 018 0zM3 21a8 8 0 0114 0M19 8v6M16 11h6', fn() => request()->is('computers/bulk-assign')],
                 // Төхөөрөмж шилжүүлэх: зөвхөн салбарын Админ (тоо: өмнөх шийдвэрлэгдээгүй хүсэлт)
                 ...($u->isAdmin() ? [['/transfers', 'Төхөөрөмж шилжүүлэх', 'M7 7h11l-3-3M17 17H6l3 3',

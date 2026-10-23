@@ -8,6 +8,10 @@
 </div>
 <form method="POST" action="{{ url('/users') }}">
     @csrf
+    {{-- «Төхөөрөмж олгох»-оос ирсэн бол хадгалсны дараа тийш нь буцна --}}
+    @if (request('return') === 'bulk-assign')
+        <input type="hidden" name="return" value="bulk-assign">
+    @endif
     @include('users._form')
 </form>
 @endsection

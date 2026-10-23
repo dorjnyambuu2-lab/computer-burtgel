@@ -31,9 +31,12 @@ enum EquipmentCategory: string
             self::Scanner => 'Scanner',
             self::Ups => 'UPS',
             self::Network => 'Сүлжээний төхөөрөмж',
-            self::Other => 'Бусад',
+            self::Other => 'Дагалдах хэрэгсэл',
         };
     }
+
+    /** «Дагалдах хэрэгсэл» табд багтах ангиллууд (бүртгэх формд Mouse, Keyboard тусдаа таб биш) */
+    public const ACCESSORIES = ['mouse', 'keyboard', 'other'];
 
     /** SVG (24x24, stroke) дүрсний path */
     public function icon(): string

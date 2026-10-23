@@ -44,7 +44,6 @@
     <h1 class="!mb-0 text-2xl font-bold">Бүх төхөөрөмж <span class="text-base font-normal text-slate-400">({{ $computers->total() }})</span></h1>
     <div class="flex flex-wrap gap-2">
         <a href="{{ route('computers.export', request()->query()) }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm !text-slate-700 hover:bg-slate-50">CSV татах</a>
-        <a href="{{ route('computers.bulk-create') }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm !text-slate-700 hover:bg-slate-50">Багцаар бүртгэх</a>
         <a href="{{ route('computers.create') }}" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-blue-700">+ Шинээр бүртгэх</a>
     </div>
 </div>

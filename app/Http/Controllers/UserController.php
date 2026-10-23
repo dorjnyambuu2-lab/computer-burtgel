@@ -110,6 +110,12 @@ class UserController extends Controller
             'is_active' => $request->boolean('is_active'),
         ]));
 
+        // «Төхөөрөмж олгох» хуудаснаас шинэ ажилтан нэмсэн бол шууд түүнд олгох хэсэг рүү
+        if ($request->input('return') === 'bulk-assign' && $user->role === 'employee') {
+            return redirect()->route('computers.bulk-assign', ['user_id' => $user->id])
+                ->with('success', $user->name.' ажилтан нэмэгдлээ. Одоо төхөөрөмж олгоно уу.');
+        }
+
         return redirect()->route('users.index')->with('success', 'Хэрэглэгч нэмэгдлээ'.($user->branch ? ' · салбар: '.$user->branch->name : '').'.');
     }
 

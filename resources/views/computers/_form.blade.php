@@ -14,18 +14,22 @@
     };
 
     $label = function ($case, array $map = []) {
-        if (method_exists($case, 'label')) return $case->label();
+        if (method_exists($case, 'label')) return $case->label();   
         return $map[$case->value] ?? $case->value;
     };
 
-    $statusMap = ['active' => 'Ашиглагдаж байгаа', 'in_use' => 'Ашиглагдаж байгаа', 'repair' => 'Засварт', 'maintenance' => 'Засварт',
-                  'storage' => 'Агуулахад', 'stock' => 'Агуулахад', 'retired' => 'Актласан', 'disposed' => 'Актласан'];
+    $statusMap = [
+        'active' => 'Ашиглагдаж байгаа', 'in_use' => 'Ашиглагдаж байгаа', 'repair' => 'Засварт', 'maintenance' => 'Засварт',
+        'storage' => 'Агуулахад', 'stock' => 'Агуулахад', 'retired' => 'Актласан', 'disposed' => 'Актласан',
+    ];
     $statuses = class_exists(\App\Enums\ComputerStatus::class)
         ? collect(\App\Enums\ComputerStatus::cases())->mapWithKeys(fn($c) => [$c->value => $label($c, $statusMap)])->all()
         : ['active' => 'Ашиглагдаж байгаа', 'repair' => 'Засварт', 'storage' => 'Агуулахад', 'retired' => 'Актласан'];
 
-    $typeMap = ['desktop' => 'Суурин компьютер', 'laptop' => 'Зөөврийн компьютер', 'server' => 'Сервер',
-                'all_in_one' => 'Бүгд нэг дор (All-in-one)', 'workstation' => 'Ажлын станц', 'tablet' => 'Таблет', 'other' => 'Бусад'];
+    $typeMap = [
+        'desktop' => 'Суурин компьютер', 'laptop' => 'Зөөврийн компьютер', 'server' => 'Сервер',
+        'all_in_one' => 'Бүгд нэг дор (All-in-one)', 'workstation' => 'Ажлын станц', 'tablet' => 'Таблет', 'other' => 'Бусад',
+    ];
     $types = class_exists(\App\Enums\ComputerType::class)
         ? collect(\App\Enums\ComputerType::cases())->mapWithKeys(fn($c) => [$c->value => $label($c, $typeMap)])->all()
         : $typeMap;
@@ -47,13 +51,23 @@
 
 @php
     $sections = [
+        'Байршил ба хариуцагч' => [
+            ['branch_id', 'Салбар', 'branch', ['required' => true]],
+            ['unit', 'Нэгж', 'text', ['placeholder' => 'Жишээ: Захиргааны нэгж']],
+            ['department', 'Алба', 'text', ['placeholder' => 'Жишээ: Мэдээллийн технологийн алба']],
+            ['position', 'Албан тушаал', 'text', ['placeholder' => 'Жишээ: Ахлах мэргэжилтэн']],
+            ['location', 'Байршил', 'text', ['placeholder' => 'Байр, давхар, өрөө']],
+            ['holder_surname', 'Овог', 'text', ['placeholder' => 'Хариуцагчийн овог']],
+            ['holder_name', 'Нэр', 'text', ['placeholder' => 'Хариуцагчийн нэр', 'hint' => 'Салбарын ажилтны нэртэй таарвал төхөөрөмж тэр ажилтанд автоматаар олгогдоно.']],
+        ],
         'Үндсэн мэдээлэл' => [
             // Шинээр бүртгэхэд хоосон орхивол автоматаар үүснэ (засахад заавал)
             ['inventory_number', 'Бүртгэлийн дугаар', 'text', $isEdit ? ['required' => true] : ['placeholder' => 'Автоматаар үүснэ', 'readonly' => true]],
             ['name', 'Компьютерийн нэр', 'text', $isEdit ? ['required' => true] : ['placeholder' => 'Хоосон бол: Үйлдвэрлэгч + Загвар']],
             ['type', 'Төрөл', 'type', []],
             ['category', 'Ангилал', 'category', []],
-            ...($isEdit ? [] : [['kit_parent_id', 'Иж бүрдэл (дагалдах хэрэгсэл бол)', 'kit', []]]),
+            // Иж бүрдэл: зөвхөн төхөөрөмжийн хуудасны «+ Дагалдах хэрэгсэл нэмэх»-ээр (?kit=) ирсэн үед харагдана
+            ...(! $isEdit && filled(old('kit_parent_id', $computer->kit_parent_id)) ? [['kit_parent_id', 'Иж бүрдэл (дагалдах хэрэгсэл бол)', 'kit', []]] : []),
             ['status', 'Төлөв', 'status', []],
         ],
         'Техникийн үзүүлэлт' => [
@@ -65,15 +79,6 @@
             ['storage', 'Санах ой (диск)', 'text', ['placeholder' => 'SSD 512GB']],
             ['os', 'Үйлдлийн систем', 'text', ['placeholder' => 'Windows 11 Pro']],
             ['specs', 'Үзүүлэлт', 'text', ['placeholder' => 'Дэлгэцийн хэмжээ, printer-ийн төрөл гэх мэт']],
-        ],
-        'Байршил ба хариуцагч' => [
-            ['branch_id', 'Салбар', 'branch', ['required' => true]],
-            ['unit', 'Нэгж', 'text', ['placeholder' => 'Жишээ: Захиргааны нэгж']],
-            ['department', 'Алба', 'text', ['placeholder' => 'Жишээ: Мэдээллийн технологийн алба']],
-            ['position', 'Албан тушаал', 'text', ['placeholder' => 'Жишээ: Ахлах мэргэжилтэн']],
-            ['location', 'Байршил', 'text', ['placeholder' => 'Байр, давхар, өрөө']],
-            ['holder_surname', 'Овог', 'text', ['placeholder' => 'Хариуцагчийн овог']],
-            ['holder_name', 'Нэр', 'text', ['placeholder' => 'Хариуцагчийн нэр', 'hint' => 'Салбарын ажилтны нэртэй таарвал төхөөрөмж тэр ажилтанд автоматаар олгогдоно.']],
         ],
         'Худалдан авалт ба баталгаа' => [
             ['purchase_date', 'Худалдан авсан огноо', 'date', []],
@@ -101,15 +106,28 @@
             }
         @endphp
         <nav id="category-tabs" role="tablist" aria-label="Төхөөрөмжийн төрөл"
-             class="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+            class="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
             @foreach (\App\Enums\EquipmentCategory::cases() as $case)
-                <button type="button" role="tab" data-tab="{{ $case->value }}"
+                {{-- Mouse, Keyboard нь «Дагалдах хэрэгсэл» табд (доорх дэд сонголт) --}}
+                @continue(in_array($case->value, \App\Enums\EquipmentCategory::ACCESSORIES, true) && $case !== \App\Enums\EquipmentCategory::Other)
+                <button type="button" role="tab" data-tab="{{ $case === \App\Enums\EquipmentCategory::Other ? 'accessory' : $case->value }}"
                         class="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl !border-0 !bg-transparent px-3.5 py-2 text-sm font-medium !text-slate-600 hover:!bg-slate-100">
                     <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ $case->icon() }}"/></svg>
                     {{ $case->label() }}
                 </button>
             @endforeach
         </nav>
+        {{-- «Дагалдах хэрэгсэл»-ийн дэд сонголт: Mouse, Keyboard, Бусад --}}
+        <div id="accessory-tabs" role="tablist" aria-label="Дагалдах хэрэгсэл" class="-mt-3 hidden flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+            @foreach (\App\Enums\EquipmentCategory::ACCESSORIES as $value)
+                @php $case = \App\Enums\EquipmentCategory::from($value); @endphp
+                <button type="button" role="tab" data-tab="{{ $value }}"
+                        class="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl !border-0 !bg-transparent px-3.5 py-1.5 text-sm font-medium !text-slate-600 hover:!bg-slate-100">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ $case->icon() }}"/></svg>
+                    {{ $case === \App\Enums\EquipmentCategory::Other ? 'Бусад' : $case->label() }}
+                </button>
+            @endforeach
+        </div>
 
         @if (! empty($duplicate))
             <div class="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-800">
@@ -144,12 +162,12 @@
 
     @foreach ($sections as $title => $fields)
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-                 @if ($title === 'Техникийн үзүүлэлт') data-per-item @endif>
+                @if ($title === 'Техникийн үзүүлэлт') data-per-item @endif>
             <h2 class="mb-4 text-base font-bold text-slate-900">{{ $title }}</h2>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 @foreach ($fields as [$name, $text, $kind, $o])
                     <div class="{{ ($kind === 'category' && ! $isEdit) ? 'md:col-span-2' : '' }}" @if ($kind === 'type') data-type-field @endif
-                         @if (in_array($name, \App\Enums\EquipmentCategory::ALL_SPEC_FIELDS, true)) data-spec-field="{{ $name }}" @endif>
+                        @if (in_array($name, \App\Enums\EquipmentCategory::ALL_SPEC_FIELDS, true)) data-spec-field="{{ $name }}" @endif>
                         @php $auto = in_array($name, $detectedFields, true); @endphp
                         <label for="{{ $name }}" class="{{ $lb }}">
                             <span @if ($name === 'name' && ! $isEdit) id="name-label" @endif>{{ $text }}</span> @if (! empty($o['required']))<span class="text-rose-500">*</span>@endif
@@ -203,7 +221,7 @@
                                     @foreach ($categories as $k => $v)
                                         <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
                                             <input type="checkbox" name="categories[]" value="{{ $k }}" class="h-4 w-4"
-                                                   @checked(in_array((string) $k, array_map('strval', $pickedCategories), true))>
+                                                    @checked(in_array((string) $k, array_map('strval', $pickedCategories), true))>
                                             {{ $v }}
                                         </label>
                                     @endforeach
@@ -225,10 +243,6 @@
                                     </button>
                                 </div>
                             @endif
-                            <p id="multi-hint" class="mt-3 hidden rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                                Төхөөрөмж бүр тусдаа бүртгэгдэнэ. Доорх карт бүрт үзүүлэлтийг нь оруулна: жагсаалтаас сонгох эсвэл гараар бичнэ, мэдэхгүй бол хоосон орхиж болно.
-                                Бүртгэлийн дугаар автоматаар үүснэ. Нэг ангиллын хэд хэдэн төхөөрөмж (жишээ нь 2 дэлгэц) бол «+ Дахин нэмэх» дарна.
-                            </p>
                             {{-- Төхөөрөмж бүрийн картууд (JS үүсгэнэ) --}}
                             <div id="items-box" class="mt-3 hidden space-y-3"></div>
                             @error('categories')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
@@ -293,13 +307,13 @@
                             <p id="kit-hint" class="mt-1 text-xs text-slate-400">Компьютерийн дагалдах хэрэгсэл бол сонгоно: дугаар нь компьютерийн дугаар + дэд дугаар болно.</p>
                         @else
                             <input id="{{ $name }}" name="{{ $name }}" type="{{ $kind }}"
-                                   value="{{ $val($name) }}" placeholder="{{ $o['placeholder'] ?? '' }}"
-                                   @if ($kind === 'number') min="0" step="1" @endif
-                                   @if (! empty($o['inputmode'])) inputmode="{{ $o['inputmode'] }}" @endif
-                                   @if (isset($suggest[$name])) list="{{ $name }}-options" autocomplete="off" @endif
-                                   @required(! empty($o['required']))
-                                   @if (! empty($o['readonly'])) readonly tabindex="-1" @endif
-                                   class="{{ $in }} @if ($auto) !border-emerald-400 bg-emerald-50/40 @endif @if (! empty($o['readonly'])) cursor-not-allowed !bg-slate-50 font-mono placeholder:!text-slate-700 @endif @error($name) border-rose-400 @enderror">
+                                    value="{{ $val($name) }}" placeholder="{{ $o['placeholder'] ?? '' }}"
+                                    @if ($kind === 'number') min="0" step="1" @endif
+                                    @if (! empty($o['inputmode'])) inputmode="{{ $o['inputmode'] }}" @endif
+                                    @if (isset($suggest[$name])) list="{{ $name }}-options" autocomplete="off" @endif
+                                    @required(! empty($o['required']))
+                                    @if (! empty($o['readonly'])) readonly tabindex="-1" @endif
+                                    class="{{ $in }} @if ($auto) !border-emerald-400 bg-emerald-50/40 @endif @if (! empty($o['readonly'])) cursor-not-allowed !bg-slate-50 font-mono placeholder:!text-slate-700 @endif @error($name) border-rose-400 @enderror">
                             @if (isset($suggest[$name]))
                                 {{-- Жагсаалтаас сонгох эсвэл гараар бичих --}}
                                 <datalist id="{{ $name }}-options">
@@ -327,7 +341,7 @@
     {{-- Үйлдлийн товчнууд --}}
     <div class="sticky bottom-0 -mx-4 flex items-center justify-end gap-3 border-t border-slate-200 bg-white/90 px-4 py-4 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
         <a href="{{ url('/computers') }}"
-           class="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Цуцлах</a>
+            class="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Цуцлах</a>
         @unless ($isEdit)
             {{-- Хадгалаад ижил мэдээлэлтэй шинэ форм нээнэ (олон компьютерийг дараалан бүртгэхэд) --}}
             <button type="submit" name="save_and_new" value="1" id="save-and-new"
@@ -449,7 +463,6 @@
 
     const form = box.closest('form');
     const boxes = Array.from(box.querySelectorAll('input[name="categories[]"]'));
-    const hint = document.getElementById('multi-hint');
     const inventory = document.getElementById('inventory_number');
     const perItem = document.querySelectorAll('[data-per-item]');
     const submit = form.querySelector('button[type="submit"]:not([name])');
@@ -457,16 +470,44 @@
     const typeSelect = document.getElementById('type');
 
     // Бүртгэлийн дугаарын урьдчилсан харагдац: PC-B{салбар}-A{админ}-U{хариуцагч}-{огноо}-{өдрийн дугаар}
-    const nextSerials = @json($nextSerials ?? []);
+    const nextSerial = @json($nextSerial ?? 1);
     const inventoryDate = @json($inventoryDate ?? now()->format('Ymd'));
-    const myId = @json(\App\Models\User::codeNumber(auth()->id()));
+    const myCode = @json(\App\Models\User::registrarCode(auth()->id())); // A2, Superadmin бол SA1
     const myBranchId = @json(auth()->user()->isBranchScoped() ? auth()->user()->branch_id : null);
     const branchSelect = document.getElementById('branch_id');
     const holderSelect = document.getElementById('assigned_user_id');
-    const categoryPrefixes = @json(\App\Models\Computer::INVENTORY_PREFIXES);
-    const typePrefixes = { laptop: 'NB', server: 'SRV', other: 'EQ' };
     const kitSelect = document.getElementById('kit_parent_id');
     const kitHint = document.getElementById('kit-hint');
+    // Хариуцагч: овог, нэрийг бичихэд салбарын ганц ажилтантай таарвал түүний код U хэсэгт орно (серверт ч ижил)
+    const holderCandidates = @json($holderCandidates ?? []);
+    const holderNameInput = document.getElementById('holder_name');
+    const holderSurnameInput = document.getElementById('holder_surname');
+    // branch === undefined бол бүх салбараас хайна
+    function holderMatches(branch) {
+        const name = holderNameInput ? holderNameInput.value.trim().toLowerCase() : '';
+        const surname = holderSurnameInput ? holderSurnameInput.value.trim().toLowerCase() : '';
+        return holderCandidates.filter(function (u) {
+            return (branch === undefined || String(u.branch || '') === branch) && u.name.toLowerCase() === name
+                && (!surname || !u.surname || u.surname.toLowerCase() === surname);
+        });
+    }
+    function currentBranch() { return String((branchSelect ? branchSelect.value : myBranchId) || ''); }
+    function holderCode() {
+        if (holderSelect && holderSelect.value && holderSelect.dataset.codeNumber) return holderSelect.dataset.codeNumber;
+        if (!holderNameInput || !holderNameInput.value.trim()) return null; // хариуцагч оруулаагүй
+        const matches = holderMatches(currentBranch());
+        return matches.length === 1 ? matches[0].code : 0;
+    }
+    // Хариуцагч сонгосон салбарт байхгүй ч өөр салбарын ганц ажилтан бол салбарыг нь сонгоно (Супер админ).
+    // Төхөөрөмж хариуцагчийнхаа салбарт бүртгэгдэж, хадгалахад тэр ажилтанд олгогдоно.
+    function syncHolderBranch() {
+        if (!branchSelect || !holderNameInput || !holderNameInput.value.trim()) return;
+        if (holderMatches(currentBranch()).length) return;
+        const everywhere = holderMatches(undefined);
+        if (everywhere.length === 1 && everywhere[0].branch && branchSelect.querySelector('option[value="' + everywhere[0].branch + '"]')) {
+            branchSelect.value = String(everywhere[0].branch);
+        }
+    }
     function previewInventory() {
         if (!inventory) return;
         if (inventory.disabled) { inventory.placeholder = 'Төхөөрөмж бүрт автоматаар үүснэ'; return; }
@@ -478,15 +519,23 @@
             return;
         }
         if (kitHint) kitHint.textContent = 'Компьютерийн дагалдах хэрэгсэл бол сонгоно: дугаар нь компьютерийн дугаар + дэд дугаар болно.';
-        const picked = boxes.find(function (b) { return b.checked; });
-        const prefix = picked ? (categoryPrefixes[picked.value] || 'EQ') : (typePrefixes[typeSelect && typeSelect.value] || 'PC');
-        const branch = (branchSelect ? branchSelect.value : myBranchId) || 0;
-        const holder = (holderSelect && holderSelect.value && holderSelect.dataset.codeNumber) || 0;
-        const serial = String(nextSerials[prefix] || 1).padStart(3, '0');
-        inventory.placeholder = prefix + '-B' + branch + '-A' + myId + '-U' + holder + '-' + inventoryDate + '-' + serial;
+        if (holderCode() === null) {
+            // Хариуцагчийг эхэлж оруулсны дараа дугаар автоматаар гарна
+            inventory.placeholder = 'Хариуцагчийг оруулсны дараа автоматаар гарна';
+            return;
+        }
+        // Бүртгэсэн хүн + огноо + дугаар: SA1-20261023-001
+        inventory.placeholder = myCode + '-' + inventoryDate + '-' + String(nextSerial).padStart(3, '0');
     }
     if (typeSelect) typeSelect.addEventListener('change', previewInventory);
     if (branchSelect) branchSelect.addEventListener('change', previewInventory);
+    [holderNameInput, holderSurnameInput].forEach(function (el) {
+        // change: браузерын автоматаар бөглөлт (autofill)
+        ['input', 'change'].forEach(function (ev) {
+            if (el) el.addEventListener(ev, function () { syncHolderBranch(); previewInventory(); });
+        });
+    });
+    syncHolderBranch();
     if (kitSelect) kitSelect.addEventListener('change', previewInventory);
     const submitText = submit ? submit.textContent.trim() : '';
     const singleAction = form.getAttribute('action');
@@ -610,7 +659,6 @@
         });
 
         form.setAttribute('action', multi ? multiAction : singleAction);
-        hint.classList.toggle('hidden', !multi);
         itemsBox.classList.toggle('hidden', !multi);
         itemsBox.querySelectorAll('input').forEach(function (el) { el.disabled = !multi; });
 
@@ -671,7 +719,9 @@
     });
 
     // ── Төрлийн таб: Процессор, Нөүтбүк, Дэлгэц ... Таб дарахад тухайн ганц төхөөрөмжийн форм болно ──
-    const tabs = Array.from(document.querySelectorAll('#category-tabs [data-tab]'));
+    const tabs = Array.from(document.querySelectorAll('#category-tabs [data-tab], #accessory-tabs [data-tab]'));
+    const accessories = @json(\App\Enums\EquipmentCategory::ACCESSORIES);
+    const accessoryTabs = document.getElementById('accessory-tabs');
     const typeField = document.querySelector('[data-type-field]');
     const current = document.getElementById('category-current');
     const multiBox = document.getElementById('category-multi');
@@ -683,9 +733,15 @@
     function syncTabs() {
         const picked = boxes.filter(function (b) { return b.checked; });
         if (picked.length && !picked.some(function (b) { return b.value === activeTab; })) activeTab = picked[0].value;
+        const isAccessory = accessories.indexOf(activeTab) !== -1;
+        if (accessoryTabs) {
+            accessoryTabs.classList.toggle('hidden', !isAccessory);
+            accessoryTabs.classList.toggle('flex', isAccessory);
+        }
         tabs.forEach(function (t) {
-            const on = t.dataset.tab === activeTab;
-            const inSet = picked.some(function (b) { return b.value === t.dataset.tab; });
+            const group = t.dataset.tab === 'accessory';
+            const on = group ? isAccessory : t.dataset.tab === activeTab;
+            const inSet = picked.some(function (b) { return group ? accessories.indexOf(b.value) !== -1 : b.value === t.dataset.tab; });
             t.setAttribute('aria-selected', on ? 'true' : 'false');
             t.classList.toggle('!bg-blue-600', on);
             t.classList.toggle('!text-white', on);
@@ -717,7 +773,10 @@
 
     tabs.forEach(function (t) {
         t.addEventListener('click', function () {
-            activeTab = t.dataset.tab;
+            // «Дагалдах хэрэгсэл»: өмнө сонгосон дэд төрөл, эсвэл Mouse
+            activeTab = t.dataset.tab === 'accessory'
+                ? (accessories.indexOf(activeTab) !== -1 ? activeTab : accessories[0])
+                : t.dataset.tab;
             boxes.forEach(function (b) { b.checked = b.value === activeTab; });
             if (typeSelect) {
                 if (activeTab === 'laptop') typeSelect.value = 'laptop';

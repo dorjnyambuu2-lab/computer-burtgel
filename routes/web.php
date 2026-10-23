@@ -94,9 +94,8 @@ Route::middleware('auth')->group(function () {
         Route::get('computers/bulk-assign', [ComputerActionController::class, 'bulkForm'])->name('computers.bulk-assign');
         Route::post('computers/bulk-assign', [ComputerActionController::class, 'bulkStore'])->name('computers.bulk-assign.store');
 
-        // Багцаар бүртгэх: процессор, дэлгэц, mouse, keyboard, printer-ийг нэг дор бүртгэж олгох
-        Route::get('computers/bulk-create', [ComputerBulkController::class, 'create'])->name('computers.bulk-create');
-        Route::post('computers/bulk-create', [ComputerBulkController::class, 'store'])->name('computers.bulk-create.store');
+        // «Багцаар бүртгэх» хасагдсан: хуучин холбоос «Шинэ компьютер бүртгэх» рүү (олон төхөөрөмжийг тэнд нэг дор бүртгэнэ)
+        Route::get('computers/bulk-create', fn (\Illuminate\Http\Request $request) => redirect()->route('computers.create', $request->query()));
         // "Шинэ компьютер бүртгэх" формоос олон ангилал сонгосон үед
         Route::post('computers/multi', [ComputerBulkController::class, 'storeMultiple'])->name('computers.store-multi');
         // Компьютерийн мэдээллийг автоматаар уншиж бүртгэх скрипт (.bat)

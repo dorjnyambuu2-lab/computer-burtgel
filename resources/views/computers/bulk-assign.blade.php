@@ -40,7 +40,17 @@
                 @endforeach
             </select>
             <noscript><button type="submit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Сонгох</button></noscript>
+            {{-- Жагсаалтад байхгүй шинэ ажилтан: бүртгээд энэ хуудас руу сонгогдсон байдлаар буцна --}}
+            @if (array_key_exists('employee', auth()->user()->assignableRoles()))
+                <a href="{{ route('users.create', ['role' => 'employee', 'return' => 'bulk-assign']) }}"
+                   class="shrink-0 rounded-xl border border-blue-600 bg-white px-4 py-2.5 text-sm font-semibold !text-blue-700 hover:bg-blue-50">
+                    + Шинэ ажилтан
+                </a>
+            @endif
         </div>
+        @unless (array_key_exists('employee', auth()->user()->assignableRoles()))
+            <p class="mt-2 text-xs text-slate-500">Жагсаалтад байхгүй шинэ ажилтныг тухайн салбарын Админ бүртгэнэ.</p>
+        @endunless
     </form>
 
     @if ($selected)
@@ -77,8 +87,8 @@
                 @if ($totalAvailable === 0)
                     <p class="text-sm text-slate-500">
                         Чөлөөтэй төхөөрөмж байхгүй байна. Эхлээд
-                        <a href="{{ route('computers.bulk-create', ['user_id' => $selected->id]) }}" class="font-medium text-blue-600 hover:underline">багцаар бүртгэнэ</a>
-                        (процессор, дэлгэц, mouse ... нэг дор).
+                        <a href="{{ route('computers.create') }}" class="font-medium text-blue-600 hover:underline">шинээр бүртгэнэ</a>
+                        (процессор, дэлгэц, mouse ... нэг дор бүртгэж болно).
                     </p>
                 @else
                     @foreach ($order as $key)

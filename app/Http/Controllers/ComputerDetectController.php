@@ -43,8 +43,8 @@ class ComputerDetectController extends Controller
 
     public function script(Request $request): Response
     {
-        // ?target=bulk: «Багцаар бүртгэх» хуудсыг бөглөж нээнэ, үгүй бол «Шинэ компьютер бүртгэх»
-        $url = $request->query('target') === 'bulk' ? route('computers.bulk-create') : route('computers.create');
+        // Скриптээр уншсан мэдээллээр «Шинэ компьютер бүртгэх» формыг бөглөж нээнэ
+        $url = route('computers.create');
 
         // localhost-оор татсан бол өөр компьютерээс хандахын тулд серверийн дотоод сүлжээний IP-г тавина
         $host = parse_url($url, PHP_URL_HOST);

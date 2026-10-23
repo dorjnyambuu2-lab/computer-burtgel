@@ -81,34 +81,49 @@ class User extends Authenticatable
 
     /**
      * Хэрэглэгчийн ID код — бүртгэлийн дугаарын хэсэгтэй ижил:
-     * Superadmin, Админ (бүртгэсэн хүн) → A2, Ажилтан (хариуцагч) → U5 (бүлэг тус бүр дараалсан)
+     * Superadmin → SA1, Админ (бүртгэсэн хүн) → A2, Ажилтан (хариуцагч) → U5 (бүлэг тус бүр дараалсан)
      */
     public function idCode(): string
     {
         return $this->code ?: self::codePrefix($this->role).$this->id;
     }
 
-    /** Кодын үсэг: Ажилтан → U, Superadmin / Админ → A */
+    /** Кодын үсэг: Superadmin → SA, Ажилтан → U, Админ → A */
     public static function codePrefix(?string $role): string
     {
-        return $role === 'employee' ? 'U' : 'A';
+        return match ($role) {
+            'superadmin' => 'SA',
+            'employee' => 'U',
+            default => 'A',
+        };
     }
 
-    /** Бүлгийн дараагийн код: A3, U6 … (бүлэг тус бүр 1-ээс дараалан) */
+    /** Бүлгийн дараагийн код: SA1, A3, U6 … (бүлэг тус бүр 1-ээс дараалан) */
     public static function nextCode(string $prefix): string
     {
-        $max = static::query()->where('code', 'like', $prefix.'%')
-            ->selectRaw('max(cast(substring(code, 2) as unsigned)) as m')->value('m');
+        // «A%» нь «SA…»-г оруулахгүй ч «A» угтвартай өөр код байж болзошгүй тул яг угтвар + тоог шүүнэ
+        $max = static::query()->where('code', 'like', $prefix.'%')->pluck('code')
+            ->filter(fn ($code) => preg_match('/^'.$prefix.'\d+$/', $code))
+            ->map(fn ($code) => (int) substr($code, strlen($prefix)))
+            ->max();
 
         return $prefix.((int) $max + 1);
     }
 
-    /** Бүртгэлийн дугаарт орох тоо: хэрэглэгчийн кодын тоон хэсэг (A3 → 3), хэрэглэгчгүй бол 0 */
+    /** Бүртгэлийн дугаарт орох тоо: хэрэглэгчийн кодын тоон хэсэг (A3 → 3, SA1 → 1), хэрэглэгчгүй бол 0 */
     public static function codeNumber(?int $userId): int
     {
         $code = $userId ? static::whereKey($userId)->value('code') : null;
 
-        return $code ? (int) substr($code, 1) : 0;
+        return $code ? (int) preg_replace('/^\D+/', '', $code) : 0;
+    }
+
+    /** Бүртгэлийн дугаарын бүртгэсэн хүний хэсэг: SA1 (Superadmin), A3 (Админ); хэрэглэгчгүй бол A0 */
+    public static function registrarCode(?int $userId): string
+    {
+        $code = $userId ? static::whereKey($userId)->value('code') : null;
+
+        return $code && preg_match('/^(SA|A)\d+$/', $code) ? $code : 'A'.static::codeNumber($userId);
     }
 
     /** ID-ийн нэр: «Superadmin ID», «Админ ID», «Ажилтны ID» */
@@ -130,7 +145,7 @@ class User extends Authenticatable
         return $this->is_online && $this->last_seen_at?->gte(now()->subMinutes(self::ONLINE_MINUTES));
     }
 
-    public function scopeOnline($query)
+    public function scopeOnline(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('is_online', true)->where('last_seen_at', '>=', now()->subMinutes(self::ONLINE_MINUTES));
     }
