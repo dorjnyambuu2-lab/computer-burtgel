@@ -50,7 +50,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/my/password', [PasswordController::class, 'edit'])->name('my.password.edit');
     Route::put('/my/password', [PasswordController::class, 'update'])->name('my.password.update');
 
-    // Ажилтан: миний төхөөрөмж, үзүүлэлт харах, хүлээн авсныг баталгаажуулах (шилжүүлэх эрх зөвхөн Админд)
+    // Ажилтан: миний төхөөрөмж, үзүүлэлт харах, хүлээн авсныг баталгаажуулах (шилжүүлэх эрх зөвхөн Супер админ, Админд)
     Route::get('/my/computers', [MyComputerController::class, 'index'])->name('my.computers');
     Route::get('/my/computers/{id}', [MyComputerController::class, 'show'])
         ->whereNumber('id')
@@ -62,8 +62,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/my/notifications/{id}', [NotificationController::class, 'open'])->name('notifications.open');
     Route::post('/my/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
 
-    // Төхөөрөмж шилжүүлэх: зөвхөн салбарын Админ (Супер админ, ажилтан эрхгүй)
-    Route::middleware('role:admin')->group(function () {
+    // Төхөөрөмж шилжүүлэх: Супер админ (бүх салбар) ба салбарын Админ (өөрийн салбар); ажилтан эрхгүй
+    Route::middleware('role:superadmin,admin')->group(function () {
         Route::get('transfers', [ComputerTransferController::class, 'index'])->name('transfers.index');
         Route::post('transfers', [ComputerTransferController::class, 'store'])->name('transfers.store');
         // Өмнө ажилтнаас ирсэн шийдвэрлэгдээгүй хүсэлт: хүлээн авах (агуулахад) → олгох, эсвэл татгалзах

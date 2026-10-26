@@ -167,16 +167,16 @@ class Computer extends Model
         static::deleted(fn () => static::resequence());
         static::restored(fn () => static::resequence());
 
-        // Хариуцагчийг нэг ажилтнаас нөгөөд солих нь шилжүүлэг: эрх зөвхөн салбарын Админд («Төхөөрөмж шилжүүлэх»).
-        // Супер админ хариуцагчгүй төхөөрөмж олгох, буцаан авах боломжтой. Олгох, олноор олгох, засах форм аль замаар ч хамаарна.
+        // Хариуцагчийг нэг ажилтнаас нөгөөд солих нь шилжүүлэг: Супер админ үүнийг зөвхөн «Төхөөрөмж шилжүүлэх»-ээр
+        // (түүх, иж бүрдэлтэй нь) хийнэ. Олгох, олноор олгох, засах форм аль замаар ч хамаарна.
         static::updating(function (Computer $computer) {
             $from = $computer->getOriginal('assigned_user_id');
             /** @var User|null $actor */
             $actor = Auth::user();
-            if ($actor?->isSuperadmin() && $computer->isDirty('assigned_user_id')
+            if ($actor?->isSuperadmin() && ! static::$transferring && $computer->isDirty('assigned_user_id')
                 && $from && $computer->assigned_user_id && (int) $from !== (int) $computer->assigned_user_id) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
-                    'user_id' => $computer->activityLabel().' ажилтанд оноогдсон байна. Өөр ажилтанд шилжүүлэх эрх зөвхөн салбарын Админд байна.',
+                    'user_id' => $computer->activityLabel().' ажилтанд оноогдсон байна. Өөр ажилтанд «Төхөөрөмж шилжүүлэх» хэсгээс шилжүүлнэ үү.',
                 ]);
             }
         });
@@ -398,6 +398,9 @@ class Computer extends Model
         return (int) $current;
     }
 
+    /** «Төхөөрөмж шилжүүлэх»-ээр хариуцагч сольж байх үед true (Супер админы шууд солих хоригийг алгасна) */
+    public static bool $transferring = false;
+
     /** Иж бүрдлийн үндсэн компьютер болж болох ангилал (ангилалгүй бүртгэл ч компьютер) */
     public const KIT_MAIN_CATEGORIES = ['processor', 'laptop'];
 
@@ -452,6 +455,13 @@ class Computer extends Model
     public function kitParent(): BelongsTo
     {
         return $this->belongsTo(Computer::class, 'kit_parent_id')->withTrashed();
+    }
+
+    /** Төхөөрөмжийн харьяалагдах иж бүрдлийн бүх гишүүд (үндсэн компьютер + дагалдах хэрэгсэл, өөрөө ч орно) */
+    public function scopeKitOf(Builder $query, Computer $computer): void
+    {
+        $rootId = $computer->kit_parent_id ?: $computer->id;
+        $query->where(fn ($q) => $q->whereKey($rootId)->orWhere('kit_parent_id', $rootId));
     }
 
     /** Дагалдах хэрэгслүүд (үндсэн компьютер бол), дэд дугаараар */

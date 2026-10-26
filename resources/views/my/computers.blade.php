@@ -77,7 +77,7 @@
                             @endif
                         </div>
 
-                        {{-- Өмнө илгээсэн, шийдвэрлэгдээгүй хүсэлт (шилжүүлэх эрх одоо зөвхөн Админд) --}}
+                        {{-- Өмнө илгээсэн, шийдвэрлэгдээгүй хүсэлт (шилжүүлэх эрх одоо зөвхөн Супер админ, Админд) --}}
                         @if (in_array($computer->id, $pendingIds))
                             <div class="mt-4 border-t border-slate-100 pt-4">
                                 <div class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">

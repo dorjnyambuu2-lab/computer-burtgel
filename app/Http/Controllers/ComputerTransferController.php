@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
- * Төхөөрөмж шилжүүлэх — зөвхөн салбарын Админ (Супер админ, ажилтан шилжүүлэх эрхгүй):
- * ажилтанд байгаа төхөөрөмжийг өөрийн салбарын өөр ажилтанд шилжүүлнэ. Шилжүүлэг бүр түүхэнд
+ * Төхөөрөмж шилжүүлэх — Супер админ (бүх салбар) ба салбарын Админ (өөрийн салбар), ажилтан эрхгүй:
+ * ажилтанд байгаа төхөөрөмжийг тухайн салбарын өөр ажилтанд иж бүрдлээр нь (үндсэн компьютер +
+ * дагалдах хэрэгсэл) шилжүүлнэ. Шилжүүлэг бүр түүхэнд
  * (computer_transfers, computer_events) бичигдэнэ.
  * Өмнө ажилтнаас ирсэн шийдвэрлэгдээгүй хүсэлтийг (pending → received → completed) мөн шийдвэрлэнэ.
  */
@@ -53,28 +54,65 @@ class ComputerTransferController extends Controller
         $from = User::find($computer->assigned_user_id);
         $next = User::findOrFail($data['to_user_id']);
 
-        DB::transaction(function () use ($computer, $from, $next, $request, $data) {
-            $this->log($computer->id, $request, 'returned', $from?->id, 'Шилжүүлэхээр буцаан авсан'.(filled($data['reason'] ?? null) ? ': '.$data['reason'] : ''));
+        // Супер админ бүх салбарын төхөөрөмжийг шилжүүлнэ, гэхдээ зөвхөн тухайн төхөөрөмжийн салбарын ажилтанд
+        if ($computer->branch_id && (int) $next->branch_id !== (int) $computer->branch_id) {
+            return back()->withInput()->withErrors(['to_user_id' => 'Шилжүүлэн авах ажилтан төхөөрөмжийн салбарт ('.($computer->branch?->name ?? '—').') харьяалагдах ёстой.']);
+        }
 
-            $computer->assigned_user_id = $next->id; // model нь assigned_to-г синк хийж, «хүлээн авсан» баталгааг арилгана
-            $computer->status = ComputerStatus::Active;
-            $computer->save();
+        // Иж бүрдлээр нь: үндсэн компьютер + дагалдах хэрэгслүүд (ижил эзэмшигчтэй, шилжүүлж болохуйц)
+        $set = $this->kitSet($computer);
+        $skipped = Computer::query()->kitOf($computer)->where('assigned_user_id', $computer->assigned_user_id)->count() - $set->count();
 
-            $this->log($computer->id, $request, 'assigned', $next->id, trim('Шилжүүлсэн (өмнөх: '.($from?->name ?? '—').'). '.($data['reason'] ?? '')));
+        Computer::$transferring = true;
+        try {
+            DB::transaction(function () use ($set, $from, $next, $request, $data) {
+                $kitNote = $set->count() > 1 ? ' [иж бүрдлээр]' : '';
 
-            ComputerTransfer::create([
-                'computer_id' => $computer->id,
-                'from_user_id' => $from?->id ?? $request->user()->id,
-                'to_user_id' => $next->id,
-                'issued_to_user_id' => $next->id,
-                'issued_by' => $request->user()->id,
-                'reason' => $data['reason'] ?? null,
-                'status' => 'transferred',
-                'completed_at' => now(),
-            ]);
-        });
+                foreach ($set as $item) {
+                    $this->log($item->id, $request, 'returned', $from?->id, 'Шилжүүлэхээр буцаан авсан'.$kitNote.(filled($data['reason'] ?? null) ? ': '.$data['reason'] : ''));
 
-        return back()->with('success', $computer->activityLabel().': '.($from?->name ?? '—').' → '.$next->name.'-д шилжүүллээ.');
+                    $item->assigned_user_id = $next->id; // model нь assigned_to-г синк хийж, «хүлээн авсан» баталгааг арилгана
+                    $item->status = ComputerStatus::Active;
+                    $item->save();
+
+                    $this->log($item->id, $request, 'assigned', $next->id, trim('Шилжүүлсэн'.$kitNote.' (өмнөх: '.($from?->name ?? '—').'). '.($data['reason'] ?? '')));
+
+                    ComputerTransfer::create([
+                        'computer_id' => $item->id,
+                        'from_user_id' => $from?->id ?? $request->user()->id,
+                        'to_user_id' => $next->id,
+                        'issued_to_user_id' => $next->id,
+                        'issued_by' => $request->user()->id,
+                        'reason' => $data['reason'] ?? null,
+                        'status' => 'transferred',
+                        'completed_at' => now(),
+                    ]);
+                }
+            });
+        } finally {
+            Computer::$transferring = false;
+        }
+
+        $what = $set->count() > 1
+            ? 'Иж бүрдэл ('.$set->count().' төхөөрөмж: '.$set->map->activityLabel()->implode(', ').')'
+            : $computer->activityLabel();
+
+        return back()->with('success', $what.': '.($from?->name ?? '—').' → '.$next->name.'-д шилжүүллээ.'
+            .($skipped > 0 ? ' '.$skipped.' нь засварт/актласан эсвэл шийдвэрлэгдээгүй хүсэлттэй тул шилжээгүй.' : ''));
+    }
+
+    /**
+     * Сонгосон төхөөрөмжийн иж бүрдэл: ижил эзэмшигчтэй, засварт/актласан биш, нээлттэй хүсэлтгүй
+     * бүх гишүүд (үндсэн компьютер эхэнд, дараа нь дэд дугаараар).
+     */
+    private function kitSet(Computer $computer)
+    {
+        return Computer::query()->kitOf($computer)
+            ->where('assigned_user_id', $computer->assigned_user_id)
+            ->whereNotIn('status', [ComputerStatus::InRepair, ComputerStatus::Decommissioned])
+            ->whereNotIn('id', ComputerTransfer::query()->open()->select('computer_id'))
+            ->orderByRaw('kit_parent_id IS NOT NULL')->orderBy('kit_index')->orderBy('id')
+            ->get();
     }
 
     public function index(Request $request): View
@@ -97,14 +135,15 @@ class ComputerTransferController extends Controller
         $transfers = \App\Support\RowNumber::paginate($query, $request, 20, $number);
 
         return view('transfers.index', [
+            'showBranch' => $me->isSuperadmin(),
             'transfers' => $transfers,
-            'employees' => User::query()->assignableBy($me)->where('role', 'employee')->orderBy('name')->get(['id', 'name', 'username']),
-            // Шилжүүлж болох төхөөрөмж: өөрийн салбарын, ажилтанд байгаа, засварт/актласан биш
-            'devices' => Computer::query()->with('assignedUser:id,name')
+            'employees' => User::query()->assignableBy($me)->where('role', 'employee')->orderBy('name')->get(['id', 'name', 'username', 'branch_id']),
+            // Шилжүүлж болох төхөөрөмж: харах эрхтэй салбарын, ажилтанд байгаа, засварт/актласан биш
+            'devices' => Computer::query()->with(['assignedUser:id,name', 'branch:id,name'])
                 ->whereNotNull('assigned_user_id')
                 ->whereNotIn('status', [ComputerStatus::InRepair, ComputerStatus::Decommissioned])
                 ->orderBy('assigned_to')->orderBy('inventory_number')
-                ->get(['id', 'inventory_number', 'name', 'category', 'assigned_user_id', 'assigned_to']),
+                ->get(['id', 'inventory_number', 'name', 'category', 'assigned_user_id', 'assigned_to', 'kit_parent_id', 'kit_index', 'branch_id']),
         ]);
     }
 

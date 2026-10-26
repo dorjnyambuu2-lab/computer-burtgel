@@ -25,11 +25,20 @@
                 <label class="block text-sm font-medium text-slate-700">Төхөөрөмж <span class="text-rose-500">*</span>
                     <select name="computer_id" id="transfer-device" required class="{{ $field }}">
                         <option value="">— Сонгох —</option>
-                        @foreach ($devices->groupBy(fn ($d) => $d->assignedUser?->name ?? $d->assigned_to) as $holder => $list)
+                        @php
+                            // Иж бүрдэл (үндсэн + дагалдах, ижил эзэмшигч) нэг сонголт болж, бүхэлдээ шилжинэ
+                            $selectedId = (string) old('computer_id', request('computer'));
+                            $sets = $devices->groupBy(fn ($d) => ($d->kit_parent_id ?: $d->id).'|'.$d->assigned_user_id)
+                                ->map(fn ($g) => $g->sortBy(fn ($d) => [$d->kit_parent_id ? 1 : 0, $d->kit_index ?? 0, $d->id])->values());
+                        @endphp
+                        @foreach ($sets->groupBy(fn ($g) => ($g->first()->assignedUser?->name ?? $g->first()->assigned_to).($showBranch ? ' · '.($g->first()->branch?->name ?? 'Салбаргүй') : '')) as $holder => $list)
                             <optgroup label="{{ $holder }}">
-                                @foreach ($list as $d)
-                                    <option value="{{ $d->id }}" data-holder="{{ $d->assigned_user_id }}" @selected((string) old('computer_id', request('computer')) === (string) $d->id)>
-                                        {{ $d->inventory_number }} · {{ $d->name }}{{ $d->category ? ' ('.$d->category->label().')' : '' }}
+                                @foreach ($list as $set)
+                                    @php $d = $set->first(); @endphp
+                                    <option value="{{ $d->id }}" data-holder="{{ $d->assigned_user_id }}" data-branch="{{ $d->branch_id }}"
+                                            data-items="{{ $set->count() > 1 ? $set->map(fn ($i) => $i->inventory_number.' '.$i->name)->implode(', ') : '' }}"
+                                            @selected($selectedId !== '' && $set->contains(fn ($i) => (string) $i->id === $selectedId))>
+                                        {{ $d->inventory_number }} · {{ $d->name }}{{ $d->category ? ' ('.$d->category->label().')' : '' }}{{ $set->count() > 1 ? ' — иж бүрдэл: '.$set->count().' төхөөрөмж' : '' }}
                                     </option>
                                 @endforeach
                             </optgroup>
@@ -40,7 +49,7 @@
                     <select name="to_user_id" id="transfer-to" required class="{{ $field }}">
                         <option value="">— Сонгох —</option>
                         @foreach ($employees as $e)
-                            <option value="{{ $e->id }}" @selected((string) old('to_user_id') === (string) $e->id)>{{ $e->name }}</option>
+                            <option value="{{ $e->id }}" data-branch="{{ $e->branch_id }}" @selected((string) old('to_user_id') === (string) $e->id)>{{ $e->name }}</option>
                         @endforeach
                     </select>
                 </label>
@@ -51,7 +60,7 @@
             </div>
             <p id="transfer-from" class="mt-2 hidden text-xs text-slate-500"></p>
             <script>
-            // Сонгосон төхөөрөмжийн одоогийн эзэмшигчийг харуулж, түүнийг шинэ ажилтны жагсаалтаас хасна
+            // Сонгосон төхөөрөмжийн одоогийн эзэмшигч болон иж бүрдлийн гишүүдийг харуулж, эзэмшигч болон өөр салбарын ажилтныг шинэ ажилтны жагсаалтаас хасна
             (function () {
                 const device = document.getElementById('transfer-device');
                 const to = document.getElementById('transfer-to');
@@ -59,10 +68,15 @@
                 function update() {
                     const opt = device.selectedOptions[0];
                     const holder = opt && opt.dataset.holder;
-                    Array.from(to.options).forEach(function (o) { o.hidden = o.disabled = !!holder && o.value === holder; });
-                    if (holder && to.value === holder) to.value = '';
+                    const branch = opt && opt.dataset.branch;
+                    Array.from(to.options).forEach(function (o) {
+                        if (!o.value) return;
+                        o.hidden = o.disabled = (!!holder && o.value === holder) || (!!branch && o.dataset.branch !== branch);
+                    });
+                    if (to.selectedOptions[0] && to.selectedOptions[0].disabled) to.value = '';
                     from.classList.toggle('hidden', !holder);
-                    if (holder) from.textContent = 'Одоо эзэмшиж буй: ' + opt.parentElement.label + ' → сонгосон ажилтанд шилжинэ.';
+                    if (holder) from.textContent = 'Одоо эзэмшиж буй: ' + opt.parentElement.label + ' → сонгосон ажилтанд шилжинэ.'
+                        + (opt.dataset.items ? ' Иж бүрдлээр нь шилжинэ: ' + opt.dataset.items + '.' : '');
                 }
                 device.addEventListener('change', update);
                 update();

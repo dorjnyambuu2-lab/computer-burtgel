@@ -21,9 +21,10 @@
         <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $errors->first() }}</div>
     @endif
 
-    {{-- Ажилтанд олгох. Супер админ хариуцагчтай төхөөрөмжийг өөр ажилтанд шилжүүлэхгүй (эрх нь салбарын Админд) --}}
+    {{-- Ажилтанд олгох. Супер админ хариуцагчтай төхөөрөмжийг «Төхөөрөмж шилжүүлэх»-ээр (иж бүрдэлтэй нь) шилжүүлнэ --}}
     @if ($hasHolder && auth()->user()->isSuperadmin())
-        <p class="rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-600">Өөр ажилтанд шилжүүлэх эрх зөвхөн салбарын Админд байна. Шаардлагатай бол эхлээд буцаан авна.</p>
+        <a href="{{ route('transfers.index', ['computer' => $computer->id]) }}"
+           class="block rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-medium !text-white hover:bg-blue-700">Өөр ажилтанд шилжүүлэх</a>
     @else
     <details class="rounded-xl border border-slate-200" @if ($errors->has('user_id')) open @endif>
         <summary class="cursor-pointer select-none rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-medium text-white hover:bg-blue-700">

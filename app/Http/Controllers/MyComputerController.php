@@ -32,7 +32,7 @@ class MyComputerController extends Controller
 
         $computers = $selected ? $all->filter(fn ($c) => $keyOf($c) === $selected)->values() : $all;
         $grouped = $computers->groupBy($keyOf);
-        // Өмнө илгээсэн, шийдвэрлэгдээгүй хүсэлтүүд [computer_id => transfer] (шилжүүлэх эрх одоо зөвхөн Админд)
+        // Өмнө илгээсэн, шийдвэрлэгдээгүй хүсэлтүүд [computer_id => transfer] (шилжүүлэх эрх одоо зөвхөн Супер админ, Админд)
         $openTransfers = ComputerTransfer::where('from_user_id', $user->id)->open()->get()->keyBy('computer_id');
         $pendingIds = $openTransfers->keys()->all();
 

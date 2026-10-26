@@ -16,8 +16,8 @@
                     fn() => request()->is('computers') || (request()->is('computers/*') && ! request()->is('computers/trash', 'computers/scan', 'computers/bulk-assign', 'computers/create'))],
                 ['/computers/create', 'Шинээр бүртгэх', 'M12 5v14M5 12h14', fn() => request()->is('computers/create')],
                 ['/computers/bulk-assign', 'Төхөөрөмж олгох', 'M15 7a4 4 0 11-8 0 4 4 0 018 0zM3 21a8 8 0 0114 0M19 8v6M16 11h6', fn() => request()->is('computers/bulk-assign')],
-                // Төхөөрөмж шилжүүлэх: зөвхөн салбарын Админ (тоо: өмнөх шийдвэрлэгдээгүй хүсэлт)
-                ...($u->isAdmin() ? [['/transfers', 'Төхөөрөмж шилжүүлэх', 'M7 7h11l-3-3M17 17H6l3 3',
+                // Төхөөрөмж шилжүүлэх: Супер админ, Админ (тоо: өмнөх шийдвэрлэгдээгүй хүсэлт)
+                ...($u->canManageComputers() ? [['/transfers', 'Төхөөрөмж шилжүүлэх', 'M7 7h11l-3-3M17 17H6l3 3',
                     fn() => request()->is('transfers*'), \App\Models\ComputerTransfer::query()->open()->visibleTo($u)->count()]] : []),
                 ['/repairs', 'Засвар', 'M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z',
                     fn() => request()->is('repairs*'), \App\Models\Computer::where('status', \App\Enums\ComputerStatus::InRepair)->count()],
