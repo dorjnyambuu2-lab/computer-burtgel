@@ -96,7 +96,7 @@
                 </div>
 
                 <label class="block text-sm font-medium text-slate-700">Шалтгаан
-                    <input type="text" name="reason" value="{{ old('reason') }}" maxlength="500" placeholder="Жишээ: өөр хэлтэст шилжсэн" class="{{ $field }}">
+                    <input type="text" name="reason" value="{{ old('reason') }}" maxlength="500" placeholder="Жишээ: өөр хэлтэс рүү шилжсэн" class="{{ $field }}">
                 </label>
                 <button class="rounded-xl !border-blue-600 !bg-blue-600 px-5 py-2.5 text-sm font-semibold !text-white hover:!bg-blue-700">Шилжүүлэх</button>
             </div>
