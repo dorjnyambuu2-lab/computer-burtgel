@@ -24,10 +24,9 @@ use Illuminate\View\View;
  */
 class ComputerTransferController extends Controller
 {
-    /** Шилжүүлэх чиглэл: Супер админд бүгд, Админд зөвхөн ажилтан */
+    /** Шилжүүлэх чиглэл: Супер админд бүгд, Админд зөвхөн хэрэглэгч (ажилтан) */
     public const DESTINATIONS = [
-        'employee' => 'Ажилтан',
-        'admin' => 'Админ',
+        'user' => 'Ажилтан, админ',
         'department' => 'Алба хэлтэс',
         'storage' => 'Агуулах',
     ];
@@ -36,13 +35,13 @@ class ComputerTransferController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $me = $request->user();
-        $destinations = $me->isSuperadmin() ? array_keys(self::DESTINATIONS) : ['employee'];
-        $request->mergeIfMissing(['destination' => 'employee']);
+        $destinations = $me->isSuperadmin() ? array_keys(self::DESTINATIONS) : ['user'];
+        $request->mergeIfMissing(['destination' => 'user']);
 
         $data = $request->validate([
             'computer_id' => ['required', 'integer'],
             'destination' => ['required', Rule::in($destinations)],
-            'to_user_id' => ['required_if:destination,employee,admin', 'nullable', 'integer', User::assignableRule($me)],
+            'to_user_id' => ['required_if:destination,user', 'nullable', 'integer', User::assignableRule($me)],
             'department' => ['required_if:destination,department', 'nullable', 'string', 'max:255'],
             'reason' => ['nullable', 'string', 'max:500'],
         ], [
@@ -70,10 +69,11 @@ class ComputerTransferController extends Controller
         }
 
         $next = null;
-        if (in_array($destination, ['employee', 'admin'], true)) {
+        if ($destination === 'user') {
+            // Супер админ ажилтан эсвэл админд, Админ зөвхөн ажилтанд шилжүүлнэ
             $next = User::findOrFail($data['to_user_id']);
-            if ($next->role !== $destination) {
-                return back()->withInput()->withErrors(['to_user_id' => 'Сонгосон хэрэглэгч '.mb_strtolower(self::DESTINATIONS[$destination]).' биш байна.']);
+            if (! in_array($next->role, $me->isSuperadmin() ? ['employee', 'admin'] : ['employee'], true)) {
+                return back()->withInput()->withErrors(['to_user_id' => 'Сонгосон хэрэглэгчид шилжүүлэх боломжгүй. Ажилтан'.($me->isSuperadmin() ? ' эсвэл админ' : '').' сонгоно уу.']);
             }
             if ((int) $computer->assigned_user_id === $next->id) {
                 return back()->withInput()->withErrors(['to_user_id' => 'Төхөөрөмж аль хэдийн энэ хэрэглэгчид байна. Өөр хэрэглэгч сонгоно уу.']);

@@ -22,7 +22,7 @@
             <p class="text-sm text-slate-500">Ажилтанд оноогдсон төхөөрөмж алга. Төхөөрөмжийг эхлээд <a href="{{ route('computers.bulk-assign') }}" class="font-semibold !text-blue-600 hover:underline">«Төхөөрөмж олгох»</a>-оор олгоно.</p>
         @else
             @php
-                $destination = old('destination', 'employee');
+                $destination = old('destination', 'user');
                 // Иж бүрдэл (үндсэн + дагалдах, ижил эзэмшигч) нэг сонголт болж, бүхэлдээ шилжинэ
                 $selectedId = (string) old('computer_id', request('computer'));
                 $sets = $devices->groupBy(fn ($d) => ($d->kit_parent_id ?: $d->id).'|'.$d->assigned_user_id)
@@ -62,23 +62,27 @@
 
                 {{-- Хүлээн авагч: чиглэлээс хамаарч нэг нь харагдана --}}
                 <div>
-                    <label data-dest="employee" class="block text-sm font-medium text-slate-700">Шилжүүлэн авах ажилтан <span class="text-rose-500">*</span>
+                    {{-- Супер админд админ, ажилтан тусдаа бүлгээр; Админд зөвхөн ажилтан --}}
+                    <label data-dest="user" class="block text-sm font-medium text-slate-700">Шилжүүлэн авах {{ $destinations ? 'хэрэглэгч' : 'ажилтан' }} <span class="text-rose-500">*</span>
                         <select name="to_user_id" class="transfer-user {{ $field }}">
                             <option value="">— Сонгох —</option>
+                            @if ($destinations)
+                                <optgroup label="Админ">
+                                    @foreach ($admins as $a)
+                                        <option value="{{ $a->id }}" data-branch="{{ $a->branch_id }}" @selected((string) old('to_user_id') === (string) $a->id)>{{ $a->name }} (админ){{ $a->branch ? ' · '.$a->branch->name : '' }}</option>
+                                    @endforeach
+                                </optgroup>
+                                <optgroup label="Ажилтан">
+                            @endif
                             @foreach ($employees as $e)
-                                <option value="{{ $e->id }}" data-branch="{{ $e->branch_id }}" @selected($destination === 'employee' && (string) old('to_user_id') === (string) $e->id)>{{ $e->name }}</option>
+                                <option value="{{ $e->id }}" data-branch="{{ $e->branch_id }}" @selected((string) old('to_user_id') === (string) $e->id)>{{ $e->name }}</option>
                             @endforeach
+                            @if ($destinations)
+                                </optgroup>
+                            @endif
                         </select>
                     </label>
                     @if ($destinations)
-                        <label data-dest="admin" class="block text-sm font-medium text-slate-700">Шилжүүлэн авах админ <span class="text-rose-500">*</span>
-                            <select name="to_user_id" class="transfer-user {{ $field }}">
-                                <option value="">— Сонгох —</option>
-                                @foreach ($admins as $a)
-                                    <option value="{{ $a->id }}" data-branch="{{ $a->branch_id }}" @selected($destination === 'admin' && (string) old('to_user_id') === (string) $a->id)>{{ $a->name }}{{ $a->branch ? ' · '.$a->branch->name : '' }}</option>
-                                @endforeach
-                            </select>
-                        </label>
                         <label data-dest="department" class="block text-sm font-medium text-slate-700">Алба хэлтэс <span class="text-rose-500">*</span>
                             <input type="text" name="department" list="transfer-departments" value="{{ old('department') }}" maxlength="255" placeholder="Сонгох эсвэл бичих" class="{{ $field }}">
                             <datalist id="transfer-departments">
@@ -107,7 +111,7 @@
                 const panels = document.querySelectorAll('[data-dest]');
                 function destination() {
                     const checked = document.querySelector('input[name="destination"]:checked');
-                    return checked ? checked.value : 'employee';
+                    return checked ? checked.value : 'user';
                 }
                 function update() {
                     const dest = destination();
