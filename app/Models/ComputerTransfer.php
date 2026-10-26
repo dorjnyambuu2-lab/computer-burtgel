@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Model;
  *   received  — IT хүлээн авсан: хариуцагчгүй, «Агуулахад» төлөвт
  *   completed — IT дараагийн ажилтанд олгосон
  *   rejected  — татгалзсан
- *   transferred — Админ ажилтнаас ажилтанд шууд шилжүүлсэн («Төхөөрөмж шилжүүлэх»)
+ *   transferred — Админ / Супер админ шууд шилжүүлсэн («Төхөөрөмж шилжүүлэх»); destination нь
+ *                 user (ажилтан, админ), department (алба хэлтэс), storage (агуулах)
  *   approved  — хуучин (шууд шилжүүлдэг байсан үеийн) бичлэг
  */
 class ComputerTransfer extends Model
@@ -25,7 +26,7 @@ class ComputerTransfer extends Model
     ];
 
     protected $fillable = [
-        'computer_id', 'from_user_id', 'to_user_id', 'reason', 'status', 'decided_by', 'decided_at',
+        'computer_id', 'from_user_id', 'from_label', 'to_user_id', 'destination', 'to_department', 'reason', 'status', 'decided_by', 'decided_at',
         'received_by', 'received_at', 'issued_to_user_id', 'issued_by', 'completed_at',
     ];
 
@@ -37,6 +38,22 @@ class ComputerTransfer extends Model
     public function toUser()   { return $this->belongsTo(User::class, 'to_user_id'); }
     public function issuedTo() { return $this->belongsTo(User::class, 'issued_to_user_id'); }
     public function receiver() { return $this->belongsTo(User::class, 'received_by'); }
+
+    /** Хэнээс: өмнөх хариуцагч, эсвэл хариуцагчгүй байсан бол өмнөх байдал («Агуулах», «Алба: IT») */
+    public function fromText(): string
+    {
+        return $this->fromUser?->name ?? $this->from_label ?? '—';
+    }
+
+    /** Хэнд/хаашаа шилжсэн: хэрэглэгч, алба хэлтэс эсвэл агуулах */
+    public function destinationText(): ?string
+    {
+        return match ($this->destination) {
+            'department' => 'Алба: '.$this->to_department,
+            'storage' => 'Агуулах',
+            default => null,
+        };
+    }
 
     public function statusLabel(): string
     {

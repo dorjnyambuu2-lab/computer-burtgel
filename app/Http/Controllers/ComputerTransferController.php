@@ -10,54 +10,91 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
- * Төхөөрөмж шилжүүлэх — Супер админ (бүх салбар) ба салбарын Админ (өөрийн салбар), ажилтан эрхгүй:
- * ажилтанд байгаа төхөөрөмжийг тухайн салбарын өөр ажилтанд иж бүрдлээр нь (үндсэн компьютер +
- * дагалдах хэрэгсэл) шилжүүлнэ. Шилжүүлэг бүр түүхэнд
- * (computer_transfers, computer_events) бичигдэнэ.
+ * Төхөөрөмж шилжүүлэх — Супер админ (бүх салбар) ба салбарын Админ (өөрийн салбар), ажилтан эрхгүй.
+ * Төхөөрөмж иж бүрдлээр нь (үндсэн компьютер + дагалдах хэрэгсэл) шилжинэ:
+ *   - Админ: ажилтанд байгаа төхөөрөмжийг өөрийн салбарын өөр ажилтанд
+ *   - Супер админ: аль ч төхөөрөмжийг (ажилтанд, хэлтэст, агуулахад байгаа) ажилтан, админ, алба хэлтэс
+ *     эсвэл агуулах руу (хэрэглэгч рүү бол төхөөрөмжийн салбарын хэрэглэгчид)
+ * Шилжүүлэг бүр түүхэнд (computer_transfers, computer_events) бичигдэнэ.
  * Өмнө ажилтнаас ирсэн шийдвэрлэгдээгүй хүсэлтийг (pending → received → completed) мөн шийдвэрлэнэ.
  */
 class ComputerTransferController extends Controller
 {
-    /** Ажилтанд байгаа төхөөрөмжийг өөр ажилтанд шууд шилжүүлэх */
+    /** Шилжүүлэх чиглэл: Супер админд бүгд, Админд зөвхөн ажилтан */
+    public const DESTINATIONS = [
+        'employee' => 'Ажилтан',
+        'admin' => 'Админ',
+        'department' => 'Алба хэлтэс',
+        'storage' => 'Агуулах',
+    ];
+
+    /** Төхөөрөмжийг (иж бүрдлээр нь) шилжүүлэх */
     public function store(Request $request): RedirectResponse
     {
         $me = $request->user();
+        $destinations = $me->isSuperadmin() ? array_keys(self::DESTINATIONS) : ['employee'];
+        $request->mergeIfMissing(['destination' => 'employee']);
 
         $data = $request->validate([
             'computer_id' => ['required', 'integer'],
-            'to_user_id' => ['required', 'integer', User::assignableRule($me)],
+            'destination' => ['required', Rule::in($destinations)],
+            'to_user_id' => ['required_if:destination,employee,admin', 'nullable', 'integer', User::assignableRule($me)],
+            'department' => ['required_if:destination,department', 'nullable', 'string', 'max:255'],
             'reason' => ['nullable', 'string', 'max:500'],
         ], [
             'computer_id.required' => 'Шилжүүлэх төхөөрөмжөө сонгоно уу.',
-            'to_user_id.required' => 'Шилжүүлэн авах ажилтнаа сонгоно уу.',
-            'to_user_id.exists' => 'Сонгосон ажилтан олдсонгүй эсвэл идэвхгүй байна.',
+            'destination.in' => 'Шилжүүлэх чиглэлээ сонгоно уу.',
+            'to_user_id.required_if' => 'Шилжүүлэн авах хэрэглэгчээ сонгоно уу.',
+            'to_user_id.exists' => 'Сонгосон хэрэглэгч олдсонгүй эсвэл идэвхгүй байна.',
+            'department.required_if' => 'Шилжүүлэх алба хэлтсээ сонгоно уу.',
         ]);
+        $destination = $data['destination'];
+        $department = trim((string) ($data['department'] ?? ''));
 
-        // Өөрийн салбарын (BranchScope), ажилтанд оноогдсон төхөөрөмж
-        $computer = Computer::query()->whereKey($data['computer_id'])->whereNotNull('assigned_user_id')->first();
+        // Өөрийн салбарын (BranchScope) төхөөрөмж; Админ зөвхөн ажилтанд оноогдсоныг шилжүүлнэ
+        $computer = Computer::query()->whereKey($data['computer_id'])
+            ->when(! $me->isSuperadmin(), fn ($q) => $q->whereNotNull('assigned_user_id'))
+            ->first();
         if (! $computer) {
             return back()->withInput()->withErrors(['computer_id' => 'Төхөөрөмж олдсонгүй эсвэл ажилтанд оноогдоогүй байна. Оноогдоогүй төхөөрөмжийг «Төхөөрөмж олгох»-оор олгоно.']);
         }
         if (in_array($computer->status, [ComputerStatus::InRepair, ComputerStatus::Decommissioned], true)) {
             return back()->withInput()->withErrors(['computer_id' => $computer->activityLabel().' «'.$computer->status->label().'» төлөвтэй тул шилжүүлэх боломжгүй.']);
         }
-        if ((int) $computer->assigned_user_id === (int) $data['to_user_id']) {
-            return back()->withInput()->withErrors(['to_user_id' => 'Төхөөрөмж аль хэдийн энэ ажилтанд байна. Өөр ажилтан сонгоно уу.']);
-        }
         if (ComputerTransfer::where('computer_id', $computer->id)->open()->exists()) {
             return back()->withInput()->withErrors(['computer_id' => 'Энэ төхөөрөмжид шийдвэрлэгдээгүй хүсэлт байна. Эхлээд доорх жагсаалтаас шийдвэрлэнэ үү.']);
         }
 
-        $from = User::find($computer->assigned_user_id);
-        $next = User::findOrFail($data['to_user_id']);
-
-        // Супер админ бүх салбарын төхөөрөмжийг шилжүүлнэ, гэхдээ зөвхөн тухайн төхөөрөмжийн салбарын ажилтанд
-        if ($computer->branch_id && (int) $next->branch_id !== (int) $computer->branch_id) {
-            return back()->withInput()->withErrors(['to_user_id' => 'Шилжүүлэн авах ажилтан төхөөрөмжийн салбарт ('.($computer->branch?->name ?? '—').') харьяалагдах ёстой.']);
+        $next = null;
+        if (in_array($destination, ['employee', 'admin'], true)) {
+            $next = User::findOrFail($data['to_user_id']);
+            if ($next->role !== $destination) {
+                return back()->withInput()->withErrors(['to_user_id' => 'Сонгосон хэрэглэгч '.mb_strtolower(self::DESTINATIONS[$destination]).' биш байна.']);
+            }
+            if ((int) $computer->assigned_user_id === $next->id) {
+                return back()->withInput()->withErrors(['to_user_id' => 'Төхөөрөмж аль хэдийн энэ хэрэглэгчид байна. Өөр хэрэглэгч сонгоно уу.']);
+            }
+            // Супер админ бүх салбарын төхөөрөмжийг шилжүүлнэ, гэхдээ зөвхөн тухайн төхөөрөмжийн салбарын хэрэглэгчид
+            if ($computer->branch_id && (int) $next->branch_id !== (int) $computer->branch_id) {
+                return back()->withInput()->withErrors(['to_user_id' => 'Шилжүүлэн авах хэрэглэгч төхөөрөмжийн салбарт ('.($computer->branch?->name ?? '—').') харьяалагдах ёстой.']);
+            }
+        } elseif ($destination === 'department' && ! $computer->assigned_user_id && $computer->department === $department && $computer->status !== ComputerStatus::InStorage) {
+            return back()->withInput()->withErrors(['department' => 'Төхөөрөмж аль хэдийн «'.$department.'» хэлтэст байна.']);
+        } elseif ($destination === 'storage' && ! $computer->assigned_user_id && $computer->status === ComputerStatus::InStorage) {
+            return back()->withInput()->withErrors(['destination' => 'Төхөөрөмж аль хэдийн агуулахад байна.']);
         }
+
+        $from = $computer->assignedUser;
+        $fromLabel = $this->placeLabel($computer);
+        $toLabel = match ($destination) {
+            'department' => 'Алба: '.$department,
+            'storage' => 'Агуулах',
+            default => $next->name,
+        };
 
         // Иж бүрдлээр нь: үндсэн компьютер + дагалдах хэрэгслүүд (ижил эзэмшигчтэй, шилжүүлж болохуйц)
         $set = $this->kitSet($computer);
@@ -65,23 +102,41 @@ class ComputerTransferController extends Controller
 
         Computer::$transferring = true;
         try {
-            DB::transaction(function () use ($set, $from, $next, $request, $data) {
+            DB::transaction(function () use ($set, $from, $fromLabel, $next, $toLabel, $destination, $department, $request, $data) {
                 $kitNote = $set->count() > 1 ? ' [иж бүрдлээр]' : '';
+                $reason = filled($data['reason'] ?? null) ? ' '.$data['reason'] : '';
+                $note = 'Шилжүүлсэн'.$kitNote.': '.$fromLabel.' → '.$toLabel.'.'.$reason;
 
                 foreach ($set as $item) {
-                    $this->log($item->id, $request, 'returned', $from?->id, 'Шилжүүлэхээр буцаан авсан'.$kitNote.(filled($data['reason'] ?? null) ? ': '.$data['reason'] : ''));
+                    if ($from) {
+                        $this->log($item->id, $request, 'returned', $from->id, $destination === 'storage' ? $note : 'Шилжүүлэхээр буцаан авсан'.$kitNote.($reason ? ':'.$reason : ''));
+                    }
 
-                    $item->assigned_user_id = $next->id; // model нь assigned_to-г синк хийж, «хүлээн авсан» баталгааг арилгана
-                    $item->status = ComputerStatus::Active;
+                    // model нь хариуцагч солигдоход assigned_to, овог нэрийг синк хийж, «хүлээн авсан» баталгааг арилгана
+                    $item->assigned_user_id = $next?->id;
+                    if (! $next) {
+                        $item->assigned_to = null;
+                    }
+                    if ($destination === 'department') {
+                        $item->department = $department;
+                    }
+                    $item->status = $destination === 'storage' ? ComputerStatus::InStorage : ComputerStatus::Active;
                     $item->save();
 
-                    $this->log($item->id, $request, 'assigned', $next->id, trim('Шилжүүлсэн'.$kitNote.' (өмнөх: '.($from?->name ?? '—').'). '.($data['reason'] ?? '')));
+                    if ($destination !== 'storage') {
+                        $this->log($item->id, $request, 'assigned', $next?->id, $note);
+                    } elseif (! $from) {
+                        $this->log($item->id, $request, 'returned', null, $note);
+                    }
 
                     ComputerTransfer::create([
                         'computer_id' => $item->id,
-                        'from_user_id' => $from?->id ?? $request->user()->id,
-                        'to_user_id' => $next->id,
-                        'issued_to_user_id' => $next->id,
+                        'from_user_id' => $from?->id,
+                        'from_label' => $from ? null : $fromLabel,
+                        'to_user_id' => $next?->id,
+                        'destination' => $next ? 'user' : $destination,
+                        'to_department' => $destination === 'department' ? $department : null,
+                        'issued_to_user_id' => $next?->id,
                         'issued_by' => $request->user()->id,
                         'reason' => $data['reason'] ?? null,
                         'status' => 'transferred',
@@ -97,8 +152,20 @@ class ComputerTransferController extends Controller
             ? 'Иж бүрдэл ('.$set->count().' төхөөрөмж: '.$set->map->activityLabel()->implode(', ').')'
             : $computer->activityLabel();
 
-        return back()->with('success', $what.': '.($from?->name ?? '—').' → '.$next->name.'-д шилжүүллээ.'
+        return back()->with('success', $what.': '.$fromLabel.' → '.$toLabel.' руу шилжүүллээ.'
             .($skipped > 0 ? ' '.$skipped.' нь засварт/актласан эсвэл шийдвэрлэгдээгүй хүсэлттэй тул шилжээгүй.' : ''));
+    }
+
+    /** Төхөөрөмж одоо хаана байгаа: хариуцагч, агуулах, алба хэлтэс */
+    private function placeLabel(Computer $computer): string
+    {
+        return match (true) {
+            (bool) $computer->assigned_user_id => $computer->assignedUser?->name ?? '—',
+            $computer->status === ComputerStatus::InStorage => 'Агуулах',
+            filled($computer->department) => 'Алба: '.$computer->department,
+            filled($computer->assigned_to) => $computer->assigned_to,
+            default => 'Хариуцагчгүй',
+        };
     }
 
     /**
@@ -128,7 +195,8 @@ class ComputerTransferController extends Controller
             ->when($term !== '' && $number === null, fn ($q) => $q->where(fn ($w) => $w
                 ->whereHas('computer', fn ($c) => $c->where('name', 'like', "%$term%")->orWhere('inventory_number', 'like', "%$term%"))
                 ->orWhereHas('fromUser', fn ($u) => $u->where('name', 'like', "%$term%"))
-                ->orWhereHas('toUser', fn ($u) => $u->where('name', 'like', "%$term%"))))
+                ->orWhereHas('toUser', fn ($u) => $u->where('name', 'like', "%$term%"))
+                ->orWhere('to_department', 'like', "%$term%")))
             ->orderByRaw("FIELD(status, 'pending', 'received') = 0") // нээлттэй нь эхэнд
             ->latest()->orderByDesc('id');
 
@@ -138,12 +206,24 @@ class ComputerTransferController extends Controller
             'showBranch' => $me->isSuperadmin(),
             'transfers' => $transfers,
             'employees' => User::query()->assignableBy($me)->where('role', 'employee')->orderBy('name')->get(['id', 'name', 'username', 'branch_id']),
-            // Шилжүүлж болох төхөөрөмж: харах эрхтэй салбарын, ажилтанд байгаа, засварт/актласан биш
+            // Супер админд: шилжүүлэх чиглэл, админууд, алба хэлтсүүд (төхөөрөмж, хэрэглэгчдийн бүртгэлээс)
+            'destinations' => $me->isSuperadmin() ? self::DESTINATIONS : [],
+            'admins' => $me->isSuperadmin()
+                ? User::query()->assignableBy($me)->where('role', 'admin')->with('branch:id,name')->orderBy('name')->get(['id', 'name', 'username', 'branch_id'])
+                : collect(),
+            'departments' => $me->isSuperadmin()
+                ? Computer::query()->whereNotNull('department')->where('department', '!=', '')->distinct()->pluck('department')
+                    ->merge(User::query()->whereNotNull('department')->where('department', '!=', '')->distinct()->pluck('department'))
+                    ->unique()->sort()->values()
+                : collect(),
+            // Шилжүүлж болох төхөөрөмж: харах эрхтэй салбарын, засварт/актласан биш;
+            // Админд зөвхөн ажилтанд байгаа, Супер админд хэлтэст, агуулахад байгаа нь ч
             'devices' => Computer::query()->with(['assignedUser:id,name', 'branch:id,name'])
-                ->whereNotNull('assigned_user_id')
+                ->when(! $me->isSuperadmin(), fn ($q) => $q->whereNotNull('assigned_user_id'))
                 ->whereNotIn('status', [ComputerStatus::InRepair, ComputerStatus::Decommissioned])
                 ->orderBy('assigned_to')->orderBy('inventory_number')
-                ->get(['id', 'inventory_number', 'name', 'category', 'assigned_user_id', 'assigned_to', 'kit_parent_id', 'kit_index', 'branch_id']),
+                ->get(['id', 'inventory_number', 'name', 'category', 'status', 'department', 'assigned_user_id', 'assigned_to', 'kit_parent_id', 'kit_index', 'branch_id'])
+                ->each(fn ($d) => $d->setAttribute('place', $this->placeLabel($d))),
         ]);
     }
 
