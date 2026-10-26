@@ -146,7 +146,7 @@
             @php $model = trim(($c->brand ?? '').' '.($c->model ?? '')); @endphp
             {{-- Мөр дээр дарахад дэлгэрэнгүй нээгдэнэ (холбоос, товч дээр дарахаас бусад үед) --}}
             <tr class="cursor-pointer hover:bg-slate-50" data-href="{{ route('computers.show', $c) }}">
-                <td class="px-4 py-3 font-mono text-xs font-semibold text-slate-500">{{ $c->sequenceLabel() }}</td>
+                <td class="px-4 py-3 font-mono text-xs font-semibold text-slate-500">{{ $globalNumbers ? '#'.$globalNumbers[$c->id] : $c->sequenceLabel() }}</td>
                 <td class="whitespace-nowrap px-4 py-3 font-mono text-xs">{{ $c->inventory_number }}</td>
                 <td class="px-4 py-2">
                     <a href="{{ route('computers.show', $c) }}" class="font-medium !text-blue-700 hover:underline">{{ $c->name }}</a>

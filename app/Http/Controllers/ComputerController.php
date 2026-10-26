@@ -40,9 +40,17 @@ class ComputerController extends Controller
     {
         $sort = self::SORTS[$request->query('sort')] ?? 'id';
         $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
+        $numbers = $this->globalNumbers($request);
+        $term = trim((string) $request->query('q'));
+
+        // Бүх салбарын нийтлэг дугаар нь бүртгэлийн (id) дарааллаар тул «№»-ээр эрэмбэлэх, «#12»-оор хайхыг id-аар хийнэ
+        if ($numbers && $sort === 'sequence_number') {
+            $sort = 'id';
+        }
+        $globalHit = $numbers && preg_match('/^#(\d+)$/', $term, $m) ? ($numbers->search((int) $m[1]) ?: 0) : null;
 
         return Computer::query()
-            ->search($request->query('q'))
+            ->when($globalHit !== null, fn ($q) => $q->whereKey($globalHit), fn ($q) => $q->search($term))
             ->when($request->filled('category'), fn ($q) => $q->where('category', $request->query('category')))
             ->when($withStatus && $request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
             ->when($request->filled('type'), fn ($q) => $q->where('type', $request->query('type')))
@@ -56,6 +64,20 @@ class ComputerController extends Controller
             ->when($this->date($request, 'date_to'), fn ($q, $d) => $q->where('created_at', '<=', $d->endOfDay()))
             ->orderBy($sort, $dir)
             ->when($sort !== 'id', fn ($q) => $q->orderBy('id', $dir));
+    }
+
+    /**
+     * Дэс дугаар салбар бүрт тусдаа (#1, #2 ...) тул Супер админ бүх салбарыг хамт харахад давхцана.
+     * Тэр үед бүх төхөөрөмжийг бүртгэлийн дарааллаар 1, 2, 3 ... гэж дугаарлана [id => дугаар];
+     * салбараар шүүсэн эсвэл Админ бол null (салбарын дэс дугаар).
+     */
+    private function globalNumbers(Request $request): ?\Illuminate\Support\Collection
+    {
+        if (! $request->user()->isSuperadmin() || $request->filled('branch')) {
+            return null;
+        }
+
+        return once(fn () => Computer::query()->orderBy('id')->pluck('id')->flip()->map(fn ($i) => $i + 1));
     }
 
     private function date(Request $request, string $key): ?Carbon
@@ -126,6 +148,7 @@ class ComputerController extends Controller
             'computers' => $this->filtered($request)->with('branch:id,name')->paginate($perPage)->withQueryString(),
             'branches' => $request->user()->isSuperadmin() ? \App\Models\Branch::query()->orderBy('name')->pluck('name', 'id') : collect(),
             // Төлөвийн табуудын тоо: бусад шүүлтүүрийг тооцож, төлөвийг тооцохгүй
+            'globalNumbers' => $this->globalNumbers($request),
             'statusCounts' => $this->filtered($request, withStatus: false)->reorder()
                 ->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->all(),
             'perPage' => $perPage,
@@ -310,18 +333,19 @@ class ComputerController extends Controller
     public function export(Request $request): StreamedResponse
     {
         $query = $this->filtered($request)->withSum(['events as repair_cost_sum' => fn ($q) => $q->reorder()], 'cost');
+        $numbers = $this->globalNumbers($request);
         $headers = ['Дэс дугаар', 'Бүртгэлийн дугаар', 'Нэр', 'Төрөл', 'Үйлдвэрлэгч', 'Загвар', 'Серийн дугаар', 'Процессор', 'RAM (GB)',
             'Хадгалах төхөөрөмж', 'ҮС', 'IP', 'MAC', 'Үзүүлэлт', 'Алба хэлтэс', 'Байршил', 'Хариуцагч', 'Төлөв', 'Худалдан авсан',
             'Үнэ (₮)', 'Засварын зардал (₮)', 'Нийт өртөг (₮)', 'Баталгаат дуусах', 'Тэмдэглэл'];
 
-        return response()->streamDownload(function () use ($query, $headers) {
+        return response()->streamDownload(function () use ($query, $headers, $numbers) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // Excel-д кирилл зөв харагдуулах UTF-8 BOM
             fputcsv($out, $headers);
             $query->chunkById(200, function ($rows) use ($out) {
                 foreach ($rows as $c) {
                     fputcsv($out, [
-                        $c->sequenceLabel(), $c->inventory_number, $c->name, $c->type->label(), $c->brand, $c->model, $c->serial_number, $c->cpu,
+                        $numbers ? '#'.$numbers[$c->id] : $c->sequenceLabel(), $c->inventory_number, $c->name, $c->type->label(), $c->brand, $c->model, $c->serial_number, $c->cpu,
                         $c->ram_gb, $c->storage, $c->os, $c->ip_address, $c->mac_address, $c->specs, $c->department, $c->location,
                         $c->assigned_to, $c->status->label(), $c->purchase_date?->format('Y-m-d'),
                         $c->purchase_price !== null ? (float) $c->purchase_price : '', (float) $c->repair_cost_sum,
