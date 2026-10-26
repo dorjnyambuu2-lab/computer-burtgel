@@ -342,7 +342,7 @@ class ComputerController extends Controller
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // Excel-д кирилл зөв харагдуулах UTF-8 BOM
             fputcsv($out, $headers);
-            $query->chunkById(200, function ($rows) use ($out) {
+            $query->chunkById(200, function ($rows) use ($out, $numbers) {
                 foreach ($rows as $c) {
                     fputcsv($out, [
                         $numbers ? '#'.$numbers[$c->id] : $c->sequenceLabel(), $c->inventory_number, $c->name, $c->type->label(), $c->brand, $c->model, $c->serial_number, $c->cpu,
