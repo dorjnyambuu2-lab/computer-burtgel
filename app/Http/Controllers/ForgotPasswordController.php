@@ -19,7 +19,8 @@ use Throwable;
  * Нууц үг мартсан үед:
  *  - Супер админ: бүртгэлтэй имэйл рүү нь нэг удаагийн холбоос очно. Холбоосоор орж
  *    сэргээх түлхүүрээ (SUPERADMIN_RECOVERY_KEY) оруулсны дараа шинэ нууц үг тохируулна.
- *  - Админ / ажилтан: Супер админ руу автоматаар хүсэлт очно, Супер админ түр нууц үг олгоно.
+ *  - Админ: Супер админ руу хүсэлт очно, Супер админ түр нууц үг олгоно.
+ *  - Ажилтан: өөрийн салбарын Админ болон Супер админ руу хүсэлт очно, аль нэг нь түр нууц үг олгоно.
  */
 class ForgotPasswordController extends Controller
 {
@@ -53,7 +54,7 @@ class ForgotPasswordController extends Controller
         // Бүртгэл байгаа эсэх, ямар эрхтэйг илчлэхгүйн тулд ижил хариу өгнө
         return back()->with('status',
             'Хүсэлт хүлээн авлаа. Супер админ бол бүртгэлтэй имэйл рүү тань сэргээх холбоос очно. '
-            .'Админ, ажилтны хүсэлт Супер админ руу автоматаар илгээгдсэн тул түр нууц үгийг Супер админаас авна уу.');
+            .'Админы хүсэлт Супер админ руу, ажилтны хүсэлт салбарын Админ болон Супер админ руу автоматаар илгээгдсэн тул түр нууц үгийг тэднээс авна уу.');
     }
 
     private function requestFromSuperadmin(User $user, Request $request): void
@@ -69,7 +70,15 @@ class ForgotPasswordController extends Controller
             'ip_address' => $request->ip(),
         ]);
 
-        Notify::send(User::activeSuperadmins(), new PasswordResetRequested($resetRequest));
+        // Ажилтных — өөрийн салбарын Админ болон Супер админ; админых — зөвхөн Супер админ
+        $recipients = User::activeSuperadmins();
+        if ($user->role === 'employee' && $user->branch_id) {
+            $recipients = $recipients->merge(
+                User::query()->where('role', 'admin')->where('is_active', true)->where('branch_id', $user->branch_id)->get()
+            );
+        }
+
+        Notify::send($recipients, new PasswordResetRequested($resetRequest));
     }
 
     public function edit(Request $request, string $token): View

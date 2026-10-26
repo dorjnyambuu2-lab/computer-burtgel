@@ -122,6 +122,11 @@ Route::middleware('auth')->group(function () {
 
         // Хэрэглэгч: Супер админ — админ бүртгэнэ; Админ — өөрийн салбарын ажилтан бүртгэнэ (User::canManageUsers/canEditUser)
         Route::resource('users', UserController::class)->except(['show']);
+
+        // Нууц үг сэргээх хүсэлтүүд: Супер админ — админ, ажилтных; Админ — өөрийн салбарын ажилтных
+        Route::get('password-requests', [PasswordResetRequestController::class, 'index'])->name('password-requests.index');
+        Route::post('password-requests/{passwordRequest}/resolve', [PasswordResetRequestController::class, 'resolve'])->name('password-requests.resolve');
+        Route::post('password-requests/{passwordRequest}/reject', [PasswordResetRequestController::class, 'reject'])->name('password-requests.reject');
     });
 
     // Зөвхөн Superadmin
@@ -140,9 +145,5 @@ Route::middleware('auth')->group(function () {
         // Салбар: салбар бүрийн Админ зөвхөн өөрийн салбарыг удирдана
         Route::resource('branches', \App\Http\Controllers\BranchController::class)->only(['index', 'store', 'update', 'destroy']);
 
-        // Админ / ажилтны нууц үг сэргээх хүсэлтүүд
-        Route::get('password-requests', [PasswordResetRequestController::class, 'index'])->name('password-requests.index');
-        Route::post('password-requests/{passwordRequest}/resolve', [PasswordResetRequestController::class, 'resolve'])->name('password-requests.resolve');
-        Route::post('password-requests/{passwordRequest}/reject', [PasswordResetRequestController::class, 'reject'])->name('password-requests.reject');
     });
 });

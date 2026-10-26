@@ -25,7 +25,7 @@
             'Хүсэлт' => array_filter([
                 ['/requests', 'Ажилтны хүсэлт', 'M9 5h10M9 12h10M9 19h10M4 5h.01M4 12h.01M4 19h.01',
                     fn() => request()->is('requests*'), $count('asset_requests', \App\Models\AssetRequest::class)],
-                $u->isSuperadmin()
+                $u->canManageUsers()
                     ? ['/password-requests', 'Нууц үг сэргээх', 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4',
                         fn() => request()->is('password-requests*'), $count('password_reset_requests', \App\Models\PasswordResetRequest::class)]
                     : null,

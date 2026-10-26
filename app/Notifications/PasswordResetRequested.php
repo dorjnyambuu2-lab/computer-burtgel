@@ -7,7 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-/** Админ / ажилтан нууц үгээ мартсан тухай Супер админд очих мэдэгдэл */
+/** Нууц үгээ мартсан тухай мэдэгдэл: админых Супер админд, ажилтных салбарын Админ болон Супер админд */
 class PasswordResetRequested extends Notification
 {
     use Queueable;

@@ -30,6 +30,26 @@ class PasswordResetRequest extends Model
         return $this->belongsTo(User::class, 'resolved_by');
     }
 
+    /**
+     * Хүсэлтийг харах, шийдвэрлэх эрх:
+     *   Супер админ — админ, ажилтны бүх хүсэлт
+     *   Админ — зөвхөн өөрийн салбарын ажилтны хүсэлт
+     */
+    public function scopeVisibleTo(\Illuminate\Database\Eloquent\Builder $query, User $user): void
+    {
+        if ($user->isSuperadmin()) {
+            return;
+        }
+
+        if ($user->isAdmin() && $user->branch_id !== null) {
+            $query->whereHas('user', fn ($q) => $q->where('role', 'employee')->where('branch_id', $user->branch_id));
+
+            return;
+        }
+
+        $query->whereRaw('1 = 0');
+    }
+
     public function statusLabel(): string
     {
         return self::STATUSES[$this->status] ?? $this->status;

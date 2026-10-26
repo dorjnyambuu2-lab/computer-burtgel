@@ -8,12 +8,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
-/** Админ / ажилтны нууц үг сэргээх хүсэлтүүд (зөвхөн Супер админ) */
+/**
+ * Нууц үг сэргээх хүсэлтүүд: Супер админ — админ, ажилтных; Админ — өөрийн салбарын ажилтных
+ * (PasswordResetRequest::scopeVisibleTo)
+ */
 class PasswordResetRequestController extends Controller
 {
     public function index(Request $request): View
     {
         $requests = PasswordResetRequest::with(['user', 'resolver'])
+            ->visibleTo($request->user())
             ->when(array_key_exists((string) $request->query('status'), PasswordResetRequest::STATUSES),
                 fn ($q) => $q->where('status', $request->query('status')))
             ->orderByRaw("status = 'pending' desc")
@@ -27,6 +31,7 @@ class PasswordResetRequestController extends Controller
     /** Түр нууц үг олгоно. Хэрэглэгч түүгээр нэвтэрмэгц шинэ нууц үг солих шаардлагатай. */
     public function resolve(Request $request, PasswordResetRequest $passwordRequest): RedirectResponse
     {
+        $this->authorizeRequest($request, $passwordRequest);
         abort_unless($passwordRequest->status === 'pending', 409, 'Энэ хүсэлт аль хэдийн шийдвэрлэгдсэн.');
 
         $user = $passwordRequest->user;
@@ -49,10 +54,17 @@ class PasswordResetRequestController extends Controller
 
     public function reject(Request $request, PasswordResetRequest $passwordRequest): RedirectResponse
     {
+        $this->authorizeRequest($request, $passwordRequest);
         abort_unless($passwordRequest->status === 'pending', 409, 'Энэ хүсэлт аль хэдийн шийдвэрлэгдсэн.');
 
         $passwordRequest->update(['status' => 'rejected', 'resolved_by' => $request->user()->id, 'resolved_at' => now()]);
 
         return back()->with('success', 'Хүсэлтийг татгалзлаа.');
+    }
+
+    /** Админ зөвхөн өөрийн салбарын ажилтны хүсэлтийг шийдвэрлэнэ */
+    private function authorizeRequest(Request $request, PasswordResetRequest $passwordRequest): void
+    {
+        abort_unless(PasswordResetRequest::visibleTo($request->user())->whereKey($passwordRequest->id)->exists(), 403);
     }
 }
