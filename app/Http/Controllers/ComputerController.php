@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -283,9 +284,38 @@ class ComputerController extends Controller
             $request->merge(['category' => $categories[0]]);
         }
 
-        $computer = Computer::create($this->payload($request) + ['kit_parent_id' => $request->input('kit_parent_id')]);
-        \App\Notifications\ComputersRegistered::dispatch($request->user(), [$computer]);
+        $created = DB::transaction(function () use ($request) {
+            $computer = Computer::create($this->payload($request) + ['kit_parent_id' => $request->input('kit_parent_id')]);
+            $created = [$computer];
+
+            // Процессор бүртгэхэд mouse, keyboard иж бүрдлийн дагалдах хэрэгсэл болж хамт бүртгэгдэнэ (-2, -3 дугаартай)
+            if ($computer->category === EquipmentCategory::Processor && ! $computer->kit_parent_id) {
+                $with = array_intersect(EquipmentCategory::WITH_PROCESSOR, (array) $request->input('with_accessories', []));
+                foreach ($with as $value) {
+                    $category = EquipmentCategory::from($value);
+                    $created[] = Computer::create($computer->only([
+                        'branch_id', 'department', 'unit', 'position', 'location', 'holder_surname', 'holder_name',
+                        'assigned_user_id', 'status', 'purchase_date', 'warranty_until',
+                    ]) + [
+                        // Нэр бичсэн бол «Нэр · Mouse», үгүй бол model «Mouse PC-...» гэж өгнө
+                        'name' => $request->filled('name') ? $request->input('name').' · '.$category->label() : null,
+                        'category' => $category,
+                        'type' => ComputerType::Other,
+                        'kit_parent_id' => $computer->id,
+                    ]);
+                }
+            }
+
+            // Дагалдах хэрэгсэл нэмэгдэхэд үндсэн компьютер -1 дугаар авдаг тул шинэчилж уншина
+            return array_map(fn (Computer $c) => $c->refresh(), $created);
+        });
+        $computer = $created[0];
+
+        \App\Notifications\ComputersRegistered::dispatch($request->user(), $created);
         $message = $computer->sequenceLabel().' · '.$computer->inventory_number.' «'.$computer->name.'» амжилттай бүртгэгдлээ.';
+        if (count($created) > 1) {
+            $message .= ' Хамт: '.collect(array_slice($created, 1))->map(fn ($c) => $c->category->label().' '.$c->inventory_number)->implode(', ').'.';
+        }
 
         // «Хадгалаад дараагийнхыг бүртгэх»: ижил төрлийн олон компьютерийг дараалан бүртгэхэд
         if ($request->boolean('save_and_new')) {
