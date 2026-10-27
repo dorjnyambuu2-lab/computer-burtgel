@@ -288,7 +288,7 @@ class ComputerController extends Controller
             $computer = Computer::create($this->payload($request) + ['kit_parent_id' => $request->input('kit_parent_id')]);
             $created = [$computer];
 
-            // Процессор бүртгэхэд mouse, keyboard иж бүрдлийн дагалдах хэрэгсэл болж хамт бүртгэгдэнэ (-2, -3 дугаартай)
+            // Процессор бүртгэхэд дэлгэц, mouse, keyboard иж бүрдлийн дагалдах хэрэгсэл болж хамт бүртгэгдэнэ (-2, -3, -4 дугаартай)
             if ($computer->category === EquipmentCategory::Processor && ! $computer->kit_parent_id) {
                 $with = array_intersect(EquipmentCategory::WITH_PROCESSOR, (array) $request->input('with_accessories', []));
                 foreach ($with as $value) {

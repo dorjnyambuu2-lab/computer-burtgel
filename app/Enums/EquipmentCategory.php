@@ -38,8 +38,8 @@ enum EquipmentCategory: string
     /** «Дагалдах хэрэгсэл» табд багтах ангиллууд (бүртгэх формд Mouse, Keyboard тусдаа таб биш) */
     public const ACCESSORIES = ['mouse', 'keyboard', 'other'];
 
-    /** Процессор бүртгэхэд анхдагчаар хамт бүртгэгдэх дагалдах хэрэгсэл (хасах эсвэл тусад нь бүртгэж болно) */
-    public const WITH_PROCESSOR = ['mouse', 'keyboard'];
+    /** Процессор бүртгэхэд анхдагчаар хамт бүртгэгдэх төхөөрөмж (хасах эсвэл тусад нь бүртгэж болно) */
+    public const WITH_PROCESSOR = ['monitor', 'mouse', 'keyboard'];
 
     /** SVG (24x24, stroke) дүрсний path */
     public function icon(): string
