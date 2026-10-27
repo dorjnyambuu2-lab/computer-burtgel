@@ -90,7 +90,7 @@
                             </datalist>
                         </label>
                         <div data-dest="storage" class="text-sm font-medium text-slate-700">Хаашаа
-                            <div class="mt-1 rounded-xl border border-dashed border-sky-300 bg-sky-50 px-3 py-2.5 text-sm text-sky-800">Агуулах — хариуцагчгүй болж, «Агуулахад» төлөвт орно</div>
+                            <div class="mt-1 rounded-xl border border-dashed border-sky-300 bg-sky-50 px-3 py-2.5 text-sm text-sky-800">Агуулах</div>
                         </div>
                     @endif
                 </div>

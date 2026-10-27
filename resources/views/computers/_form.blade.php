@@ -103,6 +103,10 @@
                     $val('type') === 'laptop' => 'laptop',
                     default => 'processor',
                 }];
+                // Компьютер (процессор) бүртгэхэд mouse, keyboard хамт бүртгэгдэнэ
+                if ($pickedCategories === ['processor']) {
+                    $pickedCategories = array_merge($pickedCategories, \App\Enums\EquipmentCategory::WITH_PROCESSOR);
+                }
             }
         @endphp
         <nav id="category-tabs" role="tablist" aria-label="Төхөөрөмжийн төрөл"
@@ -204,7 +208,7 @@
                         @elseif ($kind === 'category')
                             {{-- Нэмэх үед: нэг дор олныг сонгоно. Ангилал бүрээр тусдаа төхөөрөмж бүртгэгдэнэ --}}
                             {{-- Дээрх табаар нэгийг сонгоно; хэд хэдэн төхөөрөмжийг нэг дор бүртгэх бол энд нэмж сонгоно --}}
-                            <details id="category-multi" class="mt-1 rounded-xl border border-slate-300 bg-white shadow-sm" @if (count($pickedCategories) > 1) open @endif>
+                            <details id="category-multi" class="mt-1 rounded-xl border border-slate-300 bg-white shadow-sm" @if (count((array) old('categories', [])) > 1) open @endif>
                             <summary class="cursor-pointer select-none px-3 py-2.5 text-sm text-slate-700">
                                 <span id="category-current" class="font-semibold"></span>
                                 <span class="ml-2 text-xs font-medium text-blue-600">+ Хэд хэдэн төхөөрөмж нэг дор бүртгэх</span>
@@ -721,6 +725,7 @@
     // ── Төрлийн таб: Процессор, Нөүтбүк, Дэлгэц ... Таб дарахад тухайн ганц төхөөрөмжийн форм болно ──
     const tabs = Array.from(document.querySelectorAll('#category-tabs [data-tab], #accessory-tabs [data-tab]'));
     const accessories = @json(\App\Enums\EquipmentCategory::ACCESSORIES);
+    const withProcessor = @json(\App\Enums\EquipmentCategory::WITH_PROCESSOR);
     const accessoryTabs = document.getElementById('accessory-tabs');
     const typeField = document.querySelector('[data-type-field]');
     const current = document.getElementById('category-current');
@@ -777,7 +782,9 @@
             activeTab = t.dataset.tab === 'accessory'
                 ? (accessories.indexOf(activeTab) !== -1 ? activeTab : accessories[0])
                 : t.dataset.tab;
-            boxes.forEach(function (b) { b.checked = b.value === activeTab; });
+            // Процессор: mouse, keyboard хамт (карт дээр «Хасах»-аар хасна). Mouse, Keyboard табаар тус тусад нь бүртгэнэ
+            const withTab = activeTab === 'processor' ? withProcessor : [];
+            boxes.forEach(function (b) { b.checked = b.value === activeTab || withTab.indexOf(b.value) !== -1; });
             if (typeSelect) {
                 if (activeTab === 'laptop') typeSelect.value = 'laptop';
                 else if (activeTab === 'processor') { if (['laptop', 'other'].indexOf(typeSelect.value) !== -1) typeSelect.value = 'desktop'; }
