@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -40,12 +41,18 @@ class UserFactory extends Factory
 
     public function admin(): static
     {
-        return $this->state(fn () => ['role' => 'admin', 'username' => 'admin'.Str::lower(Str::random(6))]);
+        return $this->state(fn () => ['role' => 'admin', 'username' => 'admin'.Str::lower(Str::random(6)), 'branch_id' => self::defaultBranchId()]);
     }
 
     public function employee(): static
     {
-        return $this->state(fn () => ['role' => 'employee', 'username' => 'emp'.Str::lower(Str::random(6))]);
+        return $this->state(fn () => ['role' => 'employee', 'username' => 'emp'.Str::lower(Str::random(6)), 'branch_id' => self::defaultBranchId()]);
+    }
+
+    /** Migration-ий үүсгэсэн «Төв салбар»: салбаргүй Админд төхөөрөмж харагддаггүй (BranchScope) */
+    public static function defaultBranchId(): ?int
+    {
+        return Branch::where('code', 'TOV')->value('id');
     }
 
     /**

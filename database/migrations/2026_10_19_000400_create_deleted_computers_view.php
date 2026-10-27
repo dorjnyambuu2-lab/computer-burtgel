@@ -14,6 +14,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // View нь MySQL-ийн JSON функц ашиглана; SQLite (тест) дээр computers-ийг дахин үүсгэхэд view эвдэрдэг тул алгасна
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         $category = fn (string $column) => 'CASE '.$column.' '.collect(EquipmentCategory::cases())
             ->map(fn ($c) => "WHEN '{$c->value}' THEN '{$c->label()}'")->implode(' ').' ELSE '.$column.' END';
 

@@ -118,18 +118,28 @@ class RepairQueueAndSecurityTest extends TestCase
 
     // ───────────── 2. Эрх ─────────────
 
-    public function test_only_superadmin_registers_users(): void
+    public function test_superadmin_registers_admins_and_branch_admin_registers_employees(): void
     {
         $admin = User::factory()->admin()->create();
+        $branchless = User::factory()->admin()->create(['branch_id' => null]);
         $super = User::factory()->superadmin()->create();
+        $form = ['password' => 'password123', 'password_confirmation' => 'password123', 'is_active' => 1];
 
-        $this->actingAs($admin)->get('/users')->assertForbidden();
-        $this->actingAs($admin)->post('/users', [])->assertForbidden();
+        // Салбаргүй Админ хэрэглэгч удирдахгүй
+        $this->actingAs($branchless)->get('/users')->assertForbidden();
+        $this->actingAs($branchless)->post('/users', [])->assertForbidden();
+
+        // Салбарын Админ: зөвхөн ажилтан, өөрийн салбарт
+        $this->actingAs($admin)->get('/users')->assertOk();
+        $this->actingAs($admin)->post('/users', ['name' => 'Админ биш', 'username' => 'notadmin', 'email' => 'na@example.com', 'role' => 'admin'] + $form)
+            ->assertSessionHasErrors('role');
+        $this->actingAs($admin)->post('/users', ['name' => 'Шинэ ажилтан', 'username' => 'newemp', 'email' => 'emp@example.com', 'role' => 'employee'] + $form)
+            ->assertRedirect(route('users.index'));
+        $this->assertDatabaseHas('users', ['username' => 'newemp', 'role' => 'employee', 'branch_id' => $admin->branch_id]);
 
         $this->actingAs($super)->post('/users', [
-            'name' => 'Шинэ админ', 'username' => 'newadmin', 'email' => 'new@example.com',
-            'role' => 'admin', 'password' => 'password123', 'password_confirmation' => 'password123', 'is_active' => 1,
-        ])->assertRedirect(route('users.index'));
+            'name' => 'Шинэ админ', 'username' => 'newadmin', 'email' => 'new@example.com', 'role' => 'admin', 'branch_id' => $admin->branch_id,
+        ] + $form)->assertRedirect(route('users.index'));
         $this->assertDatabaseHas('users', ['username' => 'newadmin', 'role' => 'admin']);
     }
 
@@ -175,13 +185,9 @@ class RepairQueueAndSecurityTest extends TestCase
         $this->assertSoftDeleted($pc);
         $this->assertSame($admin->id, Computer::withTrashed()->find($pc->id)->deleted_by);
 
-        // Админ: Супер админы нэвтрэх нэр/нууц үг буруу, эсвэл өөрийнхөө нууц үгээр бол устгагдахгүй
-        $this->actingAs($admin)->delete(route('computers.force-delete', $pc->id), ['password' => 'super-secret-1'])
-            ->assertSessionHasErrorsIn('forceDelete', 'approver');
-        $this->actingAs($admin)->delete(route('computers.force-delete', $pc->id), ['approver' => $super->username, 'password' => 'wrong'])
-            ->assertSessionHasErrorsIn('forceDelete', 'password');
-        $this->actingAs($admin)->delete(route('computers.force-delete', $pc->id), ['approver' => $admin->username, 'password' => 'password'])
-            ->assertSessionHasErrorsIn('forceDelete', 'password');
+        // Бүрмөсөн устгах эрх зөвхөн Супер админд: Админ Супер админы нууц үгийг мэдсэн ч устгаж чадахгүй
+        $this->actingAs($admin)->delete(route('computers.force-delete', $pc->id), ['approver' => $super->username, 'password' => 'super-secret-1'])
+            ->assertForbidden();
         $this->assertSoftDeleted($pc);
 
         // Супер админ нууц үггүй / буруу нууц үгтэй бол устгагдахгүй
@@ -191,21 +197,6 @@ class RepairQueueAndSecurityTest extends TestCase
 
         $this->actingAs($super)->delete(route('computers.force-delete', $pc->id), ['password' => 'super-secret-1'])->assertSessionHasNoErrors();
         $this->assertDatabaseMissing('computers', ['id' => $pc->id]);
-    }
-
-    public function test_admin_can_force_delete_with_superadmin_approval(): void
-    {
-        $admin = User::factory()->admin()->create();
-        $super = User::factory()->superadmin()->create(['password' => 'super-secret-1']);
-        $pc = $this->computer();
-        $pc->delete();
-
-        $this->actingAs($admin)->delete(route('computers.force-delete', $pc->id), [
-            'approver' => $super->username, 'password' => 'super-secret-1',
-        ])->assertSessionHasNoErrors();
-
-        $this->assertDatabaseMissing('computers', ['id' => $pc->id]);
-        $this->assertDatabaseHas('activity_logs', ['action' => 'force_delete_approved', 'subject_id' => $pc->id, 'user_id' => $admin->id]);
     }
 
     // ───────────── Автомат бүртгэл, дэс дугаар ─────────────
@@ -221,23 +212,26 @@ class RepairQueueAndSecurityTest extends TestCase
         $laptop = Computer::latest('id')->first();
 
         $this->assertSame($first->sequence_number + 1, $laptop->sequence_number);
-        $this->assertSame('NB-0001', $laptop->inventory_number);
+        // Бүртгэлийн дугаар: бүртгэсэн хүний код - огноо - тухайн өдрийн дугаар (A1-20261027-001)
+        $prefix = User::registrarCode($admin->id).'-'.now()->format('Ymd').'-';
+        $this->assertSame($prefix.'001', $laptop->inventory_number);
         $this->assertSame('Dell Latitude 5440', $laptop->name);
         $this->assertSame($admin->id, $laptop->created_by);
 
-        // Ангилалтай бол угтвар нь ангиллаар
+        // Өдрийн дугаар ангиллаас үл хамааран үргэлжилнэ
         $this->actingAs($admin)->post('/computers', ['type' => 'other', 'status' => 'active', 'categories' => ['monitor']]);
-        $this->assertSame('MON-0001', Computer::latest('id')->first()->inventory_number);
+        $this->assertSame($prefix.'002', Computer::latest('id')->first()->inventory_number);
     }
 
-    public function test_sequence_numbers_are_never_reused_after_delete(): void
+    public function test_sequence_numbers_stay_gapless_after_force_delete(): void
     {
+        // Дэс дугаар = салбарын хамгийн их дугаар + 1: сүүлийнхийг бүрмөсөн устгавал дугаар нь дахин олгогдоно
         $a = $this->computer();
         $b = $this->computer();
         $b->forceDelete();
         $c = $this->computer();
 
-        $this->assertSame($a->sequence_number + 2, $c->sequence_number);
+        $this->assertSame($a->sequence_number + 1, $c->sequence_number);
     }
 
     public function test_save_and_new_prefills_next_form_and_search_by_hash(): void
@@ -358,7 +352,7 @@ class RepairQueueAndSecurityTest extends TestCase
         $this->get(route('login'))->assertOk()->assertSee(route('password.request'));
 
         $this->actingAs($super)->get(route('computers.show', $pc))->assertOk()->assertSee('#1')->assertSee('Явц шинэчлэх');
-        $this->actingAs($super)->get(route('computers.trash'))->assertOk()->assertSee('TRASHED-PC')->assertSee('Супер админы нууц үг');
+        $this->actingAs($super)->get(route('computers.trash'))->assertOk()->assertSee('TRASHED-PC')->assertSee('нууц үгээ оруулна уу');
         $this->actingAs($super)->get(route('password-requests.index'))->assertOk()->assertSee($employee->name);
         $this->actingAs($super)->get('/users?sort=created_at&dir=desc&date_from=2020-01-01')->assertOk();
         $this->actingAs($super)->get(route('requests.index'))->assertOk();

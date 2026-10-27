@@ -15,7 +15,7 @@ class ComputerRegistryTest extends TestCase
     {
         return array_merge([
             'inventory_number' => 'PC-0001', 'name' => 'PC-ACC-01', 'type' => 'desktop', 'status' => 'active',
-            'brand' => 'Dell', 'ram_gb' => 16, 'ip_address' => '192.168.1.10', 'mac_address' => 'aa-bb-cc-dd-ee-ff',
+            'brand' => 'Dell', 'ram_gb' => 16, 'ip_address' => '192.168.1.10', 'mac_address' => '00-1a-2b-3c-4d-5e',
             'purchase_date' => '2024-01-10', 'warranty_until' => '2027-01-10',
         ], $o);
     }
@@ -52,9 +52,9 @@ class ComputerRegistryTest extends TestCase
     {
         $user = User::factory()->admin()->create();
 
-        $this->actingAs($user)->post('/computers', $this->valid())->assertRedirect();
+        $this->actingAs($user)->post('/computers', $this->valid())->assertSessionHasNoErrors()->assertRedirect();
         $computer = Computer::firstOrFail();
-        $this->assertSame('AA:BB:CC:DD:EE:FF', $computer->mac_address);
+        $this->assertSame('00:1A:2B:3C:4D:5E', $computer->mac_address);
 
         $this->actingAs($user)->put("/computers/{$computer->id}", $this->valid(['name' => 'Renamed', 'status' => 'in_repair']))
             ->assertRedirect(route('computers.show', $computer));
@@ -67,10 +67,11 @@ class ComputerRegistryTest extends TestCase
     public function test_validation_rules(): void
     {
         $user = User::factory()->admin()->create();
-        Computer::factory()->create(['inventory_number' => 'PC-0001']);
+        // Бүртгэлийн дугаар шинээр бүртгэхэд автоматаар үүсдэг тул давхардлыг серийн дугаараар шалгана
+        Computer::factory()->create(['serial_number' => 'SN-DUP-1']);
 
-        $this->actingAs($user)->post('/computers', $this->valid(['ip_address' => 'bad', 'mac_address' => 'zz', 'type' => 'x']))
-            ->assertSessionHasErrors(['inventory_number', 'ip_address', 'mac_address', 'type']);
+        $this->actingAs($user)->post('/computers', $this->valid(['ip_address' => 'bad', 'mac_address' => 'zz', 'type' => 'x', 'serial_number' => 'SN-DUP-1']))
+            ->assertSessionHasErrors(['serial_number', 'ip_address', 'mac_address', 'type']);
 
         $this->actingAs($user)->post('/computers', $this->valid(['inventory_number' => 'PC-9', 'warranty_until' => '2020-01-01']))
             ->assertSessionHasErrors('warranty_until');

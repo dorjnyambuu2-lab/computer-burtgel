@@ -37,6 +37,7 @@ class ComputerFactory extends Factory
             'purchase_date' => $purchase,
             'warranty_until' => (clone $purchase)->modify('+3 years'),
             'notes' => null,
+            'branch_id' => fn () => UserFactory::defaultBranchId(),
         ];
     }
 }

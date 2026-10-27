@@ -540,7 +540,7 @@ class Computer extends Model
             // Төлөв «Засварт» болсон удаа (засварын дараалал, засах форм аль алинаас) — Тайлантай ижил
             'repair_count' => DB::table('activity_logs')->where('subject_id', $this->id)->where('subject_type', 'like', '%Computer')
                 ->whereIn('action', ['created', 'updated'])
-                ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(changes, '$.status.new')) = ?", [ComputerStatus::InRepair->value])
+                ->where('changes->status->new', ComputerStatus::InRepair->value)
                 ->count(),
             'total' => ($price ?? 0) + $repairCost,
         ];
