@@ -28,13 +28,30 @@
           class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <label for="user_id" class="mb-2 block text-sm font-semibold text-slate-700">1. Ажилтан сонгох</label>
         <div class="flex flex-wrap gap-2">
-            <select name="user_id" id="user_id" onchange="this.form.submit()" class="{{ $field }} min-w-0 flex-1">
-                <option value="">— Ажилтан сонгох —</option>
-                @foreach ($employees as $employee)
-                    <option value="{{ $employee->id }}" @selected($selected?->id === $employee->id)>
-                        {{ $employee->name }} ({{ $employee->username ?: $employee->email }}) · {{ $employee->roleLabel() }}
-                    </option>
+            {{-- Алба хэлтэс солиход өмнө сонгосон ажилтныг арилгана --}}
+            <select name="department" aria-label="Алба хэлтэс" onchange="this.form.user_id.value = ''; this.form.submit()" class="{{ $field }} w-full sm:w-56">
+                <option value="">Бүх алба хэлтэс</option>
+                @foreach ($departments as $d)
+                    <option value="{{ $d }}" @selected($department === $d)>{{ $d }}</option>
                 @endforeach
+                <option value="none" @selected($department === 'none')>Хэлтэсгүй</option>
+            </select>
+            <select name="user_id" id="user_id" onchange="this.form.submit()" class="{{ $field }} min-w-0 flex-1">
+                <option value="">— Ажилтан сонгох ({{ $employees->count() }}) —</option>
+                {{-- Хэлтсээр бүлэглэнэ, хэлтэсгүй нь сүүлд --}}
+                @foreach ($employees->groupBy(fn ($u) => $u->department ?: '')->sortKeys()->sortBy(fn ($g, $k) => $k === '' ? 1 : 0) as $dept => $group)
+                    <optgroup label="{{ $dept !== '' ? $dept : 'Хэлтэсгүй' }}">
+                        @foreach ($group as $employee)
+                            <option value="{{ $employee->id }}" @selected($selected?->id === $employee->id)>
+                                {{ $employee->name }} ({{ $employee->username ?: $employee->email }}) · {{ $employee->roleLabel() }}
+                            </option>
+                        @endforeach
+                    </optgroup>
+                @endforeach
+                {{-- Сонгосон ажилтан шүүлтүүрт ороогүй бол алга болохгүй --}}
+                @if ($selected && ! $employees->contains('id', $selected->id))
+                    <option value="{{ $selected->id }}" selected>{{ $selected->name }} ({{ $selected->username ?: $selected->email }})</option>
+                @endif
             </select>
             <noscript><button type="submit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm">Сонгох</button></noscript>
             {{-- Жагсаалтад байхгүй шинэ ажилтан: бүртгээд энэ хуудас руу сонгогдсон байдлаар буцна --}}
@@ -45,9 +62,6 @@
                 </a>
             @endif
         </div>
-        @unless (array_key_exists('employee', auth()->user()->assignableRoles()))
-            <p class="mt-2 text-xs text-slate-500">Жагсаалтад байхгүй шинэ ажилтныг тухайн салбарын Админ бүртгэнэ.</p>
-        @endunless
     </form>
 
     @if ($selected)

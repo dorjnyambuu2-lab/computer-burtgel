@@ -141,10 +141,17 @@ class ComputerActionController extends Controller
      */
     public function bulkForm(Request $request): View
     {
-        $employees = User::query()->assignableBy($request->user())->orderBy('name')->get();
+        $all = User::query()->assignableBy($request->user())->orderBy('name')->get();
+
+        // Алба хэлтсээр шүүнэ ('none' = хэлтэсгүй); жагсаалтад хэлтсээр бүлэглэж харуулна
+        $departments = $all->pluck('department')->filter()->unique()->sort()->values();
+        $department = (string) $request->query('department', '');
+        $employees = $department === ''
+            ? $all
+            : $all->filter(fn ($u) => $department === 'none' ? blank($u->department) : $u->department === $department);
 
         $selected = $request->filled('user_id')
-            ? $employees->firstWhere('id', (int) $request->query('user_id'))
+            ? $all->firstWhere('id', (int) $request->query('user_id'))
             : null;
 
         // Ангиллаар бүлэглэнэ ("Ангилаагүй" нь 'none')
@@ -155,7 +162,7 @@ class ComputerActionController extends Controller
             ? Computer::query()->where('assigned_user_id', $selected->id)->orderBy('name')->get()
             : collect();
 
-        return view('computers.bulk-assign', compact('employees', 'selected', 'available', 'current'));
+        return view('computers.bulk-assign', compact('employees', 'departments', 'department', 'selected', 'available', 'current'));
     }
 
     /** Сонгосон төхөөрөмжүүдийг ажилтанд нэг дор олгоно */
