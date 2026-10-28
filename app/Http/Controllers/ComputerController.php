@@ -37,7 +37,7 @@ class ComputerController extends Controller
      * Дээд түвшнээс доош нарийсах шүүлт: ангилал → төрөл → төлөв → алба хэлтэс → байршил,
      * мөн бүртгэсэн админ, бүртгэсэн огноо (-аас / хүртэл), чөлөөт хайлт.
      */
-    private function filtered(Request $request, bool $withStatus = true)
+    private function filtered(Request $request, bool $withStatus = true, bool $withKitItems = false)
     {
         $sort = self::SORTS[$request->query('sort')] ?? 'id';
         $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
@@ -52,6 +52,9 @@ class ComputerController extends Controller
 
         return Computer::query()
             ->when($globalHit !== null, fn ($q) => $q->whereKey($globalHit), fn ($q) => $q->search($term))
+            // Иж бүрдлийн дагалдах хэрэгсэл (процессортой хамт бүртгэсэн mouse, keyboard ...) нь компьютерийнхээ хуудсанд
+            // харагдана; жагсаалтад зөвхөн хайлтаар олдоно. Тусад нь бүртгэсэн төхөөрөмж үргэлж харагдана.
+            ->when(! $withKitItems && $term === '', fn ($q) => $q->whereNull('kit_parent_id'))
             ->when($request->filled('category'), fn ($q) => $q->where('category', $request->query('category')))
             ->when($withStatus && $request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
             ->when($request->filled('type'), fn ($q) => $q->where('type', $request->query('type')))
@@ -78,7 +81,8 @@ class ComputerController extends Controller
             return null;
         }
 
-        return once(fn () => Computer::query()->orderBy('id')->pluck('id')->flip()->map(fn ($i) => $i + 1));
+        // Иж бүрдлийн дагалдах хэрэгсэл жагсаалтад харагдахгүй тул дугаарлахгүй (завсаргүй 1, 2, 3 ...)
+        return once(fn () => Computer::query()->whereNull('kit_parent_id')->orderBy('id')->pluck('id')->flip()->map(fn ($i) => $i + 1));
     }
 
     private function date(Request $request, string $key): ?Carbon
@@ -105,16 +109,16 @@ class ComputerController extends Controller
     }
 
     /**
-     * Хариуцагчаар сонгож болох хэрэглэгчид (идэвхтэй бүх хэрэглэгч).
+     * Хариуцагчаар сонгож болох хэрэглэгчид (идэвхтэй ажилтнууд).
      * Засаж буй компьютерийн одоогийн хариуцагч идэвхгүй болсон ч жагсаалтад үлдэнэ,
      * ингэснээр хадгалахад хариуцагч санамсаргүй арилахгүй.
      */
     private function employees(?int $currentId = null)
     {
-        // Админд Супер админ харагдахгүй (User::scopeAssignableBy)
+        // Зөвхөн ажилтан (Админ, Супер админ харагдахгүй)
         return User::query()
             ->where(function ($q) use ($currentId) {
-                $q->assignableBy(request()->user())
+                $q->where(fn ($w) => $w->assignableBy(request()->user())->where('role', 'employee'))
                   ->when($currentId, fn ($q) => $q->orWhere('id', $currentId));
             })
             ->orderBy('name')
@@ -150,10 +154,16 @@ class ComputerController extends Controller
             'branches' => $request->user()->isSuperadmin() ? \App\Models\Branch::query()->orderBy('name')->pluck('name', 'id') : collect(),
             // Төлөвийн табуудын тоо: бусад шүүлтүүрийг тооцож, төлөвийг тооцохгүй
             'globalNumbers' => $this->globalNumbers($request),
-            'statusCounts' => $this->filtered($request, withStatus: false)->reorder()
+            // Тоо: процессор, дэлгэц, printer ... (иж бүрдлийнх ч), mouse, keyboard-ыг тоолохгүй (Computer::scopeCounted)
+            'statusCounts' => $this->filtered($request, withStatus: false, withKitItems: true)->counted()->reorder()
                 ->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->all(),
+            'deviceCount' => $this->filtered($request, withKitItems: true)->counted()->reorder()->count(),
             'perPage' => $perPage,
             'departments' => $this->departments(),
+            // Алба хэлтэс бүрийн төхөөрөмжийн тоо (шүүлтүүрийн сонголтод «Алба (5)»)
+            'departmentCounts' => Computer::query()->counted()->whereNotNull('department')
+                ->when($request->filled('branch'), fn ($q) => $q->where('branch_id', (int) $request->query('branch')))
+                ->selectRaw('department, count(*) as c')->groupBy('department')->pluck('c', 'department')->all(),
             'locations' => $this->locations($request),
             'statuses' => ComputerStatus::options(),
             'types' => ComputerType::options(),
@@ -165,15 +175,15 @@ class ComputerController extends Controller
         ]);
     }
 
-    /** Шинэ компьютерт урьдчилан бөглөх талбарууд (давтагдах боломжгүй серийн, IP, MAC гэх мэтийг хуулахгүй) */
-    private const PREFILL = [
-        'type', 'category', 'status', 'brand', 'model', 'cpu', 'ram_gb', 'storage', 'os', 'specs',
-        'department', 'unit', 'location', 'purchase_date', 'purchase_price', 'warranty_until',
-    ];
+    /**
+     * «Хадгалаад дараагийнх»-д өмнөхөөс хуулах талбарууд: төрөл, байршил.
+     * Техникийн үзүүлэлт, худалдан авалт, баталгааг хуулахгүй (төхөөрөмж бүрт шинээр бөглөнө).
+     */
+    private const PREFILL = ['type', 'category', 'status', 'department', 'unit', 'location'];
 
     /**
      * Бүртгэлийн форм. Хурдан бүртгэхийн тулд:
-     *  - ?from={id} бол тухайн компьютерийн нийтлэг мэдээллийг хуулна («Хуулж бүртгэх», «Хадгалаад дараагийнх»)
+     *  - ?from={id} бол тухайн компьютерийн төрөл, байршлыг хуулна («Хадгалаад дараагийнх»)
      *  - үгүй бол энэ админы сүүлд бүртгэсэн компьютерийн алба хэлтэс, байршлыг санал болгоно
      *  - бүртгэлийн дугаар, нэрийг хоосон орхивол автоматаар үүснэ
      */
@@ -219,7 +229,6 @@ class ComputerController extends Controller
             'detected' => array_keys($detected),
             'detectedDevices' => $detectedDevices,
             'duplicate' => $duplicate,
-            'copiedFrom' => $request->filled('from') ? $source : null,
             // Угтвар бүрийн дараагийн дугаар: формд ангилал/төрөл сонгоход урьдчилан харуулна
             // Бүртгэлийн дугаарын урьдчилсан харагдац (PC-B1-A2-U3-20261022-001): угтвар бүрийн өдрийн дараагийн дугаар.
             // Салбар, хариуцагчийг формд сонгоход JS дугаарыг угсарна (A = бүртгэж буй админ)
@@ -312,17 +321,19 @@ class ComputerController extends Controller
         $computer = $created[0];
 
         \App\Notifications\ComputersRegistered::dispatch($request->user(), $created);
-        $message = $computer->sequenceLabel().' · '.$computer->inventory_number.' «'.$computer->name.'» амжилттай бүртгэгдлээ.';
-        if (count($created) > 1) {
-            $message .= ' Хамт: '.collect(array_slice($created, 1))->map(fn ($c) => $c->category->label().' '.$c->inventory_number)->implode(', ').'.';
+        // Хариуцагчийн нэр · бүртгэлийн дугаар (хариуцагчгүй бол зөвхөн дугаар); 3 секундын дараа алга болно
+        $holder = trim($computer->holder_surname.' '.$computer->holder_name) ?: $computer->assigned_to;
+        $message = ($holder ? $holder.' · ' : '').$computer->inventory_number.' амжилттай бүртгэгдлээ.';
+        if ($computer->holderCreated) {
+            $message .= ' «'.$computer->holderCreated->name.'» шинэ ажилтнаар нэмэгдлээ.';
         }
 
         // «Хадгалаад дараагийнхыг бүртгэх»: ижил төрлийн олон компьютерийг дараалан бүртгэхэд
-        if ($request->boolean('save_and_new')) {
-            return redirect()->route('computers.create', ['from' => $computer->id])->with('success', $message);
-        }
+        $redirect = $request->boolean('save_and_new')
+            ? redirect()->route('computers.create', ['from' => $computer->id])
+            : redirect()->route('computers.show', $computer);
 
-        return redirect()->route('computers.show', $computer)->with('success', $message);
+        return $redirect->with('success', $message)->with('success_autohide', 3000);
     }
 
     public function show(Computer $computer): View
@@ -362,7 +373,8 @@ class ComputerController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
-        $query = $this->filtered($request)->withSum(['events as repair_cost_sum' => fn ($q) => $q->reorder()], 'cost');
+        // CSV-д иж бүрдлийн дагалдах хэрэгсэл ч орно (бүрэн тооллого)
+        $query = $this->filtered($request, withKitItems: true)->withSum(['events as repair_cost_sum' => fn ($q) => $q->reorder()], 'cost');
         $numbers = $this->globalNumbers($request);
         $headers = ['Дэс дугаар', 'Бүртгэлийн дугаар', 'Нэр', 'Төрөл', 'Үйлдвэрлэгч', 'Загвар', 'Серийн дугаар', 'Процессор', 'RAM (GB)',
             'Хадгалах төхөөрөмж', 'ҮС', 'IP', 'MAC', 'Үзүүлэлт', 'Алба хэлтэс', 'Байршил', 'Хариуцагч', 'Төлөв', 'Худалдан авсан',
@@ -375,7 +387,7 @@ class ComputerController extends Controller
             $query->chunkById(200, function ($rows) use ($out, $numbers) {
                 foreach ($rows as $c) {
                     fputcsv($out, [
-                        $numbers ? '#'.$numbers[$c->id] : $c->sequenceLabel(), $c->inventory_number, $c->name, $c->type->label(), $c->brand, $c->model, $c->serial_number, $c->cpu,
+                        isset($numbers[$c->kit_parent_id ?? $c->id]) ? '#'.$numbers[$c->kit_parent_id ?? $c->id] : $c->sequenceLabel(), $c->inventory_number, $c->name, $c->type->label(), $c->brand, $c->model, $c->serial_number, $c->cpu,
                         $c->ram_gb, $c->storage, $c->os, $c->ip_address, $c->mac_address, $c->specs, $c->department, $c->location,
                         $c->assigned_to, $c->status->label(), $c->purchase_date?->format('Y-m-d'),
                         $c->purchase_price !== null ? (float) $c->purchase_price : '', (float) $c->repair_cost_sum,

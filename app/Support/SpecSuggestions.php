@@ -37,12 +37,113 @@ class SpecSuggestions
         'AMD Ryzen 7 5825U', 'AMD Ryzen 7 7735HS', 'AMD Ryzen 9 7900', 'Apple M1', 'Apple M2', 'Apple M3',
     ];
 
-    public const RAM = ['4', '8', '12', '16', '24', '32', '64', '128'];
+    public const RAM = [
+        '4GB', '8GB', '16GB', '32GB', '64GB',
+        '4GB + 4GB', '8GB + 4GB', '8GB + 8GB', '16GB + 8GB', '16GB + 16GB', '32GB + 32GB',
+    ];
+
+    // Маягтын RAM модулийн сонголт (модуль бүрийг «+» товчоор нэмнэ)
+    public const RAM_SIZES = ['2GB', '4GB', '8GB', '16GB', '32GB', '64GB'];
+
+    /**
+     * RAM: «8», «8GB», «8GB + 4GB», «8+4» → [нийт GB, модулиуд]: [12, '8GB + 4GB'].
+     * Ганц модультай бол модулиуд null. Буруу бичсэн бол null.
+     *
+     * @return array{0: ?int, 1: ?string}|null
+     */
+    public static function ram(mixed $value): ?array
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return [null, null];
+        }
+
+        $sizes = [];
+        foreach (preg_split('/\s*\+\s*/', trim((string) $value)) as $part) {
+            if (! preg_match('/^(\d+)\s*(?:GB)?$/i', $part, $m)) {
+                return null;
+            }
+            $sizes[] = (int) $m[1];
+        }
+
+        return [array_sum($sizes), count($sizes) > 1 ? implode(' + ', array_map(fn ($n) => $n.'GB', $sizes)) : null];
+    }
+
+    /** RAM талбарын шалгалт: «8» эсвэл «8GB + 4GB» */
+    public static function ramRule(): array
+    {
+        return ['nullable', function ($attribute, $value, $fail) {
+            $ram = self::ram($value);
+            if ($ram === null || $ram[0] < 1 || $ram[0] > 65535) {
+                $fail('RAM-ыг «8GB» эсвэл «8GB + 4GB» хэлбэрээр бичнэ үү.');
+            }
+        }];
+    }
 
     public const STORAGE = [
-        'SSD 128GB', 'SSD 256GB', 'SSD 512GB', 'SSD 1TB', 'SSD 2TB', 'NVMe SSD 256GB', 'NVMe SSD 512GB', 'NVMe SSD 1TB',
-        'HDD 500GB', 'HDD 1TB', 'HDD 2TB', 'SSD 256GB + HDD 1TB', 'SSD 512GB + HDD 1TB',
+        '128GB SSD', '256GB SSD', '512GB SSD', '1TB SSD', '2TB SSD', '256GB NVMe SSD', '512GB NVMe SSD', '1TB NVMe SSD',
+        '320GB HDD', '500GB HDD', '1TB HDD', '2TB HDD', '4TB HDD',
+        '256GB SSD + 1TB HDD', '512GB SSD + 1TB HDD', '512GB SSD + 2TB HDD', '1TB SSD + 2TB HDD',
     ];
+
+    // Маягтын SSD, HDD талбарын сонголт (хэмжээ; «NVMe» гэж нэмж бичиж болно)
+    public const SSD_SIZES = ['128GB', '240GB', '256GB', '480GB', '512GB', '1TB', '2TB', '256GB NVMe', '512GB NVMe', '1TB NVMe', '2TB NVMe'];
+
+    public const HDD_SIZES = ['320GB', '500GB', '1TB', '2TB', '4TB'];
+
+    /** «512GB SSD + 1TB HDD» → ['ssd' => '512GB', 'hdd' => '1TB'] (SSD, HDD-ээс бусад дискийг SSD талбарт) */
+    public static function storageParts(?string $value): array
+    {
+        $parts = ['ssd' => [], 'hdd' => []];
+        foreach (preg_split('/\s*\+\s*/', trim((string) self::storage($value))) as $part) {
+            if ($part === '') {
+                continue;
+            }
+            $kind = preg_match('/\bHDD\b/i', $part) ? 'hdd' : 'ssd';
+            $parts[$kind][] = trim(preg_replace('/\s*\b'.$kind.'\b/i', '', $part));
+        }
+
+        return array_map(fn ($list) => implode(' + ', $list), $parts);
+    }
+
+    /** SSD, HDD талбараас нэг мөр: ('512', '1TB') → «512GB SSD + 1TB HDD» */
+    public static function composeStorage(?string $ssd, ?string $hdd): ?string
+    {
+        $out = [];
+        foreach (['SSD' => $ssd, 'HDD' => $hdd] as $kind => $value) {
+            foreach (preg_split('/\s*\+\s*/', trim((string) $value)) as $part) {
+                if ($part === '') {
+                    continue;
+                }
+                if (preg_match('/^\d+(?:[.,]\d+)?$/', $part)) {
+                    $part .= 'GB';
+                }
+                $out[] = preg_match('/\b(SSD|HDD|Disk)\b/i', $part) ? $part : $part.' '.$kind;
+            }
+        }
+
+        return $out ? self::storage(implode(' + ', $out)) : null;
+    }
+
+    /**
+     * Дискийг «хэмжээ + төрөл» хэлбэрт: «SSD 512GB» → «512GB SSD», «ssd 512 gb + hdd 1tb» → «512GB SSD + 1TB HDD».
+     * Танигдахгүй хэсгийг байгаагаар нь үлдээнэ.
+     */
+    public static function storage(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return $value;
+        }
+
+        return collect(preg_split('/\s*\+\s*/', trim($value)))->map(function (string $part) {
+            if (! preg_match('/^(?:(.*?)\s*)?(\d+(?:[.,]\d+)?)\s*(GB|TB)(?:\s*(.*))?$/iu', $part, $m)) {
+                return $part;
+            }
+            $kind = trim(($m[1] ?? '').' '.($m[4] ?? ''));
+            $kind = preg_replace_callback('/\b(ssd|hdd|nvme|sata|m\.2)\b/i', fn ($k) => strtolower($k[1]) === 'nvme' ? 'NVMe' : strtoupper($k[1]), $kind);
+
+            return trim(str_replace(',', '.', $m[2]).strtoupper($m[3]).' '.$kind);
+        })->implode(' + ');
+    }
 
     public const OS = [
         'Windows 11 Pro', 'Windows 11 Home', 'Windows 10 Pro', 'Windows 10 Home', 'Windows Server 2022', 'Windows Server 2019',
@@ -108,7 +209,7 @@ class SpecSuggestions
             'brand' => self::merge(array_keys(self::MODELS_BY_BRAND), self::learned('brand', self::COMPUTER_CATEGORIES)),
             'model' => self::merge(array_merge(...array_values(self::MODELS_BY_BRAND)), self::learned('model', self::COMPUTER_CATEGORIES)),
             'cpu' => self::merge(self::CPU, self::learned('cpu')),
-            'ram_gb' => self::merge(self::RAM, self::learned('ram_gb')),
+            'ram_gb' => self::RAM,
             'storage' => self::merge(self::STORAGE, self::learned('storage')),
             'os' => self::merge(self::OS, self::learned('os')),
             'department' => self::learned('department'),

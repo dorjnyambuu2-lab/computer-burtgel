@@ -178,6 +178,6 @@ class ActivityLogController extends Controller
             ]);
         }
 
-        return back()->with('success', $count.' түүх бүрмөсөн устгагдлаа.');
+        return back()->with('success', $count.' түүх бүрмөсөн устгагдлаа.')->with('success_autohide', 3000);
     }
 }

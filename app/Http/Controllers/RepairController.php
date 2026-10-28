@@ -96,6 +96,8 @@ class RepairController extends Controller
 
         $assetRequest->update(['status' => 'in_progress', 'handled_by' => $request->user()->id]);
 
-        return back()->with('success', $computer->activityLabel().' засварын дараалалд #'.$computer->repairQueueNumber().' орлоо.');
+        // Ажилтны хүсэлт → Засвар: дараалалд орсон төхөөрөмжийг Засвар хуудаснаас үргэлжлүүлнэ
+        return redirect()->route('repairs.index')
+            ->with('success', $computer->activityLabel().' засварын дараалалд #'.$computer->repairQueueNumber().' орлоо.');
     }
 }

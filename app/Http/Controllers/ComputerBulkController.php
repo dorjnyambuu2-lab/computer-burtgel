@@ -43,7 +43,7 @@ class ComputerBulkController extends Controller
             'items.*.model' => ['nullable', 'string', 'max:255'],
             'items.*.serial_number' => ['nullable', 'string', 'max:255'],
             'items.*.cpu' => ['nullable', 'string', 'max:255'],
-            'items.*.ram_gb' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'items.*.ram_gb' => \App\Support\SpecSuggestions::ramRule(),
             'items.*.storage' => ['nullable', 'string', 'max:255'],
             'items.*.os' => ['nullable', 'string', 'max:255'],
             'items.*.ip_address' => ['nullable', 'ip', 'distinct:ignore_case', new UniqueNetworkAddress('ip_address')],
@@ -69,7 +69,6 @@ class ComputerBulkController extends Controller
             'items.*.ip_address.distinct' => 'Ижил IP хаяг хоёр төхөөрөмжид бичигдсэн байна.',
             'items.*.mac_address.distinct' => 'Ижил MAC хаяг хоёр төхөөрөмжид бичигдсэн байна.',
             'items.*.mac_address.regex' => 'MAC хаяг AA:BB:CC:DD:EE:FF хэлбэртэй байх ёстой.',
-            'items.*.ram_gb.integer' => 'RAM бүхэл тоо байх ёстой.',
             'assigned_user_id.exists' => 'Сонгосон хэрэглэгч идэвхгүй эсвэл олдсонгүй.',
             'warranty_until.after_or_equal' => 'Баталгаа дуусах огноо худалдан авсан огнооноос хойш байх ёстой.',
         ]);

@@ -31,7 +31,7 @@ class ComputerRequest extends FormRequest
             'model' => ['nullable', 'string', 'max:255'],
             'serial_number' => ['nullable', 'string', 'max:255', Rule::unique('computers', 'serial_number')->ignore($id)],
             'cpu' => ['nullable', 'string', 'max:255'],
-            'ram_gb' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'ram_gb' => \App\Support\SpecSuggestions::ramRule(),
             'storage' => ['nullable', 'string', 'max:255'],
             'os' => ['nullable', 'string', 'max:255'],
             // IP, MAC давхардахгүй (App\Rules\UniqueNetworkAddress)
@@ -113,6 +113,11 @@ class ComputerRequest extends FormRequest
         // Баталгаа дуусах огноо хоосон бол худалдан авсан огноо + баталгааны хугацаагаар бодно (JS ажиллаагүй үед)
         if (! $data->get('warranty_until') && ($until = \App\Support\Warranty::until($data->get('purchase_date'), $data->get('warranty_months')))) {
             $data->put('warranty_until', $until);
+        }
+
+        // Диск: SSD, HDD тусдаа талбараас «512GB SSD + 1TB HDD» болгоно
+        if ($data->has('storage_ssd') || $data->has('storage_hdd')) {
+            $data->put('storage', \App\Support\SpecSuggestions::composeStorage($data->get('storage_ssd'), $data->get('storage_hdd')));
         }
 
         // Үнийг «1,250,000₮» гэж бичсэн ч тоо болгоно

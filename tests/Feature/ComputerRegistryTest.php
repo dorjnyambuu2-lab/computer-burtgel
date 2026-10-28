@@ -64,6 +64,75 @@ class ComputerRegistryTest extends TestCase
         $this->assertSoftDeleted($computer);
     }
 
+    public function test_new_holder_is_added_as_employee(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $existing = User::factory()->employee()->create(['name' => 'Болд', 'surname' => 'Бат']);
+
+        // Байхгүй хүн: шинэ ажилтан үүсч, төхөөрөмж түүнд олгогдоно
+        $this->actingAs($admin)->post('/computers', $this->valid(['holder_surname' => 'Дорж', 'holder_name' => 'Сараа', 'department' => 'МТ алба']))
+            ->assertSessionHasNoErrors();
+        $new = User::where('name', 'Сараа')->firstOrFail();
+        $this->assertSame(['employee', 'Дорж', 'МТ алба', $admin->branch_id, true], [$new->role, $new->surname, $new->department, $new->branch_id, $new->is_active]);
+        $this->assertNull($new->email);
+        $this->assertSame(strtolower($new->code), $new->username);
+        $this->assertSame($new->id, Computer::where('holder_name', 'Сараа')->value('assigned_user_id'));
+        // Хариуцагчтай шинэ бүртгэл «Ашиглагдаж байгаа» төлөвтэй
+        $this->assertSame('active', Computer::where('holder_name', 'Сараа')->first()->status->value);
+        $this->actingAs($admin)->post('/computers', $this->valid(['ip_address' => '192.168.1.12', 'mac_address' => '00-1a-2b-3c-4d-60', 'status' => 'new']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('new', Computer::whereNull('assigned_user_id')->latest('id')->first()->status->value);
+
+        // Байгаа хүн: шинээр үүсгэхгүй, түүнд олгоно
+        $this->actingAs($admin)->post('/computers', $this->valid(['ip_address' => '192.168.1.11', 'mac_address' => '00-1a-2b-3c-4d-5f', 'holder_surname' => 'Бат', 'holder_name' => 'Болд']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame(1, User::where('name', 'Болд')->count());
+        $this->assertSame($existing->id, Computer::where('holder_name', 'Болд')->value('assigned_user_id'));
+    }
+
+    public function test_device_counts_skip_mouse_and_keyboard(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $pc = Computer::factory()->create(['category' => 'processor', 'department' => 'МТ', 'branch_id' => $admin->branch_id]);
+        Computer::factory()->create(['category' => 'monitor', 'department' => 'МТ', 'branch_id' => $admin->branch_id, 'kit_parent_id' => $pc->id]);
+        Computer::factory()->create(['category' => 'mouse', 'department' => 'МТ', 'branch_id' => $admin->branch_id]);
+        Computer::factory()->create(['category' => 'keyboard', 'department' => 'МТ', 'branch_id' => $admin->branch_id]);
+
+        $this->assertSame(2, Computer::counted()->count());
+        $this->actingAs($admin)->get('/computers')->assertOk()
+            ->assertViewHas('deviceCount', 2)
+            ->assertViewHas('departmentCounts', ['МТ' => 2]);
+    }
+
+    public function test_kit_items_do_not_take_sequence_numbers(): void
+    {
+        $admin = User::factory()->admin()->create();
+        // Процессор + mouse, keyboard хамт, дараа нь дахин нэг процессор: дэс дугаар #1, #2 (завсаргүй)
+        $this->actingAs($admin)->post('/computers', $this->valid(['categories' => ['processor'], 'with_accessories' => ['mouse', 'keyboard']]))
+            ->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post('/computers', $this->valid(['ip_address' => '192.168.1.11', 'mac_address' => '00-1a-2b-3c-4d-5f', 'categories' => ['processor'], 'with_accessories' => []]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame([1, 2], Computer::whereNull('kit_parent_id')->orderBy('id')->pluck('sequence_number')->all());
+        $kitItem = Computer::whereNotNull('kit_parent_id')->firstOrFail();
+        $this->assertNull($kitItem->sequence_number);
+        $this->assertSame('#1', $kitItem->sequenceLabel()); // үндсэн компьютерийн дугаар
+    }
+
+    public function test_activity_log_shows_readable_collapsible_changes(): void
+    {
+        $super = User::factory()->superadmin()->create();
+        $this->actingAs($super)->post('/computers', $this->valid(['status' => 'new', 'purchase_price' => '2500000', 'branch_id' => \Database\Factories\UserFactory::defaultBranchId()]))->assertSessionHasNoErrors();
+
+        $this->actingAs($super)->get(route('activity.index'))->assertOk()
+            ->assertSee('Бүгдийг харах')                    // олон талбартай «Нэмсэн» хумигдана
+            ->assertSee('Суурин компьютер')                 // type: desktop → шошго
+            ->assertSee('2,500,000₮')
+            ->assertSee('2024-01-10')
+            ->assertDontSee('2024-01-10 00:00')
+            ->assertDontSee('assigned_user_id');
+    }
+
     public function test_validation_rules(): void
     {
         $user = User::factory()->admin()->create();

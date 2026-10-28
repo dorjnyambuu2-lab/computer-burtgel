@@ -6,13 +6,13 @@
     use App\Models\Computer;
 
     // Төлөв бүрийн тоо (enum-ийн утгаар)
-    $byStatus = Computer::query()->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->all();
+    $byStatus = Computer::query()->counted()->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->all();
     $n = fn (ComputerStatus $s) => (int) ($byStatus[$s->value] ?? 0);
-    $total = Computer::count();
+    $total = Computer::query()->counted()->count(); // mouse, keyboard тоолохгүй
 
     // Алба хэлтсээр: хоосон ба NULL нэг бүлэг («Хэлтэс оруулаагүй»), эхний 5-аас бусдыг «Бусад» болгож
     // нийлбэр нь нийт төхөөрөмжтэй үргэлж тэнцүү байна
-    $deptRows = Computer::query()->selectRaw("NULLIF(TRIM(department), '') as k, count(*) as c")->groupBy('k')
+    $deptRows = Computer::query()->counted()->selectRaw("NULLIF(TRIM(department), '') as k, count(*) as c")->groupBy('k')
         ->orderByDesc('c')->orderBy('k')->get();
     $byDept = $deptRows->take(5)->mapWithKeys(fn ($r) => [$r->k ?? 'Хэлтэс оруулаагүй' => (int) $r->c])->all();
     if ($deptRows->count() > 5) {

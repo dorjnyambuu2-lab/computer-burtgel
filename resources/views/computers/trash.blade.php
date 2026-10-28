@@ -41,16 +41,24 @@
                         </td>
                         <td class="px-4 py-3 text-slate-600">{{ $computer->deleter?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-slate-500">{{ $computer->deleted_at?->format('Y-m-d H:i') }}</td>
+                        {{-- Сэргээх, бүрмөсөн устгах: икон товч, hover-т өнгө, тайлбар (title) --}}
                         <td class="whitespace-nowrap px-4 py-3 text-right">
                             <form method="POST" action="{{ route('computers.restore', $computer->id) }}" class="inline">
                                 @csrf
-                                <button type="submit" class="text-emerald-600 hover:underline">Сэргээх</button>
+                                <button type="submit" title="Сэргээх" aria-label="Сэргээх"
+                                        class="inline-flex h-8 w-8 !min-h-0 items-center justify-center !rounded-lg !border-0 !bg-transparent !p-0 !text-slate-500 transition hover:!bg-emerald-50 hover:!text-emerald-600">
+                                    {{-- Түүх (цагтай буцах сум) --}}
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.95 8.95 0 0013 21a9 9 0 000-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                                </button>
                             </form>
 
                             @if ($isSuper)
-                                <button type="button" class="ml-3 text-red-600 hover:underline"
+                                <button type="button" title="Бүрмөсөн устгах" aria-label="Бүрмөсөн устгах"
+                                        class="ml-1 inline-flex h-8 w-8 !min-h-0 items-center justify-center !rounded-lg !border-0 !bg-transparent !p-0 !text-slate-500 transition hover:!bg-rose-50 hover:!text-rose-600"
                                         data-force-delete="{{ route('computers.force-delete', $computer->id) }}"
-                                        data-label="{{ $computer->activityLabel() }}">Бүрмөсөн устгах</button>
+                                        data-label="{{ $computer->activityLabel() }}">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
+                                </button>
                             @endif
                         </td>
                     </tr>

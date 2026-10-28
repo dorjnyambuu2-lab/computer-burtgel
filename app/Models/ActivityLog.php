@@ -51,6 +51,7 @@ class ActivityLog extends Model
         'serial_number' => 'Серийн дугаар',
         'cpu' => 'CPU',
         'ram_gb' => 'RAM (GB)',
+        'ram_modules' => 'RAM модуль',
         'storage' => 'Диск',
         'os' => 'Үйлдлийн систем',
         'ip_address' => 'IP хаяг',
@@ -77,11 +78,60 @@ class ActivityLog extends Model
         'specs' => 'Үзүүлэлт',
         'category' => 'Ангилал',
         'deleted_count' => 'Устгасан мөрийн тоо',
+        'branch_id' => 'Салбар',
+        'kit_parent_id' => 'Иж бүрдэл',
+        'kit_index' => 'Иж бүрдлийн дугаар',
+        'qr_code' => 'QR дугаар',
+        'acknowledged_at' => 'Акт баталгаажсан',
+        'network_updated_at' => 'Сүлжээ шинэчлэгдсэн',
     ];
+
+    /** Түүхэнд харуулахгүй талбар (давхардсан эсвэл техникийн: хариуцагчийн нэр «Хариуцагч»-д байна) */
+    public const HIDDEN_FIELDS = ['assigned_user_id', 'ram_modules', 'updated_at', 'created_at', 'id'];
 
     public static function fieldLabel(string $field): string
     {
         return self::FIELD_LABELS[$field] ?? $field;
+    }
+
+    /**
+     * Утгыг хүнд ойлгомжтой болгоно: «other» → «Бусад», «branch_id: 15» → салбарын нэр,
+     * «2026-10-28 00:00:00» → «2026-10-28», «2500000» → «2,500,000₮». Хоосон бол «—».
+     */
+    public static function displayValue(string $field, mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+        if (! is_scalar($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+
+        static $names = [];
+        $label = match ($field) {
+            'type' => \App\Enums\ComputerType::tryFrom((string) $value)?->label(),
+            'status' => \App\Enums\ComputerStatus::tryFrom((string) $value)?->label(),
+            'category' => \App\Enums\EquipmentCategory::tryFrom((string) $value)?->label(),
+            'repair_stage' => \App\Enums\RepairStage::tryFrom((string) $value)?->label(),
+            'branch_id' => $names['b'.$value] ??= Branch::query()->whereKey($value)->value('name'),
+            'created_by', 'deleted_by', 'approved_by' => $names['u'.$value] ??= User::query()->whereKey($value)->value('name'),
+            'purchase_price', 'cost' => is_numeric($value) ? \App\Support\Money::format($value) : null,
+            'ram_gb' => is_numeric($value) ? $value.' GB' : null,
+            default => null,
+        };
+        if ($label !== null) {
+            return $label;
+        }
+
+        $text = is_bool($value) ? ($value ? 'Тийм' : 'Үгүй') : (string) $value;
+        // Огноо: цаг нь 00:00:00 бол зөвхөн өдөр, ISO (2026-10-28T03:18:00.000000Z) бол «2026-10-28 03:18»
+        if (preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/', $text)) {
+            $date = \Illuminate\Support\Carbon::parse($text)->timezone(config('app.timezone'));
+
+            return $date->format($date->format('H:i:s') === '00:00:00' ? 'Y-m-d' : 'Y-m-d H:i');
+        }
+
+        return $text;
     }
 
     public function user(): BelongsTo

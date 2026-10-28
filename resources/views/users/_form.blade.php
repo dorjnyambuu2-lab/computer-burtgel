@@ -71,8 +71,8 @@
                 @error('username')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
             </div>
             <div>
-                <label for="email" class="{{ $lb }}">Имэйл <span class="text-rose-500">*</span></label>
-                <input id="email" name="email" type="email" value="{{ old('email', $user->email) }}" required class="{{ $in }}" placeholder="name@company.mn">
+                <label for="email" class="{{ $lb }}">Имэйл</label>
+                <input id="email" name="email" type="email" value="{{ old('email', $user->email) }}" class="{{ $in }}" placeholder="name@company.mn">
                 @error('email')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
             </div>
             <div>

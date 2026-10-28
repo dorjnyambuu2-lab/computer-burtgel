@@ -188,26 +188,20 @@ class User extends Authenticatable
     }
 
     /**
-     * Төхөөрөмжийн хариуцагч болгож болох хэрэглэгчид: идэвхтэй. Админ сонгож байгаа бол
-     * Супер админыг оруулахгүй, зөвхөн өөрийн салбарын хэрэглэгчид (Супер админ өөрөө бол бүгд).
+     * Төхөөрөмжийн хариуцагч болгож болох хэрэглэгчид: идэвхтэй, Супер админ биш.
+     * Админ сонгож байгаа бол зөвхөн өөрийн салбарын хэрэглэгчид (Супер админ сонгож байгаа бол бүх салбар).
      */
     public function scopeAssignableBy(\Illuminate\Database\Eloquent\Builder $query, ?User $actor): void
     {
         $query->where('is_active', true)
-            ->when(! $actor?->isSuperadmin(), fn ($q) => $q->where('role', '!=', 'superadmin'))
+            ->where('role', '!=', 'superadmin')
             ->when($actor?->isBranchScoped(), fn ($q) => $q->where('branch_id', $actor->branch_id ?? 0));
     }
 
     /** Дээрхтэй ижил шалгалт (validation rule) */
     public static function assignableRule(?User $actor): \Illuminate\Validation\Rules\Exists
     {
-        $rule = \Illuminate\Validation\Rule::exists('users', 'id')->where('is_active', true);
-
-        if ($actor?->isSuperadmin()) {
-            return $rule;
-        }
-
-        $rule->whereNot('role', 'superadmin');
+        $rule = \Illuminate\Validation\Rule::exists('users', 'id')->where('is_active', true)->whereNot('role', 'superadmin');
 
         return $actor?->isBranchScoped() ? $rule->where('branch_id', $actor->branch_id ?? 0) : $rule;
     }
@@ -233,9 +227,13 @@ class User extends Authenticatable
         return $this->isSuperadmin() || ($this->isAdmin() && $this->branch_id !== null);
     }
 
-    // Өөр хэрэглэгчийг засах эрхтэй юу
+    // Өөр хэрэглэгчийг засах эрхтэй юу (өөрийгөө энд засахгүй — «Профайл»-аас)
     public function canEditUser(User $target): bool
     {
+        if ($this->id === $target->id) {
+            return false;
+        }
+
         if ($this->isSuperadmin()) {
             return true;
         }

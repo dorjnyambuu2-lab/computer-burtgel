@@ -10,7 +10,8 @@
     $status = request('status');
     $hasLast = Schema::hasColumn('users', 'last_seen_at');
 
-    $query = \App\Models\User::query();
+    // Өөрийгөө жагсаалтад харахгүй (өөрийн мэдээллийг «Профайл»-аас засна)
+    $query = \App\Models\User::query()->whereKeyNot($me->id);
     // Админ: зөвхөн өөрийн салбарын ажилтнууд (Супер админ, бусад админ, бусад салбар харагдахгүй)
     $isBranchAdmin = $me->isBranchScoped();
     if ($isBranchAdmin) {
@@ -153,10 +154,13 @@
                             @endif
                         </td>
                         <td>
-                            <div class="flex items-center justify-end gap-2">
+                            {{-- Засах, устгах: икон товч, hover-т өнгө, тайлбар (title) --}}
+                            <div class="flex items-center justify-end gap-1">
                                 @if ($me->canEditUser($u))
-                                    <a href="{{ url('/users/' . $u->id . '/edit') }}"
-                                       class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold !text-slate-700 hover:bg-slate-100">Засах</a>
+                                    <a href="{{ url('/users/' . $u->id . '/edit') }}" title="Засах" aria-label="Засах"
+                                       class="inline-flex h-8 w-8 items-center justify-center rounded-lg !text-slate-500 transition hover:bg-blue-50 hover:!text-blue-600">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+                                    </a>
                                 @else
                                     <span class="text-xs text-slate-400">Эрхгүй</span>
                                 @endif
@@ -164,8 +168,10 @@
                                     <form method="POST" action="{{ url('/users/' . $u->id) }}"
                                           onsubmit="return confirm('«{{ $u->name }}» хэрэглэгчийг устгах уу?')">
                                         @csrf @method('DELETE')
-                                        <button type="submit"
-                                                class="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50">Устгах</button>
+                                        <button type="submit" title="Устгах" aria-label="Устгах"
+                                                class="inline-flex h-8 w-8 !min-h-0 items-center justify-center !rounded-lg !border-0 !bg-transparent !p-0 !text-slate-500 transition hover:!bg-rose-50 hover:!text-rose-600">
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
+                                        </button>
                                     </form>
                                 @endif
                             </div>

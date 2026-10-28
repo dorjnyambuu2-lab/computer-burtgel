@@ -141,7 +141,8 @@ class ComputerActionController extends Controller
      */
     public function bulkForm(Request $request): View
     {
-        $all = User::query()->assignableBy($request->user())->orderBy('name')->get();
+        // Супер админд төхөөрөмж олгохгүй
+        $all = User::query()->assignableBy($request->user())->where('role', '!=', 'superadmin')->orderBy('name')->get();
 
         // Алба хэлтсээр шүүнэ ('none' = хэлтэсгүй); жагсаалтад хэлтсээр бүлэглэж харуулна
         $departments = $all->pluck('department')->filter()->unique()->sort()->values();
@@ -169,7 +170,7 @@ class ComputerActionController extends Controller
     public function bulkStore(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'user_id' => ['required', 'integer', User::assignableRule($request->user())],
+            'user_id' => ['required', 'integer', User::assignableRule($request->user())->whereNot('role', 'superadmin')],
             'computer_ids' => ['required', 'array', 'min:1'],
             'computer_ids.*' => ['integer'],
             'note' => ['nullable', 'string', 'max:1000'],

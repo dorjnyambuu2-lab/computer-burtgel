@@ -71,12 +71,12 @@
                     <th class="px-4 py-3 font-medium">Хэн</th>
                     <th class="px-4 py-3 font-medium">Үйлдэл</th>
                     <th class="px-4 py-3 font-medium">Компьютер</th>
-                    <th class="px-4 py-3 font-medium">Өөрчлөлт</th>
+                    <th class="min-w-80 px-4 py-3 font-medium">Өөрчлөлт</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
                 @forelse ($logs as $log)
-                    <tr class="align-top">
+                    <tr class="align-top transition hover:bg-slate-50/60">
                         @if ($isSuper)
                             <td class="px-4 py-3">
                                 @unless ($log->action === 'logs_deleted')

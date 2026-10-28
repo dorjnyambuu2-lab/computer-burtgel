@@ -113,9 +113,12 @@ class ComputerDetectController extends Controller
             $out['cpu'] = trim(preg_replace('/\s+/', ' ', $cpu));
         }
 
+        // RAM: «16» эсвэл модулиудаар «8GB + 8GB»
         if (isset($out['ram_gb'])) {
-            $out['ram_gb'] = (int) $out['ram_gb'];
-            if ($out['ram_gb'] <= 0) {
+            [$total, $modules] = \App\Support\SpecSuggestions::ram($out['ram_gb']) ?? [0, null];
+            if ($total > 0) {
+                $out['ram_gb'] = $modules ?? (string) $total;
+            } else {
                 unset($out['ram_gb']);
             }
         }
@@ -181,10 +184,11 @@ $brand = "$($cs.Manufacturer)".Trim()
 $model = "$($cs.Model)".Trim()
 if ($brand -match 'lenovo' -and "$($csp.Version)".Trim()) { $model = "$($csp.Version)".Trim() }
 
-# RAM: суусан модулиудын нийлбэр (GB)
-$ramBytes = (Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum
-if (-not $ramBytes) { $ramBytes = $cs.TotalPhysicalMemory }
-$ram = [math]::Round($ramBytes / 1GB)
+# RAM: суусан модулиуд (GB): нэг бол «16», олон бол «8GB + 8GB»
+$mods = @(Get-CimInstance Win32_PhysicalMemory | Where-Object { $_.Capacity } | ForEach-Object { [math]::Round($_.Capacity / 1GB) })
+if ($mods.Count -gt 1) { $ram = ($mods | ForEach-Object { "$($_)GB" }) -join ' + ' }
+elseif ($mods.Count -eq 1) { $ram = $mods[0] }
+else { $ram = [math]::Round($cs.TotalPhysicalMemory / 1GB) }
 
 # Диск: SSD/HDD/NVMe + стандарт хэмжээ (USB, SD картыг тооцохгүй)
 function Format-Size([double]$bytes) {
@@ -197,10 +201,10 @@ $disks = @()
 Get-CimInstance -Namespace root/Microsoft/Windows/Storage -ClassName MSFT_PhysicalDisk |
     Where-Object { $_.BusType -notin 7, 12, 13 } | ForEach-Object {
         $t = if ($_.BusType -eq 17) { 'NVMe SSD' } elseif ($_.MediaType -eq 4) { 'SSD' } elseif ($_.MediaType -eq 3) { 'HDD' } else { 'Disk' }
-        $disks += "$t $(Format-Size $_.Size)"
+        $disks += "$(Format-Size $_.Size) $t"
     }
 if (-not $disks) {
-    Get-CimInstance Win32_DiskDrive | Where-Object { $_.InterfaceType -ne 'USB' } | ForEach-Object { $disks += "Disk $(Format-Size $_.Size)" }
+    Get-CimInstance Win32_DiskDrive | Where-Object { $_.InterfaceType -ne 'USB' } | ForEach-Object { $disks += "$(Format-Size $_.Size) Disk" }
 }
 
 # Сүлжээ: интернэт/дотоод сүлжээнд холбогдсон (gateway-тэй) адаптер

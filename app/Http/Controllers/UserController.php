@@ -12,7 +12,7 @@ class UserController extends Controller
 {
     private function me(): User
     {
-        $me = auth()->user();
+        $me = request()->user();
         abort_unless($me && $me->canManageUsers(), 403);
 
         return $me;
@@ -90,7 +90,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:50', 'unique:users,username'],
-            'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email'    => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'role'     => ['required', Rule::in(array_keys($me->assignableRoles()))],
             ...($me->isBranchScoped() ? [] : $this->branchRules($request)),
             ...$this->jobRules(),
@@ -102,7 +102,7 @@ class UserController extends Controller
             'name'      => $data['name'],
             ...$this->jobData($data),
             'username'  => $data['username'],
-            'email'     => $data['email'],
+            'email'     => $data['email'] ?? null,
             'role'      => $data['role'],
             // Супер админ бүх салбарыг хариуцна (салбаргүй); Админы бүртгэсэн ажилтан тухайн админы салбарт
             'branch_id' => $me->isBranchScoped() ? $me->branch_id : $this->branchFor($data),
@@ -136,7 +136,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
-            'email'    => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'email'    => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'role'     => [$isSelf ? 'nullable' : 'required', Rule::in(array_keys($me->assignableRoles($user)))],
             ...($isSelf || $me->isBranchScoped() ? [] : $this->branchRules($request)),
             ...$this->jobRules(),
@@ -146,7 +146,7 @@ class UserController extends Controller
 
         $user->name = $data['name'];
         $user->username = $data['username'];
-        $user->email = $data['email'];
+        $user->email = $data['email'] ?? null;
         $user->fill($this->jobData($data));
 
         // Өөрийн эрх, төлөвийг өөрчилж чадахгүй (superadmin өөрийгөө түгжихээс сэргийлнэ)

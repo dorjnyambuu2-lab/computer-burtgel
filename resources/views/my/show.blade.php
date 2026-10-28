@@ -27,7 +27,7 @@
             'Загвар' => $computer->model,
             'Серийн дугаар' => $computer->serial_number,
             'Процессор (CPU)' => $computer->cpu,
-            'RAM' => $computer->ram_gb ? $computer->ram_gb.' GB' : null,
+            'RAM' => $computer->ramLabel(),
             'Санах ой (диск)' => $computer->storage,
             'Үйлдлийн систем' => $computer->os,
         ],

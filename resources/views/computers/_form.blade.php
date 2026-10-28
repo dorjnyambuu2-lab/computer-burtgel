@@ -5,11 +5,12 @@
 
     // Утгыг (enum, огноо, string) input-д тохирох текст болгох
     $val = function (string $f) use ($computer) {
-        $v = old($f, $computer->{$f});
+        // RAM: модулиудтай бол «8GB + 4GB»
+        $v = old($f, $f === 'ram_gb' ? $computer->ramInput() : $computer->{$f});
         if ($v instanceof \BackedEnum) return $v->value;
         if ($v instanceof \DateTimeInterface) return $v->format('Y-m-d');
-        // Үнэ: «2500000.00» → «2500000»
-        if ($f === 'purchase_price' && is_numeric($v) && fmod((float) $v, 1.0) == 0.0) return (string) (int) $v;
+        // Үнэ: «2500000.00» → «2,500,000»
+        if ($f === 'purchase_price' && is_numeric($v)) return number_format((float) $v, fmod((float) $v, 1.0) == 0.0 ? 0 : 2, '.', ',');
         return $v;
     };
 
@@ -75,14 +76,14 @@
             ['model', 'Загвар', 'text', ['placeholder' => 'Сонгох эсвэл бичих']],
             ['serial_number', 'Серийн дугаар', 'text', []],
             ['cpu', 'Процессор (CPU)', 'text', ['placeholder' => 'Intel Core i5-12400']],
-            ['ram_gb', 'RAM (GB)', 'number', ['placeholder' => '8']],
-            ['storage', 'Санах ой (диск)', 'text', ['placeholder' => 'SSD 512GB']],
+            ['ram_gb', 'RAM', 'ram', []],
             ['os', 'Үйлдлийн систем', 'text', ['placeholder' => 'Windows 11 Pro']],
+            ['storage', 'Санах ой (диск)', 'storage', []],
             ['specs', 'Үзүүлэлт', 'text', ['placeholder' => 'Дэлгэцийн хэмжээ, printer-ийн төрөл гэх мэт']],
         ],
         'Худалдан авалт ба баталгаа' => [
             ['purchase_date', 'Худалдан авсан огноо', 'date', []],
-            ['purchase_price', 'Үнэ (₮)', 'text', ['placeholder' => 'Жишээ: 2,500,000', 'inputmode' => 'decimal']],
+            ['purchase_price', 'Үнэ (₮)', 'text', ['placeholder' => 'Жишээ: 2,500,000', 'inputmode' => 'decimal', 'money' => true]],
             // Баталгааны хугацаа сонгоход «Баталгаа дуусах огноо» = худалдан авсан огноо + хугацаа (автоматаар)
             ['warranty_months', 'Баталгааны хугацаа', 'warranty', []],
             ['warranty_until', 'Баталгаа дуусах огноо', 'date', []],
@@ -141,12 +142,6 @@
             </div>
         @endif
 
-        {{-- «Хадгалаад дараагийнхыг бүртгэх»-ээр ирсэн үед юуг хуулсныг сануулна --}}
-        @if (! empty($copiedFrom))
-            <div class="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm text-blue-800">
-                «{{ $copiedFrom->name }}» ({{ $copiedFrom->sequenceLabel() }})-ээс нийтлэг мэдээллийг хуулсан. Серийн дугаар, IP, MAC-г шинээр оруулна.
-            </div>
-        @endif
     @endif
 
     @if ($errors->any())
@@ -166,15 +161,17 @@
             <h2 class="mb-4 text-base font-bold text-slate-900">{{ $title }}</h2>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 @foreach ($fields as [$name, $text, $kind, $o])
-                    <div class="{{ ($kind === 'category' && ! $isEdit) ? 'md:col-span-2' : '' }}" @if ($kind === 'type') data-type-field @endif
+                    <div class="{{ (($kind === 'category' && ! $isEdit) || $kind === 'storage') ? 'md:col-span-2' : '' }}" @if ($kind === 'type') data-type-field @endif
                         @if (in_array($name, \App\Enums\EquipmentCategory::ALL_SPEC_FIELDS, true)) data-spec-field="{{ $name }}" @endif>
                         @php $auto = in_array($name, $detectedFields, true); @endphp
+                        @if ($kind !== 'storage')
                         <label for="{{ $name }}" class="{{ $lb }}">
                             <span @if ($name === 'name' && ! $isEdit) id="name-label" @endif>{{ $text }}</span> @if (! empty($o['required']))<span class="text-rose-500">*</span>@endif
                             {{-- «Бусад» табд нэр заавал (JS тохируулна) --}}
                             @if ($name === 'name' && ! $isEdit)<span id="name-required" class="hidden text-rose-500">*</span>@endif
                             @if ($auto || ! empty($o['readonly']))<span class="ml-1 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">авто</span>@endif
                         </label>
+                        @endif
 
                         @if ($kind === 'status')
                             <select id="{{ $name }}" name="{{ $name }}" class="{{ $in }}">
@@ -229,7 +226,7 @@
                             </div>
                             </details>
                             {{-- Процессор бүртгэхэд mouse, keyboard иж бүрдлийн дагалдах хэрэгсэл болж хамт бүртгэгдэнэ (JS зөвхөн Процессор табд харуулна) --}}
-                            @php $withPicked = old('_token') ? (array) old('with_accessories', []) : \App\Enums\EquipmentCategory::WITH_PROCESSOR; @endphp
+                            @php $withPicked = old('_token') ? (array) old('with_accessories', []) : \App\Enums\EquipmentCategory::WITH_PROCESSOR_DEFAULT; @endphp
                             <div id="with-accessories" class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
                                 <span class="font-medium text-slate-700">Хамт бүртгэх:</span>
                                 @foreach (\App\Enums\EquipmentCategory::WITH_PROCESSOR as $value)
@@ -315,11 +312,34 @@
                                 @endforeach
                             </select>
                             <p id="kit-hint" class="mt-1 text-xs text-slate-400">Компьютерийн дагалдах хэрэгсэл бол сонгоно: дугаар нь компьютерийн дугаар + дэд дугаар болно.</p>
+                        @elseif ($kind === 'storage')
+                            {{-- SSD, HDD-г тусад нь бөглөнө; хадгалахад «512GB SSD + 1TB HDD» нэг мөр болно (доорх скрипт, ComputerRequest) --}}
+                            @php $disk = \App\Support\SpecSuggestions::storageParts($val('storage')); @endphp
+                            <input type="hidden" id="storage" name="storage" value="{{ $val('storage') }}">
+                            <div data-storage-parts class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                @foreach (['ssd' => 'SSD', 'hdd' => 'HDD'] as $part => $partLabel)
+                                    <div>
+                                        <label for="storage_{{ $part }}" class="{{ $lb }}">
+                                            Санах ой — {{ $partLabel }}
+                                            @if ($auto)<span class="ml-1 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">авто</span>@endif
+                                        </label>
+                                        <input id="storage_{{ $part }}" name="storage_{{ $part }}" type="text" data-part="{{ $part }}"
+                                                value="{{ old('storage_'.$part, $disk[$part]) }}" placeholder="{{ $part === 'ssd' ? 'Жишээ: 512GB' : 'Жишээ: 1TB' }}"
+                                                list="sg-storage-{{ $part }}" autocomplete="off"
+                                                class="{{ $in }} @if ($auto) !border-emerald-400 bg-emerald-50/40 @endif @error($name) border-rose-400 @enderror">
+                                    </div>
+                                @endforeach
+                            </div>
+                        @elseif ($kind === 'ram')
+                            {{-- RAM: модуль бүрийг тусад нь бичиж «+» дарж нэмнэ; хадгалахад «8GB + 4GB» нэг мөр болно (доорх скрипт) --}}
+                            <input type="hidden" id="ram_gb" name="ram_gb" value="{{ $val('ram_gb') }}">
+                            <div data-ram-modules class="@if ($auto) !border-emerald-400 !bg-emerald-50/40 @endif @error($name) !border-rose-400 @enderror"></div>
                         @else
                             <input id="{{ $name }}" name="{{ $name }}" type="{{ $kind }}"
                                     value="{{ $val($name) }}" placeholder="{{ $o['placeholder'] ?? '' }}"
                                     @if ($kind === 'number') min="0" step="1" @endif
                                     @if (! empty($o['inputmode'])) inputmode="{{ $o['inputmode'] }}" @endif
+                                    @if (! empty($o['money'])) data-money autocomplete="off" @endif
                                     @if (isset($suggest[$name])) list="{{ $name }}-options" autocomplete="off" @endif
                                     @required(! empty($o['required']))
                                     @if (! empty($o['readonly'])) readonly tabindex="-1" @endif
@@ -406,11 +426,12 @@
         const creating = !select;
         const multi = creating && boxes.filter(function (b) { return b.checked; }).length > 1;
         document.querySelectorAll('[data-spec-field]').forEach(function (wrap) {
-            const input = wrap.querySelector('input, select');
+            // Диск нь SSD, HDD, нуугдсан нэгтгэл гэсэн гурван талбартай
+            const inputs = Array.from(wrap.querySelectorAll('input, select'));
             const relevant = !allowed || allowed.indexOf(wrap.dataset.specField) !== -1;
-            const show = relevant || (!creating && input && input.value.trim() !== '');
+            const show = relevant || (!creating && inputs.some(function (i) { return i.value.trim() !== ''; }));
             wrap.classList.toggle('hidden', !show);
-            if (creating && !multi && input) input.disabled = !relevant;
+            if (creating && !multi) inputs.forEach(function (i) { i.disabled = !relevant; });
         });
         document.querySelectorAll('section[data-per-item]').forEach(function (section) {
             const fields = section.querySelectorAll('[data-spec-field]');
@@ -433,6 +454,170 @@
 @include('computers._warranty_script', ['purchaseId' => 'purchase_date', 'monthsId' => 'warranty_months', 'untilId' => 'warranty_until'])
 
 <script>
+// Үнэ: бичих явцад мянгатыг таслалаар тусгаарлана (2500000 → 2,500,000). Сервер таслалыг хасаж хадгална (Money::parse)
+(function () {
+    function format(value) {
+        const clean = value.replace(/[^\d.]/g, '');
+        const dot = clean.indexOf('.');
+        const int = (dot === -1 ? clean : clean.slice(0, dot)).replace(/^0+(?=\d)/, '');
+        const dec = dot === -1 ? '' : '.' + clean.slice(dot + 1).replace(/\./g, '').slice(0, 2);
+        return int.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + dec;
+    }
+    document.querySelectorAll('input[data-money]').forEach(function (input) {
+        input.value = format(input.value);
+        input.addEventListener('input', function () {
+            // Курсорыг өмнөх цифрийнхээ ард үлдээнэ (таслал нэмэгдэхэд үсрэхгүй)
+            const digits = input.value.slice(0, input.selectionStart).replace(/[^\d.]/g, '').length;
+            input.value = format(input.value);
+            let pos = 0;
+            for (let seen = 0; pos < input.value.length && seen < digits; pos++) {
+                if (/[\d.]/.test(input.value[pos])) seen++;
+            }
+            input.setSelectionRange(pos, pos);
+        });
+    });
+})();
+</script>
+
+<script>
+// Диск: SSD, HDD талбарыг нуугдсан «storage» талбарт «512GB SSD + 1TB HDD» болгон нэгтгэнэ (SpecSuggestions::composeStorage-тэй ижил)
+window.storageDisk = (function () {
+    function compose(ssd, hdd) {
+        const out = [];
+        [['SSD', ssd], ['HDD', hdd]].forEach(function (pair) {
+            String(pair[1] || '').split(/\s*\+\s*/).forEach(function (part) {
+                part = part.trim();
+                if (part === '') return;
+                if (/^\d+([.,]\d+)?$/.test(part)) part += 'GB';
+                out.push(/\b(SSD|HDD|Disk)\b/i.test(part) ? part : part + ' ' + pair[0]);
+            });
+        });
+        return out.join(' + ');
+    }
+    function split(value) {
+        const parts = { ssd: [], hdd: [] };
+        String(value || '').split(/\s*\+\s*/).forEach(function (part) {
+            part = part.trim();
+            if (part === '') return;
+            const kind = /\bHDD\b/i.test(part) ? 'hdd' : 'ssd';
+            parts[kind].push(part.replace(new RegExp('\\s*\\b' + kind + '\\b', 'i'), '').trim());
+        });
+        return { ssd: parts.ssd.join(' + '), hdd: parts.hdd.join(' + ') };
+    }
+    function part(box, kind) { return box.querySelector('[data-part="' + kind + '"]'); }
+    // Нуугдсан утгаас SSD, HDD талбарыг бөглөнө (картанд үндсэн хэсгээс хуулах, скриптээр уншсан үед)
+    function fill(box) {
+        const parts = split(box.previousElementSibling.value);
+        part(box, 'ssd').value = parts.ssd;
+        part(box, 'hdd').value = parts.hdd;
+    }
+    document.addEventListener('input', function (e) {
+        const box = e.target.closest && e.target.closest('[data-storage-parts]');
+        if (box) box.previousElementSibling.value = compose(part(box, 'ssd').value, part(box, 'hdd').value);
+    });
+    return { fill: fill };
+})();
+
+// RAM: нэг талбарын дотор модулиуд chip байдлаар: [4GB] + [4GB ×]  [+ Модуль]   Нийт 8 GB
+// Нуугдсан «ram_gb» талбарт «4GB + 4GB» болгон нэгтгэнэ (SpecSuggestions::ram нийлбэрийг бодно)
+window.ramModules = (function () {
+    // Layout-ын «main input/button» загварыг дарахын тулд ! ашиглана
+    const boxClass = 'mt-1 flex min-h-[2.75rem] flex-wrap items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 shadow-sm transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100';
+    const chipClass = 'inline-flex h-8 items-center rounded-lg border border-slate-200 bg-slate-50 transition focus-within:border-blue-300 focus-within:bg-white';
+    const inputClass = 'w-16 !min-h-0 !rounded-lg !border-0 !bg-transparent !px-2 !py-0 text-center !text-sm font-semibold text-slate-800 !outline-none placeholder:font-normal placeholder:text-slate-400';
+    // width/height: CSS ачаалагдаагүй ч икон зөв хэмжээтэй харагдана
+    const icon = function (d, px) {
+        return '<svg viewBox="0 0 24 24" width="' + px + '" height="' + px + '" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="' + d + '"/></svg>';
+    };
+
+    function hidden(box) { return box.previousElementSibling; }
+    function inputs(box) { return Array.from(box.querySelectorAll('input[data-ram-module]')); }
+    // «8» → «8GB», «8 gb» → «8GB»
+    function normalize(part) { return part.replace(/^(\d+)\s*(gb)?$/i, '$1GB'); }
+
+    function sync(box) {
+        const parts = inputs(box).map(function (i) { return i.value.trim(); }).filter(Boolean).map(normalize);
+        hidden(box).value = parts.join(' + ');
+        const valid = parts.length > 1 && parts.every(function (p) { return /^\d+GB$/.test(p); });
+        const total = parts.reduce(function (sum, p) { return sum + (parseInt(p, 10) || 0); }, 0);
+        const badge = box.querySelector('[data-ram-total]');
+        badge.textContent = 'Нийт ' + total + ' GB';
+        badge.classList.toggle('hidden', !valid);
+    }
+
+    function addModule(box, value) {
+        const first = !inputs(box).length;
+        const frag = document.createDocumentFragment();
+        if (!first) {
+            const sep = document.createElement('span');
+            sep.dataset.ramSep = '';
+            sep.className = 'px-0.5 text-sm font-semibold text-slate-400';
+            sep.textContent = '+';
+            frag.appendChild(sep);
+        }
+        const chip = document.createElement('span');
+        chip.className = chipClass;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.dataset.ramModule = '';
+        input.autocomplete = 'off';
+        input.placeholder = '8GB';
+        input.setAttribute('list', 'sg-ram-module');
+        input.className = inputClass;
+        input.value = value || '';
+        chip.appendChild(input);
+        // Нэмсэн модулийг хасах (эхнийх үргэлж үлдэнэ)
+        if (!first) {
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.dataset.ramRemove = '';
+            remove.title = 'Модулийг хасах';
+            remove.className = 'mr-1 flex h-5 w-5 !min-h-0 items-center justify-center !rounded-md !border-0 !bg-transparent !p-0 !text-slate-400 hover:!bg-rose-50 hover:!text-rose-600';
+            remove.innerHTML = icon('M6 6l12 12M18 6L6 18', 12);
+            chip.appendChild(remove);
+        }
+        frag.appendChild(chip);
+        box.insertBefore(frag, box.querySelector('[data-ram-add]'));
+        return input;
+    }
+
+    // Нуугдсан утгаас («8GB + 4GB») модулиудыг үүсгэнэ (ачаалахад, картанд үндсэн хэсгээс хуулахад)
+    function fill(box) {
+        box.classList.add.apply(box.classList, boxClass.split(' '));
+        box.innerHTML =
+            '<button type="button" data-ram-add title="RAM модуль нэмэх" aria-label="RAM модуль нэмэх" class="ml-0.5 flex h-8 w-8 !min-h-0 items-center justify-center !rounded-lg !border !border-dashed !border-slate-300 !bg-white !p-0 !text-blue-600 hover:!border-blue-400 hover:!bg-blue-50">' +
+                icon('M12 5v14M5 12h14', 16) + '</button>' +
+            '<span data-ram-total class="ml-auto hidden whitespace-nowrap rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"></span>';
+        const parts = String(hidden(box).value || '').split(/\s*\+\s*/).map(function (p) { return p.trim(); }).filter(Boolean);
+        (parts.length ? parts : ['']).forEach(function (p) { addModule(box, p); });
+        sync(box);
+    }
+
+    document.addEventListener('input', function (e) {
+        const box = e.target.closest && e.target.closest('[data-ram-modules]');
+        if (box) sync(box);
+    });
+    document.addEventListener('click', function (e) {
+        const box = e.target.closest && e.target.closest('[data-ram-modules]');
+        if (!box) return;
+        if (e.target.closest('[data-ram-add]')) {
+            const last = inputs(box).pop();
+            // Шинэ модуль: анхдагчаар өмнөхтэй ижил хэмжээ (4GB + 4GB)
+            addModule(box, last ? normalize(last.value.trim()) : '').focus();
+            sync(box);
+        } else if (e.target.closest('[data-ram-remove]')) {
+            // Модулийн chip болон өмнөх «+» тэмдэг
+            const chip = e.target.closest('[data-ram-remove]').parentElement;
+            const sep = chip.previousElementSibling;
+            if (sep && 'ramSep' in sep.dataset) sep.remove();
+            chip.remove();
+            sync(box);
+        }
+    });
+
+    document.querySelectorAll('[data-ram-modules]').forEach(fill);
+    return { fill: fill };
+})();
 </script>
 
 <script>
@@ -575,6 +760,8 @@
         card.querySelectorAll('input[data-field]').forEach(function (i) {
             if (!i.value) i.value = mainValue(i.dataset.field);
         });
+        card.querySelectorAll('[data-storage-parts]').forEach(window.storageDisk.fill);
+        card.querySelectorAll('[data-ram-modules]').forEach(window.ramModules.fill);
     }
 
     function listFor(cat, f) {
@@ -613,12 +800,56 @@
         const grid = document.createElement('div');
         grid.className = 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3';
         fieldsOf(cat).forEach(function (f) {
+            // Диск: SSD, HDD тусдаа; нуугдсан items[][storage]-д нэгтгэнэ
+            if (f === 'storage') {
+                const stored = document.createElement('input');
+                stored.type = 'hidden';
+                stored.name = 'items[' + idx + '][storage]';
+                stored.dataset.field = 'storage';
+                if (values && values.storage) stored.value = values.storage;
+                const box = document.createElement('div');
+                box.dataset.storageParts = '';
+                box.className = 'contents';
+                ['ssd', 'hdd'].forEach(function (kind) {
+                    const wrap = document.createElement('label');
+                    wrap.className = 'block text-xs font-medium text-slate-600';
+                    wrap.textContent = 'Санах ой — ' + kind.toUpperCase();
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.dataset.part = kind;
+                    input.autocomplete = 'off';
+                    input.className = inputClass;
+                    input.placeholder = kind === 'ssd' ? 'Жишээ: 512GB' : 'Жишээ: 1TB';
+                    input.setAttribute('list', 'sg-storage-' + kind);
+                    wrap.appendChild(input);
+                    box.appendChild(wrap);
+                });
+                grid.append(stored, box);
+                window.storageDisk.fill(box);
+                return;
+            }
+            // RAM: модулиуд «+» товчоор; нуугдсан items[][ram_gb]-д нэгтгэнэ
+            if (f === 'ram_gb') {
+                const stored = document.createElement('input');
+                stored.type = 'hidden';
+                stored.name = 'items[' + idx + '][ram_gb]';
+                stored.dataset.field = 'ram_gb';
+                if (values && values.ram_gb) stored.value = values.ram_gb;
+                const box = document.createElement('div');
+                box.dataset.ramModules = '';
+                const wrap = document.createElement('div');
+                wrap.className = 'block text-xs font-medium text-slate-600 sm:col-span-2';
+                wrap.textContent = cfg.labels[f];
+                wrap.append(stored, box);
+                grid.appendChild(wrap);
+                window.ramModules.fill(box);
+                return;
+            }
             const wrap = document.createElement('label');
             wrap.className = 'block text-xs font-medium text-slate-600';
             wrap.textContent = cfg.labels[f];
             const input = document.createElement('input');
-            input.type = f === 'ram_gb' ? 'number' : 'text';
-            if (f === 'ram_gb') { input.min = '1'; input.step = '1'; }
+            input.type = 'text';
             input.name = 'items[' + idx + '][' + f + ']';
             input.dataset.field = f;
             input.autocomplete = 'off';
@@ -632,7 +863,9 @@
             grid.appendChild(wrap);
         });
 
-        card.append(head, hidden, grid);
+        // Үзүүлэлтгүй (mouse, keyboard): зөвхөн гарчиг, «Хасах»
+        if (grid.children.length) card.append(head, hidden, grid);
+        else { head.classList.remove('mb-3'); card.append(head, hidden); }
         if (after) after.after(card); else itemsBox.appendChild(card);
         return card;
     }
@@ -706,7 +939,8 @@
                 if (i) copy[f] = i.value;
             });
             const same = cardsOf(card.dataset.category);
-            addCard(card.dataset.category, copy, false, same[same.length - 1]).querySelector('[data-field="serial_number"]').focus();
+            const serial = addCard(card.dataset.category, copy, false, same[same.length - 1]).querySelector('[data-field="serial_number"]');
+            if (serial) serial.focus();
         } else if (e.target.closest('[data-remove]')) {
             card.remove();
             syncCheckboxes();

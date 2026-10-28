@@ -38,8 +38,11 @@ enum EquipmentCategory: string
     /** «Дагалдах хэрэгсэл» табд багтах ангиллууд (бүртгэх формд Mouse, Keyboard тусдаа таб биш) */
     public const ACCESSORIES = ['mouse', 'keyboard', 'other'];
 
-    /** Процессор бүртгэхэд анхдагчаар хамт бүртгэгдэх төхөөрөмж (хасах эсвэл тусад нь бүртгэж болно) */
-    public const WITH_PROCESSOR = ['monitor', 'mouse', 'keyboard'];
+    /** Процессор бүртгэхэд хамт бүртгэж болох төхөөрөмж («Хамт бүртгэх» checkbox) */
+    public const WITH_PROCESSOR = ['mouse', 'keyboard', 'network'];
+
+    /** Үүнээс анхдагчаар сонгогдсон нь (сүлжээний төхөөрөмж компьютер бүрт байдаггүй) */
+    public const WITH_PROCESSOR_DEFAULT = ['mouse', 'keyboard'];
 
     /** SVG (24x24, stroke) дүрсний path */
     public function icon(): string
@@ -64,9 +67,10 @@ enum EquipmentCategory: string
      */
     public const SPEC_FIELDS = [
         // IP, MAC-г формд оруулахгүй: ажилтан нэвтрэхэд автоматаар бүртгэгдэнэ (App\Support\ClientNetwork)
-        'computer' => ['brand', 'model', 'serial_number', 'cpu', 'ram_gb', 'storage', 'os'],
+        'computer' => ['brand', 'model', 'serial_number', 'cpu', 'ram_gb', 'os', 'storage'],
         'network' => ['brand', 'model', 'serial_number', 'specs'],
         'basic' => ['brand', 'model', 'serial_number', 'specs'],
+        'none' => [],
     ];
 
     /** Бүх техникийн талбар (ангилалгүй бүртгэлд бүгд хамаарна) */
@@ -77,6 +81,8 @@ enum EquipmentCategory: string
         return match ($this) {
             self::Processor, self::Laptop => 'computer',
             self::Printer, self::Scanner, self::Network => 'network',
+            // Дагалдах хэрэгсэл (mouse, keyboard, бусад): үзүүлэлт бөглөхгүй, зүгээр сонгож бүртгэнэ
+            self::Mouse, self::Keyboard, self::Other => 'none',
             default => 'basic',
         };
     }

@@ -161,7 +161,20 @@
 
         <main class="flex-1 px-4 py-6 sm:px-8">
             @if (session('success'))
-                <div class="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
+                <div class="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+                    @if (session('success_autohide')) data-autohide="{{ (int) session('success_autohide') }}" @endif>{{ session('success') }}</div>
+                @if (session('success_autohide'))
+                    <script>
+                    // Түр мэдэгдэл: заасан хугацааны дараа бүдгэрч алга болно
+                    (function (el) {
+                        setTimeout(function () {
+                            el.style.transition = 'opacity .4s';
+                            el.style.opacity = '0';
+                            setTimeout(function () { el.remove(); }, 400);
+                        }, +el.dataset.autohide);
+                    })(document.currentScript.previousElementSibling);
+                    </script>
+                @endif
             @endif
             @if ($u?->isBranchScoped() && ! $u->branch_id)
                 <div class="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">

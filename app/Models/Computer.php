@@ -28,6 +28,36 @@ class Computer extends Model
         'kit_parent_id', 'kit_index', 'branch_id',
     ];
 
+    // Дискийг «512GB SSD» хэлбэрээр хадгална (гараар, скриптээр, олноор нь бүртгэсэн ч)
+    public function setStorageAttribute(?string $value): void
+    {
+        $this->attributes['storage'] = \App\Support\SpecSuggestions::storage($value);
+    }
+
+    // RAM: «8GB + 4GB» бичвэл ram_gb = 12 (нийт), ram_modules = «8GB + 4GB»
+    public function setRamGbAttribute(mixed $value): void
+    {
+        [$total, $modules] = \App\Support\SpecSuggestions::ram($value) ?? [null, null];
+        $this->attributes['ram_gb'] = $total;
+        $this->attributes['ram_modules'] = $modules;
+    }
+
+    // Харуулах: «12 GB (8GB + 4GB)», ганц модультай бол «8 GB»
+    public function ramLabel(): ?string
+    {
+        if (! $this->ram_gb) {
+            return null;
+        }
+
+        return $this->ram_gb.' GB'.($this->ram_modules ? ' ('.$this->ram_modules.')' : '');
+    }
+
+    // Маягтад: «8GB + 4GB» эсвэл «8»
+    public function ramInput(): ?string
+    {
+        return $this->ram_modules ?: ($this->ram_gb ? (string) $this->ram_gb : null);
+    }
+
     protected function casts(): array
     {
         return [
@@ -77,8 +107,11 @@ class Computer extends Model
             }
             $computer->branch_id ??= Branch::query()->count() === 1 ? Branch::query()->value('id') : null;
 
-            // Дэс дугаар: тухайн салбарын дараагийн дугаар (салбар бүр #1, #2, #3 ...)
-            $computer->sequence_number ??= static::nextSequenceNumber($computer->branch_id);
+            // Дэс дугаар: тухайн салбарын дараагийн дугаар (салбар бүр #1, #2, #3 ...).
+            // Иж бүрдлийн дагалдах хэрэгсэл жагсаалтад харагдахгүй тул дугаар авахгүй (завсар үүсгэхгүй)
+            $computer->sequence_number = $computer->kit_parent_id
+                ? null
+                : ($computer->sequence_number ?? static::nextSequenceNumber($computer->branch_id));
 
             // Давтагдашгүй QR дугаар (түүхээс сэргээхэд хуучин дугаараа авна, өөр төхөөрөмжид олгогдсон бол шинээр)
             if (blank($computer->qr_code) || static::global()->where('qr_code', $computer->qr_code)->exists()) {
@@ -183,21 +216,32 @@ class Computer extends Model
 
         // Салбар солигдвол шинэ салбарынхаа төгсгөлд дугаар авч, хуучин салбарын дугаар нөхөгдөнө
         static::updating(function (Computer $computer) {
-            if ($computer->isDirty('branch_id') && ! $computer->isDirty('sequence_number') && ! $computer->trashed()) {
+            if ($computer->isDirty('branch_id') && ! $computer->isDirty('sequence_number') && ! $computer->trashed() && ! $computer->kit_parent_id) {
                 $computer->sequence_number = static::nextSequenceNumber($computer->branch_id);
             }
         });
         static::updated(function (Computer $computer) {
-            if ($computer->wasChanged('branch_id')) {
+            // Иж бүрдэлд нэмэгдэх / салгахад дугаар авах, чөлөөлөхийн тулд мөн дахин дугаарлана
+            if ($computer->wasChanged('branch_id') || $computer->wasChanged('kit_parent_id')) {
                 static::resequence();
             }
         });
 
         static::saving(function (Computer $computer) {
-            // Хариуцагчгүй компьютерт бичсэн овог, нэр салбарын ганц хэрэглэгчтэй таарвал тэр ажилтанд олгоно
-            // (буцааж авч хариуцагчийг арилгаж буй үед биш)
-            if (! $computer->assigned_user_id && ! $computer->getOriginal('assigned_user_id') && ($owner = $computer->matchHolderUser())) {
-                $computer->assigned_user_id = $owner->id;
+            // Хариуцагчгүй компьютерт бичсэн овог, нэр салбарын ганц хэрэглэгчтэй таарвал тэр ажилтанд олгоно,
+            // таарах хүн огт байхгүй бол шинэ ажилтан үүсгэнэ (буцааж авч хариуцагчийг арилгаж буй үед биш)
+            if (! $computer->assigned_user_id && ! $computer->getOriginal('assigned_user_id')) {
+                if ($owner = $computer->matchHolderUser()) {
+                    $computer->assigned_user_id = $owner->id;
+                } elseif ($computer->isDirty(['holder_surname', 'holder_name']) && ($owner = $computer->createHolderUser())) {
+                    $computer->assigned_user_id = $owner->id;
+                    $computer->holderCreated = $owner;
+                }
+            }
+
+            // Шинээр бүртгэхэд хариуцагчтай бол «Шинэ» биш «Ашиглагдаж байгаа» (Засварт, Агуулахад гэж сонгосныг өөрчлөхгүй)
+            if (! $computer->exists && $computer->assigned_user_id && in_array($computer->status, [null, ComputerStatus::New], true)) {
+                $computer->status = ComputerStatus::Active;
             }
 
             $ownerChanged = $computer->isDirty('assigned_user_id')
@@ -271,6 +315,63 @@ class Computer extends Model
             ->limit(2)->get();
 
         return $matches->count() === 1 ? $matches->first() : null;
+    }
+
+    /** Төхөөрөмжийн тоонд оруулахгүй ангилал (дагалдах жижиг хэрэгсэл) */
+    public const UNCOUNTED_CATEGORIES = ['mouse', 'keyboard'];
+
+    /** Тоолох төхөөрөмж: процессор, нөүтбүк, дэлгэц, printer ... (mouse, keyboard биш) */
+    public function scopeCounted(Builder $query): void
+    {
+        $query->where(fn ($q) => $q->whereNull('category')->orWhereNotIn('category', self::UNCOUNTED_CATEGORIES));
+    }
+
+    /** Энэ хадгалалтаар хариуцагчаар шинээр үүссэн ажилтан (бүртгэлийн мэдэгдэлд) */
+    public ?User $holderCreated = null;
+
+    /**
+     * Хариуцагчаар бичсэн хүн салбарт огт байхгүй бол шинэ ажилтан үүсгэнэ: нэвтрэх нэр нь код (u7),
+     * нууц үг санамсаргүй — нэвтрэхийн өмнө Админ «Нууц үг сэргээх»-ээр шинэчилнэ.
+     * Ижил нэртэй хэрэглэгч (идэвхгүй ч) байвал үүсгэхгүй: давхардал гаргахгүйн тулд.
+     */
+    public function createHolderUser(): ?User
+    {
+        $name = trim((string) $this->holder_name);
+        $surname = trim((string) $this->holder_surname);
+        $branchId = $this->branch_id ?? Auth::user()?->branch_id;
+        if ($name === '' || ! $branchId) {
+            return null;
+        }
+
+        $exists = User::query()
+            ->where('branch_id', $branchId)
+            ->where('name', $name)
+            ->when($surname !== '', fn ($q) => $q->where(fn ($w) => $w->where('surname', $surname)->orWhereNull('surname')->orWhere('surname', '')))
+            ->exists();
+        if ($exists) {
+            return null;
+        }
+
+        $user = User::create([
+            'name' => $name,
+            'surname' => $surname ?: null,
+            'role' => 'employee',
+            'branch_id' => $branchId,
+            'unit' => $this->unit,
+            'department' => $this->department,
+            'position' => $this->position,
+            'password' => \Illuminate\Support\Str::password(16),
+            'is_active' => true,
+            'must_change_password' => true,
+        ]);
+
+        $username = strtolower($user->code);
+        while (User::query()->where('username', $username)->exists()) {
+            $username = strtolower($user->code).'-'.random_int(10, 99);
+        }
+        $user->forceFill(['username' => $username])->saveQuietly();
+
+        return $user;
     }
 
     /**
@@ -364,12 +465,13 @@ class Computer extends Model
         DB::transaction(function () {
             static::lockSequenceCounter();
 
-            DB::table('computers')->whereNotNull('deleted_at')->whereNotNull('sequence_number')
-                ->update(['sequence_number' => null]);
+            // Устгагдсан болон иж бүрдлийн дагалдах хэрэгсэл дугааргүй (жагсаалтад харагдахгүй)
+            DB::table('computers')->where(fn ($q) => $q->whereNotNull('deleted_at')->orWhereNotNull('kit_parent_id'))
+                ->whereNotNull('sequence_number')->update(['sequence_number' => null]);
 
             // Салбар бүрт тусдаа 1, 2, 3 ... Дугаар зөвхөн буурдаг (эсвэл дугааргүй нь төгсгөлд нэмэгддэг)
             // тул (branch_id, sequence_number) unique зөрчигдөхгүй
-            $rows = DB::table('computers')->whereNull('deleted_at')
+            $rows = DB::table('computers')->whereNull('deleted_at')->whereNull('kit_parent_id')
                 ->orderBy('branch_id')->orderByRaw('sequence_number IS NULL')->orderBy('sequence_number')->orderBy('id')
                 ->get(['id', 'branch_id', 'sequence_number']);
 
@@ -470,9 +572,13 @@ class Computer extends Model
         return $this->hasMany(Computer::class, 'kit_parent_id')->orderBy('kit_index');
     }
 
-    /** Жагсаалтад харагдах дэс дугаар: #12 */
+    /** Жагсаалтад харагдах дэс дугаар: #12. Иж бүрдлийн дагалдах хэрэгсэл үндсэн компьютерийнхээ дугаартай */
     public function sequenceLabel(): string
     {
+        if ($this->kit_parent_id && ! $this->sequence_number) {
+            return $this->kitParent?->sequenceLabel() ?? '—';
+        }
+
         return $this->sequence_number ? '#'.$this->sequence_number : '—';
     }
 

@@ -49,7 +49,7 @@
             'Загвар' => ['model', $computer->model],
             'Серийн дугаар' => ['serial_number', $computer->serial_number],
             'Процессор (CPU)' => ['cpu', $computer->cpu],
-            'RAM' => ['ram_gb', $computer->ram_gb ? $computer->ram_gb.' GB' : null],
+            'RAM' => ['ram_gb', $computer->ramLabel()],
             'Санах ой (диск)' => ['storage', $computer->storage],
             'Үйлдлийн систем' => ['os', $computer->os],
             'Үзүүлэлт' => ['specs', $computer->specs],
@@ -109,12 +109,18 @@
             <a href="{{ route('computers.label', $computer) }}"
                class="rounded-lg border border-slate-200 px-4 py-2 text-sm hover:bg-slate-100">QR</a>
             <a href="{{ route('computers.edit', $computer) }}"
-               class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Засах</a>
+               class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium !text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+                Засах
+            </a>
             <form method="POST" action="{{ route('computers.destroy', $computer) }}"
                   onsubmit="return confirm('Энэ компьютерийг устгах уу? (Хогийн савнаас сэргээх боломжтой)')">
                 @csrf
                 @method('DELETE')
-                <button class="rounded-lg border border-rose-200 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50">Устгах</button>
+                <button class="inline-flex items-center gap-1.5 rounded-lg !border-rose-200 px-4 py-2 text-sm !text-rose-600 transition hover:!bg-rose-50">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
+                    Устгах
+                </button>
             </form>
         </div>
     </div>

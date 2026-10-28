@@ -33,7 +33,7 @@ class ComputerToolsController extends Controller
         $computer->deleted_by = null;
         $computer->restore();
 
-        return back()->with('success', 'Компьютер сэргээгдлээ.');
+        return back()->with('success', 'Компьютер сэргээгдлээ.')->with('success_autohide', 3000);
     }
 
     /**
@@ -58,7 +58,7 @@ class ComputerToolsController extends Controller
         $label = $computer->activityLabel();
         $computer->forceDelete();
 
-        return back()->with('success', $label.' бүрмөсөн устгагдлаа.');
+        return back()->with('success', $label.' бүрмөсөн устгагдлаа.')->with('success_autohide', 3000);
     }
 
     /** QR шошгын хуудас: QR дотор төхөөрөмжийн давтагдашгүй QR дугаар */

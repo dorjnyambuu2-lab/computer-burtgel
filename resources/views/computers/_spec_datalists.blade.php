@@ -10,6 +10,9 @@
 @foreach (['cpu', 'ram_gb', 'storage', 'os', 'department', 'location'] as $f)
     <datalist id="sg-{{ $f }}">@foreach ($sg[$f] as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
 @endforeach
+<datalist id="sg-ram-module">@foreach (\App\Support\SpecSuggestions::RAM_SIZES as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
+<datalist id="sg-storage-ssd">@foreach (\App\Support\SpecSuggestions::SSD_SIZES as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
+<datalist id="sg-storage-hdd">@foreach (\App\Support\SpecSuggestions::HDD_SIZES as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
 @foreach (array_keys(\App\Support\SpecSuggestions::ITEM_BRANDS) as $cat)
     <datalist id="sg-brand-{{ $cat }}">@foreach (\App\Support\SpecSuggestions::itemBrands($cat) as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
     <datalist id="sg-model-{{ $cat }}">@foreach (\App\Support\SpecSuggestions::itemModels($cat) as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
@@ -37,7 +40,8 @@
 
     document.addEventListener('change', function (e) {
         const input = e.target;
-        if (!(input instanceof HTMLInputElement) || !input.list) return;
+        // RAM модуль: «6GB» гэх мэт нь шинэ утга биш (нийлбэр нь ram_gb-д хадгалагдана)
+        if (!(input instanceof HTMLInputElement) || !input.list || 'ramModule' in input.dataset) return;
         const value = input.value.trim().replace(/\s+/g, ' ');
         if (value === '') { hint(input, false); return; }
 

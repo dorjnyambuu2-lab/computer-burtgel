@@ -41,15 +41,18 @@
 
 {{-- Гарчиг ба үндсэн үйлдлүүд --}}
 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-    <h1 class="!mb-0 text-2xl font-bold">Бүх төхөөрөмж <span class="text-base font-normal text-slate-400">({{ $computers->total() }})</span></h1>
+    <h1 class="!mb-0 text-2xl font-bold">Бүх төхөөрөмж <span class="text-base font-normal text-slate-400" title="Mouse, keyboard тоолохгүй">({{ $deviceCount }})</span></h1>
     <div class="flex flex-wrap gap-2">
         <a href="{{ route('computers.export', request()->query()) }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm !text-slate-700 hover:bg-slate-50">CSV татах</a>
-        <a href="{{ route('computers.create') }}" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold !text-white hover:bg-blue-700">+ Шинээр бүртгэх</a>
+        <a href="{{ route('computers.create') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold !text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Шинээр бүртгэх
+        </a>
     </div>
 </div>
 
-{{-- Төлөвийн табууд --}}
-<div class="mb-3 flex gap-1 overflow-x-auto border-b border-slate-200">
+{{-- Төлөвийн табууд (утсанд хэвтээ гүйлгэнэ; табын -mb-px-ээс болж босоо scroll гарахгүй) --}}
+<div class="mb-3 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200">
     @foreach ($tabs as $value => [$label, $count, $badge])
         @php $on = $currentStatus === (string) $value; @endphp
         <a href="{{ request()->fullUrlWithQuery(['status' => $value ?: null, 'page' => null]) }}"
@@ -82,7 +85,7 @@
         </select>
         <select name="department" class="{{ $sel }} flex-[1_1_10rem]" data-auto onchange="this.form.location.value=''">
             <option value="">Бүх алба хэлтэс</option>
-            @foreach ($departments as $d)<option value="{{ $d }}" @selected(request('department') === $d)>{{ $d }}</option>@endforeach
+            @foreach ($departments as $d)<option value="{{ $d }}" @selected(request('department') === $d)>{{ $d }} ({{ $departmentCounts[$d] ?? 0 }})</option>@endforeach
         </select>
         <select name="location" class="{{ $sel }} flex-[1_1_10rem]" data-auto>
             <option value="">{{ request('department') ? 'Хэлтсийн бүх байршил' : 'Бүх байршил' }}</option>
@@ -146,7 +149,7 @@
             @php $model = trim(($c->brand ?? '').' '.($c->model ?? '')); @endphp
             {{-- Мөр дээр дарахад дэлгэрэнгүй нээгдэнэ (холбоос, товч дээр дарахаас бусад үед) --}}
             <tr class="cursor-pointer hover:bg-slate-50" data-href="{{ route('computers.show', $c) }}">
-                <td class="px-4 py-3 font-mono text-xs font-semibold text-slate-500">{{ $globalNumbers ? '#'.$globalNumbers[$c->id] : $c->sequenceLabel() }}</td>
+                <td class="px-4 py-3 font-mono text-xs font-semibold text-slate-500">{{ isset($globalNumbers[$c->kit_parent_id ?? $c->id]) ? '#'.$globalNumbers[$c->kit_parent_id ?? $c->id] : $c->sequenceLabel() }}</td>
                 <td class="whitespace-nowrap px-4 py-3 font-mono text-xs">{{ $c->inventory_number }}</td>
                 <td class="px-4 py-2">
                     <a href="{{ route('computers.show', $c) }}" class="font-medium !text-blue-700 hover:underline">{{ $c->name }}</a>
@@ -182,10 +185,17 @@
                 </td>
                 <td class="hidden whitespace-nowrap px-4 text-xs text-slate-500 xl:table-cell">{{ $c->created_at?->format('Y-m-d') }}</td>
                 <td class="whitespace-nowrap px-4 text-right">
-                    <a href="{{ route('computers.edit', $c) }}" class="!text-slate-600 hover:!text-blue-600">Засах</a>
-                    <form method="POST" action="{{ route('computers.destroy', $c) }}" class="ml-3 inline" onsubmit="return confirm('«{{ addslashes($c->name) }}»-г устгах уу? (Устгасан хэсэгт хадгалагдана, сэргээж болно)')">
+                    {{-- Засах, устгах: икон товч, hover-т өнгө, тайлбар (title) --}}
+                    <a href="{{ route('computers.edit', $c) }}" title="Засах" aria-label="Засах"
+                       class="inline-flex h-8 w-8 items-center justify-center rounded-lg !text-slate-500 transition hover:bg-blue-50 hover:!text-blue-600">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+                    </a>
+                    <form method="POST" action="{{ route('computers.destroy', $c) }}" class="ml-1 inline" onsubmit="return confirm('«{{ addslashes($c->name) }}»-г устгах уу? (Устгасан хэсэгт хадгалагдана, сэргээж болно)')">
                         @csrf @method('DELETE')
-                        <button class="!border-0 !bg-transparent !p-0 !text-sm !font-normal text-rose-600 hover:underline">Устгах</button>
+                        <button title="Устгах" aria-label="Устгах"
+                                class="inline-flex h-8 w-8 !min-h-0 items-center justify-center !rounded-lg !border-0 !bg-transparent !p-0 !text-slate-500 transition hover:!bg-rose-50 hover:!text-rose-600">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
+                        </button>
                     </form>
                 </td>
             </tr>

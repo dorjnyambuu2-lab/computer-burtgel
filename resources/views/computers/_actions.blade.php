@@ -6,15 +6,14 @@
 @php
     $holderName = $computer->assignedUser?->name ?? $computer->assigned_to;
     $hasHolder = filled($holderName);
+    // Харуулах нэр: формд бичсэн «Овог Нэр», эс бөгөөс системийн хэрэглэгчийн нэр
+    $holderLabel = trim($computer->holder_surname.' '.$computer->holder_name) ?: $holderName;
 @endphp
 
 <div class="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold text-slate-700">Үйлдлүүд</h2>
-        <div class="text-sm text-slate-500">
-            Төлөв: <span class="font-medium text-slate-800">{{ $computer->status?->label() ?? '—' }}</span>
-            · Хариуцагч: <span class="font-medium text-slate-800">{{ $hasHolder ? $holderName : 'Оноогоогүй' }}</span>
-        </div>
+    <div class="text-sm text-slate-500">
+        Төлөв: <span class="font-medium text-slate-800">{{ $computer->status?->label() ?? '—' }}</span>
+        · Хариуцагч: <span class="font-medium text-slate-800">{{ filled($holderLabel) ? $holderLabel : 'Оноогоогүй' }}</span>
     </div>
 
     @if ($errors->any())
