@@ -11,10 +11,16 @@
 @endphp
 
 <div class="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <div class="text-sm text-slate-500">
-        Төлөв: <span class="font-medium text-slate-800">{{ $computer->status?->label() ?? '—' }}</span>
-        · Хариуцагч: <span class="font-medium text-slate-800">{{ filled($holderLabel) ? $holderLabel : 'Оноогоогүй' }}</span>
-    </div>
+    <dl class="divide-y divide-slate-100 rounded-xl bg-slate-50 px-4 text-sm">
+        <div class="flex items-center justify-between gap-3 py-2.5">
+            <dt class="text-slate-500">Төлөв</dt>
+            <dd class="font-semibold text-slate-900">{{ $computer->status?->label() ?? '—' }}</dd>
+        </div>
+        <div class="flex items-center justify-between gap-3 py-2.5">
+            <dt class="text-slate-500">Хариуцагч</dt>
+            <dd class="truncate font-semibold {{ filled($holderLabel) ? 'text-slate-900' : 'text-slate-400' }}">{{ filled($holderLabel) ? $holderLabel : 'Оноогоогүй' }}</dd>
+        </div>
+    </dl>
 
     @if ($errors->any())
         <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $errors->first() }}</div>
@@ -23,10 +29,11 @@
     {{-- Ажилтанд олгох. Супер админ хариуцагчтай төхөөрөмжийг «Төхөөрөмж шилжүүлэх»-ээр (иж бүрдэлтэй нь) шилжүүлнэ --}}
     @if ($hasHolder && auth()->user()->isSuperadmin())
         <a href="{{ route('transfers.index', ['computer' => $computer->id]) }}"
-           class="block rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-medium !text-white hover:bg-blue-700">Өөр ажилтанд шилжүүлэх</a>
+           class="block rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold !text-white transition hover:bg-blue-700">Өөр ажилтанд шилжүүлэх</a>
     @else
     <details class="rounded-xl border border-slate-200" @if ($errors->has('user_id')) open @endif>
-        <summary class="cursor-pointer select-none rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-medium text-white hover:bg-blue-700">
+        <summary class="flex cursor-pointer select-none list-none items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 [&::-webkit-details-marker]:hidden">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6"/></svg>
             Ажилтанд олгох
         </summary>
         <form method="POST" action="{{ route('computers.assign', $computer) }}" class="space-y-3 p-4">
@@ -59,7 +66,8 @@
     {{-- Буцаан авах --}}
     @if ($hasHolder)
         <details class="rounded-xl border border-slate-200">
-            <summary class="cursor-pointer select-none rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-medium text-slate-700 hover:bg-slate-200">
+            <summary class="flex cursor-pointer select-none list-none items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 [&::-webkit-details-marker]:hidden">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3"/></svg>
                 Буцаан авах
             </summary>
             <form method="POST" action="{{ route('computers.return', $computer) }}" class="space-y-3 p-4"
@@ -106,7 +114,8 @@
     @else
     {{-- Засварт бүртгэх --}}
     <details class="rounded-xl border border-slate-200" @if ($errors->has('note')) open @endif>
-        <summary class="cursor-pointer select-none rounded-xl bg-amber-500 px-4 py-3 text-center text-sm font-medium text-white hover:bg-amber-600">
+        <summary class="flex cursor-pointer select-none list-none items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 [&::-webkit-details-marker]:hidden">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>
             Засварт бүртгэх
         </summary>
         <form method="POST" action="{{ route('computers.repair', $computer) }}" class="space-y-3 p-4">
@@ -131,7 +140,7 @@
 
     {{-- Түүх --}}
     <div class="border-t border-slate-100 pt-4">
-        <h3 class="mb-3 text-sm font-semibold text-slate-700">Түүх</h3>
+        <h3 class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Түүх</h3>
         <div class="space-y-3">
             @forelse ($events as $event)
                 <div class="flex items-start gap-3">

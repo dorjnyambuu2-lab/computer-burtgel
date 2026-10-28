@@ -108,8 +108,8 @@ class Computer extends Model
             $computer->branch_id ??= Branch::query()->count() === 1 ? Branch::query()->value('id') : null;
 
             // Дэс дугаар: тухайн салбарын дараагийн дугаар (салбар бүр #1, #2, #3 ...).
-            // Иж бүрдлийн дагалдах хэрэгсэл жагсаалтад харагдахгүй тул дугаар авахгүй (завсар үүсгэхгүй)
-            $computer->sequence_number = $computer->kit_parent_id
+            // Иж бүрдлийн дагалдах хэрэгсэл, mouse, keyboard жагсаалтад харагдахгүй тул дугаар авахгүй (завсар үүсгэхгүй)
+            $computer->sequence_number = ! $computer->isListed()
                 ? null
                 : ($computer->sequence_number ?? static::nextSequenceNumber($computer->branch_id));
 
@@ -200,6 +200,41 @@ class Computer extends Model
         static::deleted(fn () => static::resequence());
         static::restored(fn () => static::resequence());
 
+        // Иж бүрдэл: үндсэн компьютерийг архивлах, сэргээх, бүрмөсөн устгахад дагалдах хэрэгслүүд (дэлгэц, mouse ...)
+        // хамт. Эс бөгөөс архивласан компьютерийн дэлгэц жагсаалтад харагдахгүй ч тоологдож,
+        // бүрмөсөн устгахад эзэнгүй болж бие даасан төхөөрөмж болдог.
+        static::deleted(function (Computer $computer) {
+            if ($computer->isForceDeleting() || $computer->kit_parent_id) {
+                return;
+            }
+            $computer->kitItems()->get()->each(function (Computer $item) use ($computer) {
+                $item->deleted_by = $computer->deleted_by;
+                $item->saveQuietly();
+                $item->delete();
+            });
+        });
+        // Сэргээхэд: үндсэн компьютертэй хамт архивлагдсан хэрэгслүүдийг (тус тусад нь өмнө нь устгасныг биш)
+        static::restoring(function (Computer $computer) {
+            $computer->kitDeletedAt = $computer->deleted_at;
+        });
+        static::restored(function (Computer $computer) {
+            if ($computer->kit_parent_id || ! $computer->kitDeletedAt) {
+                return;
+            }
+            $computer->kitItems()->onlyTrashed()
+                ->whereBetween('deleted_at', [$computer->kitDeletedAt->copy()->subMinute(), $computer->kitDeletedAt->copy()->addMinute()])
+                ->get()->each(function (Computer $item) {
+                    $item->deleted_by = null;
+                    $item->restore();
+                });
+        });
+        // Бүрмөсөн устгахад: хэрэгслүүдийг эхэлж (эс бөгөөс nullOnDelete-ээр эзэнгүй болно)
+        static::forceDeleting(function (Computer $computer) {
+            if (! $computer->kit_parent_id) {
+                $computer->kitItems()->withTrashed()->get()->each->forceDelete();
+            }
+        });
+
         // Хариуцагчийг нэг ажилтнаас нөгөөд солих нь шилжүүлэг: Супер админ үүнийг зөвхөн «Төхөөрөмж шилжүүлэх»-ээр
         // (түүх, иж бүрдэлтэй нь) хийнэ. Олгох, олноор олгох, засах форм аль замаар ч хамаарна.
         static::updating(function (Computer $computer) {
@@ -216,13 +251,13 @@ class Computer extends Model
 
         // Салбар солигдвол шинэ салбарынхаа төгсгөлд дугаар авч, хуучин салбарын дугаар нөхөгдөнө
         static::updating(function (Computer $computer) {
-            if ($computer->isDirty('branch_id') && ! $computer->isDirty('sequence_number') && ! $computer->trashed() && ! $computer->kit_parent_id) {
+            if ($computer->isDirty('branch_id') && ! $computer->isDirty('sequence_number') && ! $computer->trashed() && $computer->isListed()) {
                 $computer->sequence_number = static::nextSequenceNumber($computer->branch_id);
             }
         });
         static::updated(function (Computer $computer) {
-            // Иж бүрдэлд нэмэгдэх / салгахад дугаар авах, чөлөөлөхийн тулд мөн дахин дугаарлана
-            if ($computer->wasChanged('branch_id') || $computer->wasChanged('kit_parent_id')) {
+            // Иж бүрдэлд нэмэгдэх / салгах, ангилал солигдоход дугаар авах, чөлөөлөхийн тулд мөн дахин дугаарлана
+            if ($computer->wasChanged('branch_id') || $computer->wasChanged('kit_parent_id') || $computer->wasChanged('category')) {
                 static::resequence();
             }
         });
@@ -325,6 +360,15 @@ class Computer extends Model
     {
         $query->where(fn ($q) => $q->whereNull('category')->orWhereNotIn('category', self::UNCOUNTED_CATEGORIES));
     }
+
+    /** «Бүх төхөөрөмж» жагсаалтад харагдаж, дэс дугаар авах эсэх: иж бүрдлийн дагалдах хэрэгсэл, mouse, keyboard биш */
+    public function isListed(): bool
+    {
+        return ! $this->kit_parent_id && ! in_array($this->category?->value, self::UNCOUNTED_CATEGORIES, true);
+    }
+
+    /** Сэргээж буй үндсэн компьютерийн архивлагдсан огноо (иж бүрдлийн хэрэгслийг хамт сэргээхэд) */
+    public ?\Illuminate\Support\Carbon $kitDeletedAt = null;
 
     /** Энэ хадгалалтаар хариуцагчаар шинээр үүссэн ажилтан (бүртгэлийн мэдэгдэлд) */
     public ?User $holderCreated = null;
@@ -465,13 +509,15 @@ class Computer extends Model
         DB::transaction(function () {
             static::lockSequenceCounter();
 
-            // Устгагдсан болон иж бүрдлийн дагалдах хэрэгсэл дугааргүй (жагсаалтад харагдахгүй)
-            DB::table('computers')->where(fn ($q) => $q->whereNotNull('deleted_at')->orWhereNotNull('kit_parent_id'))
+            // Устгагдсан, иж бүрдлийн дагалдах хэрэгсэл, mouse, keyboard дугааргүй (жагсаалтад харагдахгүй)
+            DB::table('computers')->where(fn ($q) => $q->whereNotNull('deleted_at')->orWhereNotNull('kit_parent_id')
+                    ->orWhereIn('category', self::UNCOUNTED_CATEGORIES))
                 ->whereNotNull('sequence_number')->update(['sequence_number' => null]);
 
             // Салбар бүрт тусдаа 1, 2, 3 ... Дугаар зөвхөн буурдаг (эсвэл дугааргүй нь төгсгөлд нэмэгддэг)
             // тул (branch_id, sequence_number) unique зөрчигдөхгүй
             $rows = DB::table('computers')->whereNull('deleted_at')->whereNull('kit_parent_id')
+                ->where(fn ($q) => $q->whereNull('category')->orWhereNotIn('category', self::UNCOUNTED_CATEGORIES))
                 ->orderBy('branch_id')->orderByRaw('sequence_number IS NULL')->orderBy('sequence_number')->orderBy('id')
                 ->get(['id', 'branch_id', 'sequence_number']);
 

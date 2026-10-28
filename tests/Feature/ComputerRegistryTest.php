@@ -101,7 +101,12 @@ class ComputerRegistryTest extends TestCase
         $this->assertSame(2, Computer::counted()->count());
         $this->actingAs($admin)->get('/computers')->assertOk()
             ->assertViewHas('deviceCount', 2)
-            ->assertViewHas('departmentCounts', ['МТ' => 2]);
+            ->assertViewHas('departmentCounts', ['МТ' => 2])
+            // Жагсаалтад зөвхөн процессор (иж бүрдлийн дэлгэц, mouse, keyboard харагдахгүй)
+            ->assertViewHas('computers', fn ($p) => $p->pluck('id')->all() === [$pc->id]);
+        // Ангиллаар шүүвэл mouse харагдана
+        $this->actingAs($admin)->get('/computers?category=mouse')->assertOk()
+            ->assertViewHas('computers', fn ($p) => $p->count() === 1);
     }
 
     public function test_kit_items_do_not_take_sequence_numbers(): void
@@ -117,6 +122,12 @@ class ComputerRegistryTest extends TestCase
         $kitItem = Computer::whereNotNull('kit_parent_id')->firstOrFail();
         $this->assertNull($kitItem->sequence_number);
         $this->assertSame('#1', $kitItem->sequenceLabel()); // үндсэн компьютерийн дугаар
+
+        // Тусад нь бүртгэсэн mouse дугаар авахгүй, дараагийн дэлгэц #3 (завсаргүй)
+        $mouse = Computer::factory()->create(['category' => 'mouse', 'branch_id' => $admin->branch_id]);
+        $monitor = Computer::factory()->create(['category' => 'monitor', 'branch_id' => $admin->branch_id]);
+        $this->assertNull($mouse->sequence_number);
+        $this->assertSame(3, $monitor->sequence_number);
     }
 
     public function test_activity_log_shows_readable_collapsible_changes(): void

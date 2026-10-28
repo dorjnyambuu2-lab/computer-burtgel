@@ -82,44 +82,57 @@
 @endphp
 
 <div class="mx-auto max-w-6xl space-y-4">
-    <a href="{{ $backUrl }}" class="text-sm !text-slate-500 hover:!text-slate-700">← Жагсаалт руу буцах</a>
+    <a href="{{ $backUrl }}" class="inline-flex items-center gap-1 text-sm font-medium !text-slate-500 hover:!text-slate-800">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        Жагсаалт руу буцах
+    </a>
 
-    {{-- Толгой хэсэг --}}
-    <div class="flex flex-wrap items-start justify-between gap-3">
-        <div>
-            <h1 class="text-xl font-bold"><span class="text-slate-400">{{ $computer->sequenceLabel() }}</span> {{ $computer->name ?? ('Компьютер #'.$computer->id) }}</h1>
-            <div class="mt-2 flex flex-wrap items-center gap-2">
-                @if ($computer->inventory_number)
-                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{{ $computer->inventory_number }}</span>
-                @endif
-                @if ($statusLabel)
-                    <span class="rounded-full px-3 py-1 text-xs {{ $statusClass }}">{{ $statusLabel }}</span>
-                @endif
-                @if ($warranty === 'expired')
-                    <span class="rounded-full bg-rose-50 px-3 py-1 text-xs text-rose-700">Баталгаа дууссан</span>
-                @elseif ($warranty === 'expiring')
-                    <span class="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">Баталгаа удахгүй дуусна</span>
-                @elseif ($warranty === 'valid')
-                    <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">Баталгаатай</span>
-                @endif
+    {{-- Толгой хэсэг: ангиллын икон, нэр, төлөв, үйлдлүүд --}}
+    <div class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex min-w-0 items-center gap-4">
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ ($computer->category ?? \App\Enums\EquipmentCategory::Processor)->icon() }}"/></svg>
+            </div>
+            <div class="min-w-0">
+                <h1 class="!mb-0 truncate text-xl font-bold text-slate-900"><span class="font-medium text-slate-400">{{ $computer->sequenceLabel() }}</span> {{ $computer->name ?? ('Компьютер #'.$computer->id) }}</h1>
+                <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                    @if ($computer->inventory_number)
+                        <span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-700">{{ $computer->inventory_number }}</span>
+                    @endif
+                    @if ($statusLabel)
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $statusClass }}"><span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ $statusLabel }}</span>
+                    @endif
+                    @if ($warranty === 'expired')
+                        <span class="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700">Баталгаа дууссан</span>
+                    @elseif ($warranty === 'expiring')
+                        <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">Баталгаа удахгүй дуусна</span>
+                    @elseif ($warranty === 'valid')
+                        <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">Баталгаатай</span>
+                    @endif
+                </div>
             </div>
         </div>
 
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('computers.label', $computer) }}"
-               class="rounded-lg border border-slate-200 px-4 py-2 text-sm hover:bg-slate-100">QR</a>
+               class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium !text-slate-700 transition hover:bg-slate-50">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></svg>
+                QR
+            </a>
             <a href="{{ route('computers.edit', $computer) }}"
-               class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium !text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md">
+               class="inline-flex h-10 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-semibold !text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
                 Засах
             </a>
+            {{-- Иж бүрдлийн үндсэн компьютер бол дагалдах хэрэгслүүд хамт устгагдана (Computer::booted) --}}
+            @php $kitCount = $computer->kit_parent_id ? 0 : $computer->kitItems()->count(); @endphp
             <form method="POST" action="{{ route('computers.destroy', $computer) }}"
-                  onsubmit="return confirm('Энэ компьютерийг устгах уу? (Хогийн савнаас сэргээх боломжтой)')">
+                  onsubmit="return confirm(@js('Энэ төхөөрөмжийг устгах уу?'.($kitCount ? ' Иж бүрдлийн '.$kitCount.' дагалдах хэрэгсэл (дэлгэц, mouse ...) хамт устгагдана.' : '').' (Устгасан хэсгээс сэргээх боломжтой)'))">
                 @csrf
                 @method('DELETE')
-                <button class="inline-flex items-center gap-1.5 rounded-lg !border-rose-200 px-4 py-2 text-sm !text-rose-600 transition hover:!bg-rose-50">
+                <button title="Устгах" aria-label="Устгах"
+                        class="inline-flex h-10 w-10 !min-h-0 items-center justify-center !rounded-lg !border !border-slate-200 !bg-white !p-0 !text-slate-500 transition hover:!border-rose-200 hover:!bg-rose-50 hover:!text-rose-600">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
-                    Устгах
                 </button>
             </form>
         </div>
@@ -134,13 +147,13 @@
         {{-- Мэдээлэл --}}
         <div class="space-y-4 lg:col-span-2 lg:col-start-1 lg:row-start-1">
             @foreach (array_filter($sections) as $title => $rows)
-                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h2 class="mb-3 text-sm font-semibold text-slate-700">{{ $title }}</h2>
-                    <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <h2 class="!mb-0 border-b border-slate-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $title }}</h2>
+                    <dl class="grid gap-x-8 gap-y-4 p-5 sm:grid-cols-2">
                         @foreach ($rows as $label => $value)
                             <div class="min-w-0">
                                 <dt class="text-xs text-slate-500">{{ $label }}</dt>
-                                <dd class="break-words text-sm font-medium text-slate-800">{{ filled($value) ? $value : '—' }}</dd>
+                                <dd class="mt-0.5 break-words text-sm font-medium {{ filled($value) ? 'text-slate-900' : 'text-slate-300' }}">{{ filled($value) ? $value : '—' }}</dd>
                             </div>
                         @endforeach
                     </dl>
@@ -153,17 +166,17 @@
                 $kitItems = $kitMain ? $kitMain->kitItems()->get() : collect();
             @endphp
             @if ($kitMain)
-                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <h2 class="text-sm font-semibold text-slate-700">
-                            Иж бүрдэл <span class="ml-1 rounded bg-slate-100 px-2 py-0.5 font-mono text-slate-800">{{ $kitMain->kitBase() }}</span>
-                            <span class="font-normal text-slate-400">· {{ $kitItems->count() + 1 }} төхөөрөмж</span>
+                <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3">
+                        <h2 class="!mb-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Иж бүрдэл <span class="ml-1 rounded bg-slate-100 px-2 py-0.5 font-mono normal-case tracking-normal text-slate-800">{{ $kitMain->kitBase() }}</span>
+                            <span class="font-normal normal-case tracking-normal text-slate-400">· {{ $kitItems->count() + 1 }} төхөөрөмж</span>
                         </h2>
                         @unless ($kitMain->trashed())
                             <a href="{{ route('computers.create', ['kit' => $kitMain->id]) }}" class="text-xs font-semibold !text-blue-600 hover:underline">+ Дагалдах хэрэгсэл нэмэх</a>
                         @endunless
                     </div>
-                    <ul class="divide-y divide-slate-100 text-sm">
+                    <ul class="divide-y divide-slate-100 px-5 text-sm">
                         @foreach ($kitItems->prepend($kitMain) as $item)
                             @php $current = $item->id === $computer->id; @endphp
                             <li class="flex items-center gap-3 py-2 {{ $current ? 'font-semibold' : '' }}">
@@ -179,19 +192,20 @@
                         @endforeach
                     </ul>
                     @if ($kitItems->count() === 1)
-                        <p class="mt-2 text-xs text-slate-400">Дэлгэц, mouse, keyboard зэргийг энэ компьютерийн иж бүрдэлд нэмбэл {{ $kitMain->kitBase() }}-2, -3 ... дугаар авна (компьютер өөрөө {{ $kitMain->kitBase() }}-1).</p>
+                        <p class="px-5 pb-4 text-xs text-slate-400">Дэлгэц, mouse, keyboard зэргийг энэ компьютерийн иж бүрдэлд нэмбэл {{ $kitMain->kitBase() }}-2, -3 ... дугаар авна (компьютер өөрөө {{ $kitMain->kitBase() }}-1).</p>
                     @endif
                 </div>
             @endif
 
             {{-- Зардлын тооцоо --}}
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="mb-3 flex items-center justify-between gap-2">
-                    <h2 class="text-sm font-semibold text-slate-700">Зардлын тооцоо</h2>
+            <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-3">
+                    <h2 class="!mb-0 text-xs font-semibold uppercase tracking-wide text-slate-500">Зардлын тооцоо</h2>
                     @if ($cost['price'] === null)
                         <a href="{{ route('computers.edit', $computer) }}" class="text-xs !text-blue-600 hover:underline">Үнэ оруулах →</a>
                     @endif
                 </div>
+                <div class="p-5">
                 <dl class="grid gap-3 sm:grid-cols-3">
                     <div class="rounded-xl bg-slate-50 px-4 py-3">
                         <dt class="text-xs text-slate-500"> Үнэ</dt>
@@ -213,12 +227,13 @@
                         @if ($ratio >= 50) Шинээр авах нь хэмнэлттэй байж магадгүй. @endif
                     </p>
                 @endif
+                </div>
             </div>
 
             @if (filled($computer->notes))
-                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h2 class="mb-2 text-sm font-semibold text-slate-700">Тэмдэглэл</h2>
-                    <p class="whitespace-pre-line text-sm text-slate-700">{{ $computer->notes }}</p>
+                <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <h2 class="!mb-0 border-b border-slate-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Тэмдэглэл</h2>
+                    <p class="whitespace-pre-line p-5 text-sm text-slate-700">{{ $computer->notes }}</p>
                 </div>
             @endif
 

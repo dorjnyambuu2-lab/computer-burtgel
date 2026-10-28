@@ -156,10 +156,14 @@
     @error('user_id')<p class="text-sm text-rose-600">{{ $message }}</p>@enderror
 
     @foreach ($sections as $title => $fields)
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        <section class="rounded-2xl border border-slate-200 bg-white shadow-sm"
                 @if ($title === 'Техникийн үзүүлэлт') data-per-item @endif>
-            <h2 class="mb-4 text-base font-bold text-slate-900">{{ $title }}</h2>
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {{-- Хэсгийн гарчиг: дугаартай (1 Байршил ба хариуцагч, 2 Үндсэн мэдээлэл ...) --}}
+            <h2 class="!mb-0 flex items-center gap-3 border-b border-slate-100 px-6 py-4 text-base font-semibold text-slate-900">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-600">{{ $loop->iteration }}</span>
+                {{ $title }}
+            </h2>
+            <div class="grid grid-cols-1 gap-x-6 gap-y-5 p-6 md:grid-cols-2">
                 @foreach ($fields as [$name, $text, $kind, $o])
                     <div class="{{ (($kind === 'category' && ! $isEdit) || $kind === 'storage') ? 'md:col-span-2' : '' }}" @if ($kind === 'type') data-type-field @endif
                         @if (in_array($name, \App\Enums\EquipmentCategory::ALL_SPEC_FIELDS, true)) data-spec-field="{{ $name }}" @endif>
@@ -362,10 +366,17 @@
         </section>
     @endforeach
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <label for="notes" class="{{ $lb }}">Тэмдэглэл</label>
-        <textarea id="notes" name="notes" rows="4" placeholder="Нэмэлт мэдээлэл..." class="{{ $in }}">{{ $val('notes') }}</textarea>
-        @error('notes')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <h2 class="!mb-0 flex items-center gap-3 border-b border-slate-100 px-6 py-4 text-base font-semibold text-slate-900">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            </span>
+            <label for="notes" class="!m-0">Тэмдэглэл <span class="text-sm font-normal text-slate-400">(заавал биш)</span></label>
+        </h2>
+        <div class="p-6">
+            <textarea id="notes" name="notes" rows="4" placeholder="Нэмэлт мэдээлэл..." class="{{ $in }} !mt-0">{{ $val('notes') }}</textarea>
+            @error('notes')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+        </div>
     </section>
 
     {{-- Үйлдлийн товчнууд --}}
@@ -523,8 +534,9 @@ window.storageDisk = (function () {
 window.ramModules = (function () {
     // Layout-ын «main input/button» загварыг дарахын тулд ! ашиглана
     const boxClass = 'mt-1 flex min-h-[2.75rem] flex-wrap items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 shadow-sm transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100';
-    const chipClass = 'inline-flex h-8 items-center rounded-lg border border-slate-200 bg-slate-50 transition focus-within:border-blue-300 focus-within:bg-white';
-    const inputClass = 'w-16 !min-h-0 !rounded-lg !border-0 !bg-transparent !px-2 !py-0 text-center !text-sm font-semibold text-slate-800 !outline-none placeholder:font-normal placeholder:text-slate-400';
+    // Модуль бүр яг 68px (× нь буланд гадна талд тул өргөнд нөлөөлөхгүй)
+    const chipClass = 'relative inline-flex h-8 w-[68px] items-center rounded-lg border border-slate-200 bg-slate-50 transition focus-within:border-blue-300 focus-within:bg-white';
+    const inputClass = 'w-full min-w-0 !min-h-0 !rounded-lg !border-0 !bg-transparent !pl-2.5 !pr-1 !py-0 text-left !text-sm font-semibold text-slate-800 !outline-none placeholder:font-normal placeholder:text-slate-400';
     // width/height: CSS ачаалагдаагүй ч икон зөв хэмжээтэй харагдана
     const icon = function (d, px) {
         return '<svg viewBox="0 0 24 24" width="' + px + '" height="' + px + '" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="' + d + '"/></svg>';
@@ -566,14 +578,14 @@ window.ramModules = (function () {
         input.className = inputClass;
         input.value = value || '';
         chip.appendChild(input);
-        // Нэмсэн модулийг хасах (эхнийх үргэлж үлдэнэ)
+        // Нэмсэн модулийг хасах (эхнийх үргэлж үлдэнэ): баруун дээд буланд жижиг дугуй ×
         if (!first) {
             const remove = document.createElement('button');
             remove.type = 'button';
             remove.dataset.ramRemove = '';
             remove.title = 'Модулийг хасах';
-            remove.className = 'mr-1 flex h-5 w-5 !min-h-0 items-center justify-center !rounded-md !border-0 !bg-transparent !p-0 !text-slate-400 hover:!bg-rose-50 hover:!text-rose-600';
-            remove.innerHTML = icon('M6 6l12 12M18 6L6 18', 12);
+            remove.className = 'absolute -right-1.5 -top-1.5 z-10 flex h-4 w-4 !min-h-0 items-center justify-center !rounded-full !border !border-slate-200 !bg-white !p-0 !text-slate-400 shadow-sm hover:!border-rose-200 hover:!bg-rose-50 hover:!text-rose-600';
+            remove.innerHTML = icon('M6 6l12 12M18 6L6 18', 9);
             chip.appendChild(remove);
         }
         frag.appendChild(chip);
@@ -601,9 +613,8 @@ window.ramModules = (function () {
         const box = e.target.closest && e.target.closest('[data-ram-modules]');
         if (!box) return;
         if (e.target.closest('[data-ram-add]')) {
-            const last = inputs(box).pop();
-            // Шинэ модуль: анхдагчаар өмнөхтэй ижил хэмжээ (4GB + 4GB)
-            addModule(box, last ? normalize(last.value.trim()) : '').focus();
+            // Шинэ модуль хоосон: хэмжээг сонгох эсвэл бичнэ
+            addModule(box, '').focus();
             sync(box);
         } else if (e.target.closest('[data-ram-remove]')) {
             // Модулийн chip болон өмнөх «+» тэмдэг

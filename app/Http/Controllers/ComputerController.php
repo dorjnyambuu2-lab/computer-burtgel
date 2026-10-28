@@ -52,9 +52,10 @@ class ComputerController extends Controller
 
         return Computer::query()
             ->when($globalHit !== null, fn ($q) => $q->whereKey($globalHit), fn ($q) => $q->search($term))
-            // Иж бүрдлийн дагалдах хэрэгсэл (процессортой хамт бүртгэсэн mouse, keyboard ...) нь компьютерийнхээ хуудсанд
-            // харагдана; жагсаалтад зөвхөн хайлтаар олдоно. Тусад нь бүртгэсэн төхөөрөмж үргэлж харагдана.
-            ->when(! $withKitItems && $term === '', fn ($q) => $q->whereNull('kit_parent_id'))
+            // Иж бүрдлийн дагалдах хэрэгсэл (процессортой хамт бүртгэсэн дэлгэц ...) нь компьютерийнхээ хуудсанд,
+            // mouse, keyboard жагсаалтад харагдахгүй: зөвхөн хайлтаар, эсвэл ангиллаар (Mouse, Keyboard) шүүхэд гарна
+            ->when(! $withKitItems && $term === '' && ! $request->filled('category'),
+                fn ($q) => $q->whereNull('kit_parent_id')->counted())
             ->when($request->filled('category'), fn ($q) => $q->where('category', $request->query('category')))
             ->when($withStatus && $request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
             ->when($request->filled('type'), fn ($q) => $q->where('type', $request->query('type')))
@@ -81,8 +82,8 @@ class ComputerController extends Controller
             return null;
         }
 
-        // Иж бүрдлийн дагалдах хэрэгсэл жагсаалтад харагдахгүй тул дугаарлахгүй (завсаргүй 1, 2, 3 ...)
-        return once(fn () => Computer::query()->whereNull('kit_parent_id')->orderBy('id')->pluck('id')->flip()->map(fn ($i) => $i + 1));
+        // Иж бүрдлийн дагалдах хэрэгсэл, mouse, keyboard жагсаалтад харагдахгүй тул дугаарлахгүй (завсаргүй 1, 2, 3 ...)
+        return once(fn () => Computer::query()->whereNull('kit_parent_id')->counted()->orderBy('id')->pluck('id')->flip()->map(fn ($i) => $i + 1));
     }
 
     private function date(Request $request, string $key): ?Carbon
@@ -150,7 +151,7 @@ class ComputerController extends Controller
         $perPage = in_array((int) $request->query('per_page'), [15, 30, 50, 100], true) ? (int) $request->query('per_page') : 15;
 
         return view('computers.index', [
-            'computers' => $this->filtered($request)->with('branch:id,name')->paginate($perPage)->withQueryString(),
+            'computers' => $this->filtered($request)->with('branch:id,name')->withCount('kitItems')->paginate($perPage)->withQueryString(),
             'branches' => $request->user()->isSuperadmin() ? \App\Models\Branch::query()->orderBy('name')->pluck('name', 'id') : collect(),
             // Төлөвийн табуудын тоо: бусад шүүлтүүрийг тооцож, төлөвийг тооцохгүй
             'globalNumbers' => $this->globalNumbers($request),
@@ -363,12 +364,14 @@ class ComputerController extends Controller
     /** Логик устгалт: бааз дээр «устгагдсан» төлөвтэй архивлагдана, Устгасан хэсгээс сэргээж болно */
     public function destroy(Request $request, Computer $computer): RedirectResponse
     {
+        $kitCount = $computer->kit_parent_id ? 0 : $computer->kitItems()->count();
         $computer->deleted_by = $request->user()->id;
         $computer->saveQuietly();
-        $computer->delete();
+        $computer->delete(); // иж бүрдлийн хэрэгслүүд хамт архивлагдана (Computer::booted)
         \App\Notifications\ComputersRegistered::deleted($request->user(), $computer);
 
-        return redirect()->route('computers.index')->with('success', 'Компьютер архивлагдлаа (Устгасан хэсгээс сэргээж болно).');
+        return redirect()->route('computers.index')->with('success', 'Компьютер архивлагдлаа'
+            .($kitCount ? ' (иж бүрдлийн '.$kitCount.' хэрэгслийн хамт)' : '').'. Устгасан хэсгээс сэргээж болно.');
     }
 
     public function export(Request $request): StreamedResponse

@@ -103,9 +103,16 @@
         </div>
     </section>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div class="flex items-start justify-between">
+    {{-- Дарахад томорч, бүх алба хэлтэс бүтэн нэрээр нь харагдана --}}
+    <section class="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+             role="button" tabindex="0" aria-haspopup="dialog" title="Томруулж харах"
+             onclick="document.getElementById('dlg-dept').showModal()"
+             onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }">
+        <div class="flex items-start justify-between gap-3">
             <div><h2 class="font-bold">Алба хэлтсээр</h2><p class="text-xs text-slate-500">Төхөөрөмжийн тоо алба хэлтэс бүрээр (нийт {{ $total }})</p></div>
+            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition group-hover:bg-blue-50 group-hover:text-blue-600">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </span>
         </div>
         @if ($byDept)
             <div class="mt-6 flex h-44 items-end justify-around gap-3 border-b border-slate-200">
@@ -124,6 +131,39 @@
         @endif
     </section>
 </div>
+
+{{-- Алба хэлтсээр: томруулсан харагдац (бүх хэлтэс, бүтэн нэр, хувь). Мөр дээр дарахад тэр хэлтсийн жагсаалт --}}
+@php $deptMax = max(1, (int) $deptRows->max('c')); @endphp
+<dialog id="dlg-dept" class="rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/40" style="margin:auto;width:min(44rem,94vw);border:0;"
+        onclick="if (event.target === this) this.close()">
+    <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-4">
+        <div>
+            <h3 class="!mb-0 text-lg font-bold text-slate-900">Алба хэлтсээр</h3>
+            <p class="text-xs text-slate-500">{{ $deptRows->count() }} хэлтэс · нийт {{ $total }} төхөөрөмж (mouse, keyboard тоологдохгүй)</p>
+        </div>
+        <button type="button" onclick="this.closest('dialog').close()" title="Хаах" aria-label="Хаах"
+                class="flex h-8 w-8 !min-h-0 items-center justify-center !rounded-lg !border-0 !bg-transparent !p-0 !text-slate-400 hover:!bg-slate-100 hover:!text-slate-700">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+    </div>
+    <ul class="max-h-[70vh] space-y-1 overflow-y-auto p-4">
+        @forelse ($deptRows as $r)
+            @php $pct = $total ? round($r->c / $total * 100) : 0; @endphp
+            <li>
+                <a href="{{ $r->k !== null ? route('computers.index', ['department' => $r->k]) : route('computers.index') }}"
+                   class="grid grid-cols-[minmax(0,12rem)_1fr_auto] items-center gap-3 rounded-lg px-2 py-2 !text-slate-700 transition hover:bg-slate-50">
+                    <span class="truncate text-sm {{ $r->k === null ? 'italic text-slate-400' : 'font-medium' }}" title="{{ $r->k ?? 'Хэлтэс оруулаагүй' }}">{{ $r->k ?? 'Хэлтэс оруулаагүй' }}</span>
+                    <span class="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                        <span class="block h-full rounded-full bg-blue-500" style="width: {{ max(3, $r->c / $deptMax * 100) }}%"></span>
+                    </span>
+                    <span class="w-20 text-right text-sm"><b class="font-semibold text-slate-900">{{ $r->c }}</b> <span class="text-xs text-slate-400">{{ $pct }}%</span></span>
+                </a>
+            </li>
+        @empty
+            <li class="py-6 text-center text-sm text-slate-400">Мэдээлэл алга.</li>
+        @endforelse
+    </ul>
+</dialog>
 
 {{-- Tables --}}
 <div class="mt-6 grid gap-4 lg:grid-cols-3">
