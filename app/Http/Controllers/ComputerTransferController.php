@@ -222,7 +222,7 @@ class ComputerTransferController extends Controller
                 ->when(! $me->isSuperadmin(), fn ($q) => $q->whereNotNull('assigned_user_id'))
                 ->whereNotIn('status', [ComputerStatus::InRepair, ComputerStatus::Decommissioned])
                 ->orderBy('assigned_to')->orderBy('inventory_number')
-                ->get(['id', 'inventory_number', 'name', 'category', 'status', 'department', 'assigned_user_id', 'assigned_to', 'kit_parent_id', 'kit_index', 'branch_id'])
+                ->get(['id', 'inventory_number', 'name', 'category', 'status', 'department', 'location', 'assigned_user_id', 'assigned_to', 'kit_parent_id', 'kit_index', 'branch_id'])
                 ->each(fn ($d) => $d->setAttribute('place', $this->placeLabel($d))),
         ]);
     }

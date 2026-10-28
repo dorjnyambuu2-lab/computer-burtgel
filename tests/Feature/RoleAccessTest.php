@@ -6,7 +6,6 @@ use App\Models\AssetRequest;
 use App\Models\Branch;
 use App\Models\Computer;
 use App\Models\User;
-use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -239,6 +238,27 @@ class RoleAccessTest extends TestCase
         $this->actingAs($admin)->patch(route('repairs.update', $c), ['stage' => 'done', 'cost' => '150,000'])->assertSessionHasNoErrors();
         $this->assertSame('active', $c->fresh()->status->value);
         $this->assertSame('done', $req->fresh()->status);
+    }
+
+    public function test_transfer_page_device_picker_and_transfer(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $from = User::factory()->employee()->create(['name' => 'Болд']);
+        $to = User::factory()->employee()->create(['name' => 'Сараа']);
+        $pc = $this->pc(['assigned_user_id' => $from->id, 'name' => 'Шилжих-PC', 'location' => '3 давхар']);
+        Computer::factory()->create(['category' => 'monitor', 'status' => 'active', 'kit_parent_id' => $pc->id, 'assigned_user_id' => $from->id]);
+
+        // Сонгох цонх (хүснэгтийн өгөгдөл, шүүлтүүр) зурагдаж, ?computer=-оор урьдчилан сонгогдоно
+        $this->actingAs($admin)->get('/transfers?computer='.$pc->id)->assertOk()
+            ->assertSee('id="dlg-device"', false)
+            ->assertSee(trim(json_encode('Шилжих-PC'), '"'), false) // хүснэгтийн өгөгдөл (JSON)
+            ->assertSee('3 давхар')                                  // байршлын шүүлтүүр
+            ->assertViewHas('devices', fn ($d) => $d->count() === 2);
+
+        $this->actingAs($admin)->post('/transfers', ['computer_id' => $pc->id, 'to_user_id' => $to->id, 'reason' => 'Хэлтэс солив'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($to->id, $pc->fresh()->assigned_user_id);
+        $this->assertSame(2, Computer::where('assigned_user_id', $to->id)->count()); // иж бүрдлээрээ
     }
 
     // ───────────── Ажилтан ─────────────

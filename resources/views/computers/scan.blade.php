@@ -6,9 +6,6 @@
 <div class="mx-auto max-w-xl space-y-4">
     <div>
         <h1 class="text-xl font-bold">QR уншуулах</h1>
-        <p class="mt-1 text-sm text-slate-500">
-            QR шошгын зургийг оруулах эсвэл бүртгэлийн дугаараа бичнэ үү. Олдмогц компьютерийн мэдээллийн хуудас нээгдэнэ.
-        </p>
     </div>
 
     @if (session('error'))

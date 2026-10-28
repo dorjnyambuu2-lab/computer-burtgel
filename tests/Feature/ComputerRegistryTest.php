@@ -136,12 +136,18 @@ class ComputerRegistryTest extends TestCase
         $this->actingAs($super)->post('/computers', $this->valid(['status' => 'new', 'purchase_price' => '2500000', 'branch_id' => \Database\Factories\UserFactory::defaultBranchId()]))->assertSessionHasNoErrors();
 
         $this->actingAs($super)->get(route('activity.index'))->assertOk()
-            ->assertSee('Бүгдийг харах')                    // олон талбартай «Нэмсэн» хумигдана
+            ->assertSee('data-log-detail', false)             // мөр дээр дарахад нээгдэх дэлгэрэнгүй
             ->assertSee('Суурин компьютер')                 // type: desktop → шошго
             ->assertSee('2,500,000₮')
             ->assertSee('2024-01-10')
             ->assertDontSee('2024-01-10 00:00')
             ->assertDontSee('assigned_user_id');
+
+        // Өдрөөр бүлэглэнэ; устгасан мөрөнд «Устгасан: Супер админ → —» биш тайлбар
+        $this->actingAs($super)->delete('/computers/'.Computer::firstOrFail()->id);
+        $this->actingAs($super)->get(route('activity.index'))->assertOk()
+            ->assertSee('Өнөөдөр')
+            ->assertSee('Устгасан хэсэг рүү шилжсэн');
     }
 
     public function test_new_holder_notifies_other_admins_and_message_stays(): void

@@ -87,7 +87,25 @@ class ActivityLog extends Model
     ];
 
     /** Түүхэнд харуулахгүй талбар (давхардсан эсвэл техникийн: хариуцагчийн нэр «Хариуцагч»-д байна) */
-    public const HIDDEN_FIELDS = ['assigned_user_id', 'ram_modules', 'updated_at', 'created_at', 'id'];
+    // deleted_by: үйлдэл («Устгасан», «Сэргээсэн») болон «Хэн» баганаас аль хэдийн харагдана
+    public const HIDDEN_FIELDS = ['assigned_user_id', 'ram_modules', 'updated_at', 'created_at', 'id', 'deleted_by'];
+
+    /** Дэлгэрэнгүй цонхонд талбаруудыг бүлэглэх (бүлэгт ороогүй нь «Бусад») */
+    public const FIELD_GROUPS = [
+        'Үндсэн мэдээлэл' => ['inventory_number', 'name', 'category', 'type', 'status', 'sequence_number', 'qr_code', 'kit_parent_id', 'kit_index'],
+        'Байршил ба хариуцагч' => ['branch_id', 'unit', 'department', 'position', 'location', 'holder_surname', 'holder_name', 'assigned_to', 'acknowledged_at'],
+        'Техникийн үзүүлэлт' => ['brand', 'model', 'serial_number', 'cpu', 'ram_gb', 'storage', 'os', 'specs', 'ip_address', 'mac_address', 'network_updated_at'],
+        'Худалдан авалт ба баталгаа' => ['purchase_date', 'purchase_price', 'warranty_until'],
+        'Засвар' => ['repair_stage', 'repair_position', 'repair_queued_at'],
+    ];
+
+    /** Өөрчлөлтийн жагсаалтгүй үйлдлийн тайлбар (түүхийн «Өөрчлөлт» баганад) */
+    public const ACTION_NOTES = [
+        'deleted' => 'Устгасан хэсэг рүү шилжсэн',
+        'restored' => 'Устгасан хэсгээс сэргээгдсэн',
+        'force_deleted' => 'Бүрмөсөн устгагдсан',
+        'restored_from_log' => 'Түүхээс сэргээгдсэн',
+    ];
 
     public static function fieldLabel(string $field): string
     {
