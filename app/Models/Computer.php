@@ -226,7 +226,18 @@ class Computer extends Model
             $computer->kitDeletedAt = $computer->deleted_at;
         });
         static::restored(function (Computer $computer) {
-            if ($computer->kit_parent_id || ! $computer->kitDeletedAt) {
+            // Дагалдах хэрэгслийг дангаар сэргээхэд үндсэн компьютер нь устгагдсан бол түүнийг ч сэргээнэ
+            // (эс бөгөөс жагсаалтад харагдахгүй ч тоологдох хэрэгсэл үлдэнэ)
+            if ($computer->kit_parent_id) {
+                $parent = static::onlyTrashed()->find($computer->kit_parent_id);
+                if ($parent) {
+                    $parent->deleted_by = null;
+                    $parent->restore();
+                }
+
+                return;
+            }
+            if (! $computer->kitDeletedAt) {
                 return;
             }
             $computer->kitItems()->onlyTrashed()
@@ -261,6 +272,15 @@ class Computer extends Model
         static::updating(function (Computer $computer) {
             if ($computer->isDirty('branch_id') && ! $computer->isDirty('sequence_number') && ! $computer->trashed() && $computer->isListed()) {
                 $computer->sequence_number = static::nextSequenceNumber($computer->branch_id);
+            }
+        });
+        // Салбар солигдвол иж бүрдлийн дагалдах хэрэгслүүд хамт шилжинэ (иж бүрдэл хоёр салбарт хуваагдахгүй)
+        static::updated(function (Computer $computer) {
+            if ($computer->wasChanged('branch_id') && ! $computer->kit_parent_id) {
+                $computer->kitItems()->withTrashed()->get()->each(function (Computer $item) use ($computer) {
+                    $item->branch_id = $computer->branch_id;
+                    $item->save();
+                });
             }
         });
         static::updated(function (Computer $computer) {

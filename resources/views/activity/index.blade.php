@@ -34,7 +34,7 @@
             <button type="button" id="delete-selected" disabled
                     class="inline-flex h-10 !min-h-0 items-center gap-1.5 !rounded-lg !border !border-rose-200 !bg-white !px-4 !py-0 !text-sm !font-medium !text-rose-600 transition hover:!bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
-                Сонгосныг устгах <span id="selected-count"></span>
+                Устгах <span id="selected-count"></span>
             </button>
         @endif
     </div>

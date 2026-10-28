@@ -15,6 +15,10 @@
         'Албан тушаал' => $user->position,
         'Эрх'          => $user->roleLabel(),
     ];
+    // Толгойд: алба · албан тушаал (албан тушаал нь эрхтэйгээ ижил бол давтахгүй: «супер админ»)
+    $subtitle = collect([$user->department, $user->position])
+        ->filter(fn ($v) => filled($v) && mb_strtolower(trim($v)) !== mb_strtolower($user->roleLabel()))
+        ->implode(' · ');
 @endphp
 
 @section('content')
@@ -27,8 +31,8 @@
             <div class="flex flex-wrap items-center gap-2 text-lg font-bold">{{ $fullName }}
                 <span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-600" title="{{ $user->idLabel() }}">{{ $user->idCode() }}</span>
             </div>
-            @if ($user->department || $user->position)
-                <div class="text-sm text-slate-600">{{ collect([$user->department, $user->position])->filter()->implode(' · ') }}</div>
+            @if ($subtitle !== '')
+                <div class="text-sm text-slate-600">{{ $subtitle }}</div>
             @endif
             <div class="text-sm text-slate-500">{{ $user->email }}</div>
             <span class="mt-1 inline-block rounded-full bg-blue-50 px-3 py-0.5 text-xs font-medium text-blue-700">
@@ -64,11 +68,35 @@
         </div>
 
         <div class="flex items-center justify-between pt-2">
-            <a href="{{ route('my.password.edit') }}" class="text-sm text-blue-600 hover:underline">Нууц үг солих</a>
-            <button class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">Хадгалах</button>
+            {{-- Супер админд «Бүртгэл» картад байна --}}
+            @unless ($user->isSuperadmin())
+                <a href="{{ route('my.password.edit') }}" class="text-sm text-blue-600 hover:underline">Нууц үг солих</a>
+            @endunless
+            <button class="ml-auto rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">Хадгалах</button>
         </div>
     </form>
 
+    @if ($user->isSuperadmin())
+    {{-- Супер админ: ажлын мэдээлэл (нэгж, алба, салбар) хамаарахгүй, толгойд аль хэдийн байгаа тул нэвтрэлтийн мэдээлэл --}}
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 class="mb-4 font-semibold">Бүртгэл</h2>
+        <dl class="divide-y divide-slate-100 text-sm">
+            <div class="flex items-center justify-between gap-4 py-3">
+                <dt class="text-slate-500">Нэвтрэх нэр</dt>
+                <dd class="font-mono font-medium text-slate-900">{{ $user->username ?: '—' }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+                <dt class="text-slate-500">Сүүлд нэвтэрсэн</dt>
+                <dd class="font-medium text-slate-900">{{ $user->last_login_at?->format('Y-m-d H:i') ?? '—' }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+                <dt class="text-slate-500">Нууц үг</dt>
+                <dd><a href="{{ route('my.password.edit') }}" class="inline-flex items-center gap-1 text-sm font-semibold !text-blue-600 hover:underline">Солих
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a></dd>
+            </div>
+        </dl>
+    </section>
+    @else
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 font-semibold">Ажлын мэдээлэл</h2>
         <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
@@ -81,5 +109,6 @@
             @endforeach
         </dl>
     </section>
+    @endif
 </div>
 @endsection

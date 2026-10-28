@@ -15,7 +15,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     public const ROLES = [
-        'superadmin' => 'Superadmin',
+        'superadmin' => 'Супер админ',
         'admin'      => 'Админ',
         'employee'   => 'Ажилтан',
     ];
@@ -75,6 +75,7 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
             'last_seen_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'is_online' => 'boolean',
         ];
     }
@@ -130,7 +131,7 @@ class User extends Authenticatable
     public function idLabel(): string
     {
         return match ($this->role) {
-            'superadmin' => 'Superadmin ID',
+            'superadmin' => 'Супер админы ID',
             'admin' => 'Админ ID',
             default => 'Ажилтны ID',
         };
@@ -278,7 +279,7 @@ class User extends Authenticatable
     public function roleLabel(): string
     {
         return match ($this->role) {
-            'superadmin' => 'Superadmin',
+            'superadmin' => 'Супер админ',
             'admin' => 'Админ',
             default => 'Ажилтан',
         };

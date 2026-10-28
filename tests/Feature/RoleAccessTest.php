@@ -144,6 +144,19 @@ class RoleAccessTest extends TestCase
         }
     }
 
+    public function test_profile_shows_account_card_for_superadmin_and_job_card_for_others(): void
+    {
+        $super = User::factory()->superadmin()->create(['username' => 'boss', 'position' => 'супер админ', 'last_login_at' => '2026-10-28 09:12:00']);
+        $this->actingAs($super)->get('/profile')->assertOk()
+            ->assertSee('Бүртгэл')->assertSee('boss')->assertSee('2026-10-28 09:12')
+            ->assertSee('Супер админ · Бүх салбар')
+            ->assertDontSee('Ажлын мэдээлэл')->assertDontSee('Superadmin');
+
+        $admin = User::factory()->admin()->create(['department' => 'МТ алба']);
+        $this->actingAs($admin)->get('/profile')->assertOk()
+            ->assertSee('Ажлын мэдээлэл')->assertSee('МТ алба')->assertSee('Нууц үг солих');
+    }
+
     // ───────────── Админ ─────────────
 
     public function test_admin_opens_manager_pages_but_not_superadmin_ones(): void
@@ -259,6 +272,26 @@ class RoleAccessTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertSame($to->id, $pc->fresh()->assigned_user_id);
         $this->assertSame(2, Computer::where('assigned_user_id', $to->id)->count()); // иж бүрдлээрээ
+    }
+
+    public function test_bulk_assign_page_search_list_kit_badge_and_assign(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $emp = User::factory()->employee()->create(['name' => 'Сараа', 'department' => 'МТ алба']);
+        $pc = $this->pc(['assigned_user_id' => null, 'assigned_to' => null, 'name' => 'Чөлөөт-PC']);
+        $mon = Computer::factory()->create(['category' => 'monitor', 'status' => 'new', 'kit_parent_id' => $pc->id, 'assigned_user_id' => null, 'assigned_to' => null]);
+
+        // Ажилтны жагсаалт (хайлттай), сонгоогүй үед төхөөрөмжийн хэсэг гарахгүй
+        $this->actingAs($admin)->get('/computers/bulk-assign')->assertOk()
+            ->assertSee('id="emp-q"', false)->assertSee('Сараа')->assertDontSee('Чөлөөт-PC');
+
+        // Ажилтан сонгосон: төхөөрөмж, иж бүрдлийн тэмдэг, хайлт
+        $this->actingAs($admin)->get('/computers/bulk-assign?user_id='.$emp->id)->assertOk()
+            ->assertSee('Чөлөөт-PC')->assertSee('+1 иж бүрдэл')->assertSee('data-kit="'.$pc->id.'"', false)->assertSee('id="dev-q"', false);
+
+        $this->actingAs($admin)->post('/computers/bulk-assign', ['user_id' => $emp->id, 'computer_ids' => [$pc->id, $mon->id]])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(2, Computer::where('assigned_user_id', $emp->id)->count());
     }
 
     // ───────────── Ажилтан ─────────────

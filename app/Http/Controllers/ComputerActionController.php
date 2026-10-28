@@ -76,9 +76,23 @@ class ComputerActionController extends Controller
             $computer->assigned_user_id = $user->id;
             $computer->status = $this->status('Ашиглагдаж байгаа');
             $computer->save();
-
             $this->log($computer, $request, 'assigned', $user->id, $data['note'] ?? null);
-            $this->completeReceivedTransfers([$computer->id], $user, $request);
+
+            // Иж бүрдлийн дагалдах хэрэгслүүд (дэлгэц, mouse ...) компьютертэйгээ хамт олгогдоно
+            $items = $this->kitMembers($computer);
+            Computer::$transferring = true; // иж бүрдлийн нэг хэсэг тул Супер админы «шууд солих» хоригийг алгасна
+            try {
+                foreach ($items as $item) {
+                    $item->assigned_user_id = $user->id;
+                    $item->status = ComputerStatus::Active;
+                    $item->save();
+                    $this->log($item, $request, 'assigned', $user->id, 'Иж бүрдлээр: '.$computer->inventory_number);
+                }
+            } finally {
+                Computer::$transferring = false;
+            }
+
+            $this->completeReceivedTransfers([$computer->id, ...$items->pluck('id')], $user, $request);
         });
 
         return back()->with('success', $computer->activityLabel().' → '.$user->name.'-д олголоо.');
@@ -109,11 +123,35 @@ class ComputerActionController extends Controller
             $computer->assigned_to = null;
             $computer->status = $this->status('Агуулахад');
             $computer->save();
-
             $this->log($computer, $request, 'returned', $previousUserId, $note);
+
+            // Иж бүрдлийн дагалдах хэрэгслүүд хамт агуулахад
+            foreach ($this->kitMembers($computer) as $item) {
+                $itemHolder = $item->assigned_user_id;
+                $item->assigned_user_id = null;
+                $item->assigned_to = null;
+                $item->status = ComputerStatus::InStorage;
+                $item->save();
+                $this->log($item, $request, 'returned', $itemHolder, 'Иж бүрдлээр: '.$computer->inventory_number);
+            }
         });
 
         return back()->with('success', $computer->activityLabel().' буцаан авч, агуулахад бүртгэлээ.');
+    }
+
+    /**
+     * Үндсэн компьютерийн иж бүрдлийн хэрэгслүүд (олгох, буцаахад хамт хөдөлнө).
+     * Засварт, актласан хэрэгсэл хөдлөхгүй; дагалдах хэрэгсэл өөрөө бол хоосон.
+     */
+    private function kitMembers(Computer $computer)
+    {
+        if ($computer->kit_parent_id) {
+            return collect();
+        }
+
+        return $computer->kitItems()
+            ->whereNotIn('status', [ComputerStatus::InRepair, ComputerStatus::Decommissioned])
+            ->get();
     }
 
     /** Засварт бүртгэх (тайлбар заавал) */
@@ -142,7 +180,9 @@ class ComputerActionController extends Controller
     public function bulkForm(Request $request): View
     {
         // Супер админд төхөөрөмж олгохгүй
-        $all = User::query()->assignableBy($request->user())->where('role', '!=', 'superadmin')->orderBy('name')->get();
+        // Ажилтан бүрийн одоогийн төхөөрөмжийн тоо (сонгох жагсаалтад)
+        $all = User::query()->assignableBy($request->user())->where('role', '!=', 'superadmin')
+            ->withCount(['computers' => fn ($q) => $q->counted()])->orderBy('name')->get();
 
         // Алба хэлтсээр шүүнэ ('none' = хэлтэсгүй); жагсаалтад хэлтсээр бүлэглэж харуулна
         $departments = $all->pluck('department')->filter()->unique()->sort()->values();
@@ -156,14 +196,16 @@ class ComputerActionController extends Controller
             : null;
 
         // Ангиллаар бүлэглэнэ ("Ангилаагүй" нь 'none')
-        $available = $this->availableComputers()->get()
-            ->groupBy(fn ($c) => $c->category?->value ?? 'none');
+        $free = $this->availableComputers()->get();
+        $available = $free->groupBy(fn ($c) => $c->category?->value ?? 'none');
+        // Иж бүрдэл: үндсэн компьютерийг сонгоход түүний чөлөөтэй хэрэгслүүд хамт сонгогдоно [үндсэн id => хэрэгслийн тоо]
+        $kitSizes = $free->whereNotNull('kit_parent_id')->countBy('kit_parent_id')->all();
 
         $current = $selected
             ? Computer::query()->where('assigned_user_id', $selected->id)->orderBy('name')->get()
             : collect();
 
-        return view('computers.bulk-assign', compact('employees', 'departments', 'department', 'selected', 'available', 'current'));
+        return view('computers.bulk-assign', compact('all', 'employees', 'departments', 'department', 'selected', 'available', 'current', 'kitSizes'));
     }
 
     /** Сонгосон төхөөрөмжүүдийг ажилтанд нэг дор олгоно */
