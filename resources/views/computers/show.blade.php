@@ -115,7 +115,7 @@
 
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('computers.label', $computer) }}"
-               class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium !text-slate-700 transition hover:bg-slate-50">
+               class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium !text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></svg>
                 QR
             </a>
@@ -130,9 +130,10 @@
                   onsubmit="return confirm(@js('Энэ төхөөрөмжийг устгах уу?'.($kitCount ? ' Иж бүрдлийн '.$kitCount.' дагалдах хэрэгсэл (дэлгэц, mouse ...) хамт устгагдана.' : '').' (Устгасан хэсгээс сэргээх боломжтой)'))">
                 @csrf
                 @method('DELETE')
-                <button title="Устгах" aria-label="Устгах"
-                        class="inline-flex h-10 w-10 !min-h-0 items-center justify-center !rounded-lg !border !border-slate-200 !bg-white !p-0 !text-slate-500 transition hover:!border-rose-200 hover:!bg-rose-50 hover:!text-rose-600">
+                {{-- «Засах»-тай ижил: дүүрэн өнгө, hover-т дээш хөдөлж сүүдэр томорно --}}
+                <button class="inline-flex h-10 !min-h-0 items-center gap-1.5 !rounded-lg !border !border-rose-600 !bg-rose-600 !px-4 !py-0 !text-sm !font-semibold !text-white shadow-sm transition hover:-translate-y-0.5 hover:!border-rose-700 hover:!bg-rose-700 hover:shadow-md">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
+                    Устгах
                 </button>
             </form>
         </div>
