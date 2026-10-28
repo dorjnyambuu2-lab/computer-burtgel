@@ -76,7 +76,7 @@
 <div class="mt-6 grid gap-4 lg:grid-cols-2">
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div class="flex items-start justify-between">
-            <div><h2 class="font-bold">Компьютерийн төлөв</h2><p class="text-xs text-slate-500">Одоогийн хөрөнгийн хуваарилалт</p></div>
+            <div><h2 class="font-bold">Компьютерийн төлөв</h2></div>
             <a href="{{ url('/computers') }}" class="text-xs font-semibold text-blue-600">Бүгдийг харах</a>
         </div>
         <div class="mt-6 flex flex-wrap items-center justify-center gap-8">

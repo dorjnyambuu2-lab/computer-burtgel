@@ -72,4 +72,19 @@ class ComputerToolsController extends Controller
             'qrSvg' => QrPng::svg($code),
         ]);
     }
+
+    /** Хэвлэх / PDF: A4 хуудас (мэдээлэл, үнэ, зардал, иж бүрдэл, түүх, гарын үсэг). Хөтчийн «Save as PDF»-ээр PDF болно */
+    public function print(Computer $computer)
+    {
+        $kitMain = $computer->kit_parent_id ? $computer->kitParent : ($computer->canBeKitMain() ? $computer : null);
+
+        return view('computers.print', [
+            'computer' => $computer,
+            'sections' => $computer->detailSections(),
+            'cost' => $computer->costSummary(),
+            'kitItems' => $kitMain ? $kitMain->kitItems()->get()->prepend($kitMain) : collect(),
+            'events' => $computer->events()->with(['actor:id,name', 'user:id,name'])->limit(15)->get(),
+            'qrSvg' => QrPng::svg($computer->qrContent()),
+        ]);
+    }
 }

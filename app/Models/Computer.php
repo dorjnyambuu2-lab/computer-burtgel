@@ -711,6 +711,69 @@ class Computer extends Model
      *
      * @return array{price: ?float, repair_cost: float, repair_count: int, total: float}
      */
+    /**
+     * Дэлгэрэнгүй мэдээллийн хэсгүүд [гарчиг => [шошго => утга]] — төхөөрөмжийн хуудас, хэвлэх (PDF) хуудас хоёулаа.
+     * Ангилалд хамааралгүй, хоосон техникийн талбарыг алгасна (жишээ нь mouse-ийн CPU, RAM).
+     */
+    public function detailSections(): array
+    {
+        $relevant = EquipmentCategory::specFieldsFor($this->category);
+        $specRows = fn (array $rows) => collect($rows)
+            ->filter(fn ($row) => in_array($row[0], $relevant, true) || filled($row[1]))
+            ->map(fn ($row) => $row[1])
+            ->all();
+
+        $acknowledgement = null;
+        if ($this->assigned_user_id) {
+            $acknowledgement = $this->acknowledged_at
+                ? 'Хүлээн авсан · '.\Illuminate\Support\Carbon::parse($this->acknowledged_at)->format('Y-m-d H:i')
+                : 'Баталгаажуулаагүй (хүлээгдэж байна)';
+        }
+
+        return [
+            'Үндсэн мэдээлэл' => [
+                'Дэс дугаар' => $this->sequenceLabel(),
+                'Бүртгэлийн дугаар' => $this->inventory_number,
+                'QR дугаар' => $this->qr_code,
+                'Нэр' => $this->name,
+                'Ангилал' => $this->category?->label(),
+                'Төрөл' => $this->type?->label(),
+                'Төлөв' => $this->status?->label(),
+                'Үнэ' => $this->purchase_price !== null ? \App\Support\Money::format($this->purchase_price) : null,
+            ],
+            'Техникийн үзүүлэлт' => $specRows([
+                'Үйлдвэрлэгч' => ['brand', $this->brand],
+                'Загвар' => ['model', $this->model],
+                'Серийн дугаар' => ['serial_number', $this->serial_number],
+                'Процессор (CPU)' => ['cpu', $this->cpu],
+                'RAM' => ['ram_gb', $this->ramLabel()],
+                'Санах ой (диск)' => ['storage', $this->storage],
+                'Үйлдлийн систем' => ['os', $this->os],
+                'Үзүүлэлт' => ['specs', $this->specs],
+            ]),
+            'Сүлжээ' => $specRows([
+                'IP хаяг' => ['ip_address', $this->ip_address],
+                'MAC хаяг' => ['mac_address', $this->mac_address],
+                // Ажилтан өөрийн компьютероос нэвтрэхэд IP, MAC автоматаар шинэчлэгдсэн огноо
+                'Автоматаар шинэчилсэн' => ['ip_address', $this->network_updated_at?->format('Y-m-d H:i')],
+            ]),
+            'Байршил ба хариуцагч' => [
+                'Салбар' => $this->branch?->name,
+                'Нэгж' => $this->unit,
+                'Алба' => $this->department,
+                'Албан тушаал' => $this->position,
+                'Байршил' => $this->location,
+                'Хариуцагч' => $this->assignedUser?->name ?? $this->assigned_to,
+                'Овог нэр' => trim($this->holder_surname.' '.$this->holder_name) ?: null,
+                'Хүлээн авсан баталгаа' => $acknowledgement,
+            ],
+            'Худалдан авалт ба баталгаа' => [
+                'Худалдан авсан огноо' => $this->purchase_date?->format('Y-m-d'),
+                'Баталгаа дуусах огноо' => $this->warranty_until?->format('Y-m-d'),
+            ],
+        ];
+    }
+
     public function costSummary(): array
     {
         $repairs = $this->events()->reorder()->whereIn('type', ['repair', 'repair_update', 'repaired']);

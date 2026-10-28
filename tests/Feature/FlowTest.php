@@ -156,6 +156,27 @@ class FlowTest extends TestCase
         $this->actingAs($admin)->get(route('computers.label', $c))->assertOk();
     }
 
+    public function test_print_page_and_price_in_basic_info(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $c = $this->pc(['name' => 'Хэвлэх-PC', 'purchase_price' => 2500000]);
+        Computer::factory()->create(['category' => 'monitor', 'status' => 'active', 'kit_parent_id' => $c->id, 'name' => 'Хамт-Дэлгэц']);
+
+        // Төхөөрөмжийн хуудас: «Үндсэн мэдээлэл»-д үнэ, «Хэвлэх» товч
+        $this->actingAs($admin)->get("/computers/{$c->id}")->assertOk()
+            ->assertSee('2,500,000₮')->assertSee(route('computers.print', $c));
+
+        // Хэвлэх хуудас: мэдээлэл, үнэ, иж бүрдэл, QR, гарын үсэг
+        $this->actingAs($admin)->get(route('computers.print', $c))->assertOk()
+            ->assertSee('Хэвлэх-PC')->assertSee($c->inventory_number)->assertSee('2,500,000₮')
+            ->assertSee('Хамт-Дэлгэц')->assertSee('<svg', false)->assertSee('Хүлээн авсан');
+
+        // Өөр салбарын Админ, ажилтан хэвлэх эрхгүй
+        $far = User::factory()->admin()->create(['branch_id' => Branch::create(['name' => 'Дархан', 'code' => 'DRH'])->id]);
+        $this->actingAs($far)->get(route('computers.print', $c))->assertNotFound();
+        $this->actingAs(User::factory()->employee()->create())->get(route('computers.print', $c))->assertRedirect('/');
+    }
+
     public function test_profile_update_and_login_by_username_or_email(): void
     {
         $emp = User::factory()->employee()->create(['username' => 'saraa', 'email' => 'saraa@example.mn']);

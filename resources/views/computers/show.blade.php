@@ -14,67 +14,13 @@
     };
 
     $warranty = $computer->warrantyState();
-    $holderName = $computer->assignedUser?->name ?? $computer->assigned_to;
-
-    $acknowledgement = null;
-    if ($computer->assigned_user_id) {
-        $acknowledgement = $computer->acknowledged_at
-            ? 'Хүлээн авсан · '.\Illuminate\Support\Carbon::parse($computer->acknowledged_at)->format('Y-m-d H:i')
-            : 'Баталгаажуулаагүй (хүлээгдэж байна)';
-    }
-
-    // Ангилалд хамааралгүй, хоосон талбарыг харуулахгүй (жишээ нь mouse-ийн CPU, RAM)
-    $relevant = \App\Enums\EquipmentCategory::specFieldsFor($computer->category);
-    $specRows = fn (array $rows) => collect($rows)
-        ->filter(fn ($row) => in_array($row[0], $relevant, true) || filled($row[1]))
-        ->map(fn ($row) => $row[1])
-        ->all();
 
     // «Буцах»: жагсаалтаас (шүүлтүүртэй) ирсэн бол тэр хуудас руу нь
     $previous = url()->previous();
     $backUrl = parse_url($previous, PHP_URL_PATH) === parse_url(route('computers.index'), PHP_URL_PATH) ? $previous : route('computers.index');
 
-    $sections = [
-        'Үндсэн мэдээлэл' => [
-            'Дэс дугаар' => $computer->sequenceLabel(),
-            'Бүртгэлийн дугаар' => $computer->inventory_number,
-            'QR дугаар' => $computer->qr_code,
-            'Нэр' => $computer->name,
-            'Ангилал' => $computer->category?->label(),
-            'Төрөл' => $computer->type?->label(),
-            'Төлөв' => $statusLabel,
-        ],
-        'Техникийн үзүүлэлт' => $specRows([
-            'Үйлдвэрлэгч' => ['brand', $computer->brand],
-            'Загвар' => ['model', $computer->model],
-            'Серийн дугаар' => ['serial_number', $computer->serial_number],
-            'Процессор (CPU)' => ['cpu', $computer->cpu],
-            'RAM' => ['ram_gb', $computer->ramLabel()],
-            'Санах ой (диск)' => ['storage', $computer->storage],
-            'Үйлдлийн систем' => ['os', $computer->os],
-            'Үзүүлэлт' => ['specs', $computer->specs],
-        ]),
-        'Сүлжээ' => $specRows([
-            'IP хаяг' => ['ip_address', $computer->ip_address],
-            'MAC хаяг' => ['mac_address', $computer->mac_address],
-            // Ажилтан өөрийн компьютероос нэвтрэхэд IP, MAC автоматаар шинэчлэгдсэн огноо
-            'Автоматаар шинэчилсэн' => ['ip_address', $computer->network_updated_at?->format('Y-m-d H:i')],
-        ]),
-        'Байршил ба хариуцагч' => [
-            'Салбар' => $computer->branch?->name,
-            'Нэгж' => $computer->unit,
-            'Алба' => $computer->department,
-            'Албан тушаал' => $computer->position,
-            'Байршил' => $computer->location,
-            'Хариуцагч' => $holderName,
-            'Овог нэр' => trim($computer->holder_surname.' '.$computer->holder_name) ?: null,
-            'Хүлээн авсан баталгаа' => $acknowledgement,
-        ],
-        'Худалдан авалт ба баталгаа' => [
-            'Худалдан авсан огноо' => $computer->purchase_date?->format('Y-m-d'),
-            'Баталгаа дуусах огноо' => $computer->warranty_until?->format('Y-m-d'),
-        ],
-    ];
+    // Мэдээллийн хэсгүүд (хэвлэх хуудастай ижил): Computer::detailSections
+    $sections = $computer->detailSections();
 
     // Зардлын тооцоо: үнэ + засварын нийт зардал = нийт өртөг
     $cost = $computer->costSummary();
@@ -118,6 +64,12 @@
                class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium !text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></svg>
                 QR
+            </a>
+            {{-- Хэвлэх / PDF: шинэ цонхонд A4 хуудас (хөтчийн «Save as PDF») --}}
+            <a href="{{ route('computers.print', $computer) }}" target="_blank" rel="noopener"
+               class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium !text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4v-7h16v7h-3M7 14h10v7H7z"/></svg>
+                Хэвлэх
             </a>
             <a href="{{ route('computers.edit', $computer) }}"
                class="inline-flex h-10 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-semibold !text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md">

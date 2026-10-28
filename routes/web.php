@@ -114,6 +114,8 @@ Route::middleware('auth')->group(function () {
         Route::post('requests/{assetRequest}/repair', [RepairController::class, 'fromRequest'])->name('requests.repair');
 
         Route::get('computers/{computer}/label', [ComputerToolsController::class, 'label'])->name('computers.label');
+        // Хэвлэх / PDF: хөтчийн хэвлэх цонхоор «Save as PDF»
+        Route::get('computers/{computer}/print', [ComputerToolsController::class, 'print'])->name('computers.print');
         Route::get('computers/{computer}/qr.png', [ComputerQrController::class, 'png'])->name('computers.qr-png');
 
         Route::resource('computers', ComputerController::class);
