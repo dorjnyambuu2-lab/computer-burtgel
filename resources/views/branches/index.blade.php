@@ -6,10 +6,6 @@
 <div class="mx-auto max-w-5xl space-y-4">
     <div>
         <h1 class="!mb-0 text-2xl font-bold">Салбар <span class="text-base font-normal text-slate-400">({{ $branches->count() }})</span></h1>
-        <p class="mt-1 text-sm text-slate-500">
-            Салбар бүрийн <b>Админ</b> зөвхөн тухайн салбарын төхөөрөмж, ажилтан, засвар, хүсэлтийг харж удирдана.
-            Админд салбар оноохдоо <a href="{{ route('users.index') }}" class="!text-blue-600 hover:underline">Хэрэглэгч</a> хуудаснаас засна.
-        </p>
     </div>
 
     @if ($errors->any())
