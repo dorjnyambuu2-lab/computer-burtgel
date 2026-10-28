@@ -189,5 +189,31 @@
         </main>
     </div>
 </div>
+<script>
+// Мөнгөн дүн (data-money: үнэ, засварын зардал): бичих явцад мянгатыг таслалаар тусгаарлана
+// (2500000 → 2,500,000). Сервер таслалыг хасаж хадгална (Money::parse)
+(function () {
+    function format(value) {
+        const clean = value.replace(/[^\d.]/g, '');
+        const dot = clean.indexOf('.');
+        const int = (dot === -1 ? clean : clean.slice(0, dot)).replace(/^0+(?=\d)/, '');
+        const dec = dot === -1 ? '' : '.' + clean.slice(dot + 1).replace(/\./g, '').slice(0, 2);
+        return int.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + dec;
+    }
+    document.querySelectorAll('input[data-money]').forEach(function (input) { input.value = format(input.value); });
+    document.addEventListener('input', function (e) {
+        const input = e.target;
+        if (!(input instanceof HTMLInputElement) || !('money' in input.dataset)) return;
+        // Курсорыг өмнөх цифрийнхээ ард үлдээнэ (таслал нэмэгдэхэд үсрэхгүй)
+        const digits = input.value.slice(0, input.selectionStart).replace(/[^\d.]/g, '').length;
+        input.value = format(input.value);
+        let pos = 0;
+        for (let seen = 0; pos < input.value.length && seen < digits; pos++) {
+            if (/[\d.]/.test(input.value[pos])) seen++;
+        }
+        input.setSelectionRange(pos, pos);
+    });
+})();
+</script>
 </body>
 </html>

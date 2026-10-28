@@ -236,17 +236,7 @@ class ComputerController extends Controller
             'nextSerial' => Computer::nextDailySerial(\App\Models\User::registrarCode($request->user()->id)),
             'inventoryDate' => now()->format('Ymd'),
             // Хариуцагчийн овог, нэрийг бичихэд бүртгэлийн дугаарын U хэсгийг тааруулах ажилтнууд (Computer::matchHolderUser-тэй ижил)
-            'holderCandidates' => \App\Models\User::query()
-                ->where('is_active', true)
-                ->whereIn('role', ['admin', 'employee'])
-                ->when($request->user()->isBranchScoped(), fn ($q) => $q->where('branch_id', $request->user()->branch_id))
-                ->get(['id', 'name', 'surname', 'branch_id', 'code'])
-                ->map(fn ($u) => [
-                    'name' => trim((string) $u->name),
-                    'surname' => trim((string) $u->surname),
-                    'branch' => $u->branch_id,
-                    'code' => $u->code ? (int) substr($u->code, 1) : 0,
-                ])->values(),
+            'holderCandidates' => $this->holderCandidates($request),
             'nextSequence' => Computer::peekSequenceNumber($request->user()->branch_id),
             'departments' => $this->departments(),
             'kitParents' => $this->kitParents(),
@@ -326,7 +316,9 @@ class ComputerController extends Controller
         $holder = trim($computer->holder_surname.' '.$computer->holder_name) ?: $computer->assigned_to;
         $message = ($holder ? $holder.' · ' : '').$computer->inventory_number.' амжилттай бүртгэгдлээ.';
         if ($computer->holderCreated) {
-            $message .= ' «'.$computer->holderCreated->name.'» шинэ ажилтнаар нэмэгдлээ.';
+            // Уншиж амжихаар алга болгохгүй: нууц үг тохируулах шаардлагатай
+            $message .= ' «'.$computer->holderCreated->name.'» шинэ ажилтнаар нэмэгдлээ (нэвтрэх нэр: '.$computer->holderCreated->username
+                .'). Нэвтрэхийн тулд Хэрэглэгч хэсгээс нууц үг тохируулж өгнө үү.';
         }
 
         // «Хадгалаад дараагийнхыг бүртгэх»: ижил төрлийн олон компьютерийг дараалан бүртгэхэд
@@ -334,7 +326,7 @@ class ComputerController extends Controller
             ? redirect()->route('computers.create', ['from' => $computer->id])
             : redirect()->route('computers.show', $computer);
 
-        return $redirect->with('success', $message)->with('success_autohide', 3000);
+        return $redirect->with('success', $message)->with('success_autohide', $computer->holderCreated ? null : 3000);
     }
 
     public function show(Computer $computer): View
@@ -346,11 +338,32 @@ class ComputerController extends Controller
         ]);
     }
 
-    public function edit(Computer $computer): View
+    /**
+     * Хариуцагчийн овог, нэрийг бичихэд таарах ажилтнууд (Computer::matchHolderUser-тэй ижил: идэвхтэй Админ, ажилтан).
+     * Формд бүртгэлийн дугаарын U хэсэг, «таарлаа / шинэ ажилтан үүснэ / та үүнийг хэлсэн үү» санал болголтод ашиглана.
+     */
+    private function holderCandidates(Request $request)
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->whereIn('role', ['admin', 'employee'])
+            ->when($request->user()->isBranchScoped(), fn ($q) => $q->where('branch_id', $request->user()->branch_id))
+            ->get(['id', 'name', 'surname', 'username', 'branch_id', 'code'])
+            ->map(fn ($u) => [
+                'name' => trim((string) $u->name),
+                'surname' => trim((string) $u->surname),
+                'username' => $u->username,
+                'branch' => $u->branch_id,
+                'code' => $u->code ? (int) substr($u->code, 1) : 0,
+            ])->values();
+    }
+
+    public function edit(Request $request, Computer $computer): View
     {
         return view('computers.edit', [
             'computer' => $computer,
             'departments' => $this->departments(),
+            'holderCandidates' => $this->holderCandidates($request),
         ]);
     }
 

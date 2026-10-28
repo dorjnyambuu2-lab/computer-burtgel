@@ -65,7 +65,7 @@
                             <option value="done">✓ Засвар дууссан</option>
                         </select>
                         <input type="text" name="note" maxlength="1000" placeholder="Тайлбар (заавал биш)" class="{{ $inp }} !py-1.5 min-w-40 flex-1">
-                        <input type="text" name="cost" inputmode="decimal" placeholder="Зардал ₮" title="Засварын зардал (сэлбэг, ажлын хөлс)" class="{{ $inp }} !py-1.5 w-28">
+                        <input type="text" name="cost" inputmode="decimal" data-money autocomplete="off" placeholder="Зардал ₮" title="Засварын зардал (сэлбэг, ажлын хөлс)" class="{{ $inp }} !py-1.5 w-28">
                         @if ($c->repair_cost_sum > 0)
                             <span class="self-center whitespace-nowrap text-xs text-amber-700" title="Энэ компьютерийн нийт засварын зардал">Нийт: {{ \App\Support\Money::format($c->repair_cost_sum) }}</span>
                         @endif

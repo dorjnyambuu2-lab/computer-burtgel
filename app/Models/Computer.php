@@ -200,6 +200,14 @@ class Computer extends Model
         static::deleted(fn () => static::resequence());
         static::restored(fn () => static::resequence());
 
+        // Хариуцагчаар шинэ ажилтан үүссэн бол Админуудад мэдэгдэнэ (хадгалагдсаны дараа: дугаар нь тэр үед бэлэн)
+        static::saved(function (Computer $computer) {
+            if ($computer->holderCreated && ! $computer->holderNotified) {
+                $computer->holderNotified = true;
+                rescue(fn () => \App\Notifications\HolderUserCreated::dispatch(Auth::user() ?? $computer->holderCreated, $computer->holderCreated, $computer), null, report: true);
+            }
+        });
+
         // Иж бүрдэл: үндсэн компьютерийг архивлах, сэргээх, бүрмөсөн устгахад дагалдах хэрэгслүүд (дэлгэц, mouse ...)
         // хамт. Эс бөгөөс архивласан компьютерийн дэлгэц жагсаалтад харагдахгүй ч тоологдож,
         // бүрмөсөн устгахад эзэнгүй болж бие даасан төхөөрөмж болдог.
@@ -372,6 +380,9 @@ class Computer extends Model
 
     /** Энэ хадгалалтаар хариуцагчаар шинээр үүссэн ажилтан (бүртгэлийн мэдэгдэлд) */
     public ?User $holderCreated = null;
+
+    /** Шинэ ажилтны мэдэгдэл аль хэдийн илгээгдсэн эсэх (дахин хадгалахад давтахгүй) */
+    public bool $holderNotified = false;
 
     /**
      * Хариуцагчаар бичсэн хүн салбарт огт байхгүй бол шинэ ажилтан үүсгэнэ: нэвтрэх нэр нь код (u7),

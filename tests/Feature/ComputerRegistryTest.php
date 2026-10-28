@@ -144,6 +144,41 @@ class ComputerRegistryTest extends TestCase
             ->assertDontSee('assigned_user_id');
     }
 
+    public function test_new_holder_notifies_other_admins_and_message_stays(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $colleague = User::factory()->admin()->create();
+        $farAdmin = User::factory()->admin()->create(['branch_id' => \App\Models\Branch::create(['name' => 'Дархан', 'code' => 'DRH'])->id]);
+        $super = User::factory()->superadmin()->create();
+
+        $this->actingAs($admin)->post('/computers', $this->valid(['holder_surname' => 'Бат', 'holder_name' => 'Энхээ']))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', fn ($m) => str_contains($m, 'нууц үг тохируулж'))
+            ->assertSessionMissing('success_autohide');
+
+        $new = User::where('name', 'Энхээ')->firstOrFail();
+        foreach ([$colleague, $super] as $u) {
+            $n = $u->notifications()->firstOrFail();
+            $this->assertStringContainsString('Бат Энхээ', $n->data['title']);
+            $this->assertSame(route('users.edit', $new), $n->data['url']);
+        }
+        $this->assertSame(0, $admin->notifications()->count());    // үүсгэсэн хүнд биш
+        $this->assertSame(0, $farAdmin->notifications()->count()); // өөр салбарын Админд биш
+
+        // Засах форм ажилтнуудын жагсаалттай (санал болголт) нээгдэнэ
+        $computer = Computer::firstOrFail();
+        $this->actingAs($admin)->get("/computers/{$computer->id}/edit")->assertOk()->assertViewHas('holderCandidates');
+    }
+
+    public function test_dashboard_recent_skips_accessories(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Computer::factory()->create(['category' => 'processor', 'name' => 'Үндсэн-PC']);
+        Computer::factory()->create(['category' => 'mouse', 'name' => 'Ганц-Mouse']);
+
+        $this->actingAs($admin)->get('/')->assertOk()->assertSee('Үндсэн-PC')->assertDontSee('Ганц-Mouse');
+    }
+
     public function test_validation_rules(): void
     {
         $user = User::factory()->admin()->create();

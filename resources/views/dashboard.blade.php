@@ -19,7 +19,8 @@
         $byDept['Бусад ('.($deptRows->count() - 5).' хэлтэс)'] = (int) $deptRows->slice(5)->sum('c');
     }
     $maxDept = max(1, ...array_values($byDept ?: [1]));
-    $recent = Computer::latest()->limit(6)->get();
+    // Сүүлд бүртгэгдсэн: «Бүх төхөөрөмж» жагсаалттай ижил (иж бүрдлийн хэрэгсэл, mouse, keyboard биш)
+    $recent = Computer::query()->whereNull('kit_parent_id')->counted()->latest()->limit(6)->get();
     try { $expiring = Computer::warrantyExpiringWithin(60)->limit(5)->get(); } catch (\Throwable $e) { $expiring = collect(); }
 
     $slices = [

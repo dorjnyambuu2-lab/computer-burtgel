@@ -465,27 +465,159 @@
 @include('computers._warranty_script', ['purchaseId' => 'purchase_date', 'monthsId' => 'warranty_months', 'untilId' => 'warranty_until'])
 
 <script>
-// Үнэ: бичих явцад мянгатыг таслалаар тусгаарлана (2500000 → 2,500,000). Сервер таслалыг хасаж хадгална (Money::parse)
+// Хариуцагч, алба хэлтсийн үсгийн алдаа: бичих явцад «ажилтан олдлоо / шинэ ажилтан үүснэ» гэж харуулж, ойролцоо
+// нэрийг санал болгоно («Enhee» → «Энхээ»: латин, кирилл ялгаагүй). Хадгалахад шинэ ажилтан үүсэх бол баталгаажуулна.
 (function () {
-    function format(value) {
-        const clean = value.replace(/[^\d.]/g, '');
-        const dot = clean.indexOf('.');
-        const int = (dot === -1 ? clean : clean.slice(0, dot)).replace(/^0+(?=\d)/, '');
-        const dec = dot === -1 ? '' : '.' + clean.slice(dot + 1).replace(/\./g, '').slice(0, 2);
-        return int.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + dec;
+    const nameInput = document.getElementById('holder_name');
+    const surnameInput = document.getElementById('holder_surname');
+    const deptInput = document.getElementById('department');
+    const assigned = document.getElementById('assigned_user_id');
+    const branchSelect = document.getElementById('branch_id');
+    const myBranchId = @json(auth()->user()->isBranchScoped() ? auth()->user()->branch_id : null);
+    const people = @json($holderCandidates ?? []);
+    const departments = @json($suggest['department'] ?? []);
+    if (!nameInput) return;
+
+    // Кирилл → латин, жижиг үсгээр (харьцуулах түлхүүр)
+    const CYR = { 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'j', 'з': 'z', 'и': 'i', 'й': 'i',
+        'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'ө': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ү': 'u',
+        'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sh', 'ъ': '', 'ы': 'y', 'ь': 'i', 'э': 'e', 'ю': 'yu', 'я': 'ya' };
+    function key(s) {
+        let out = '';
+        for (const ch of String(s || '').toLowerCase().trim()) out += CYR[ch] !== undefined ? CYR[ch] : ch;
+        return out.replace(/kh/g, 'h').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/[^a-z0-9]/g, '');
     }
-    document.querySelectorAll('input[data-money]').forEach(function (input) {
-        input.value = format(input.value);
-        input.addEventListener('input', function () {
-            // Курсорыг өмнөх цифрийнхээ ард үлдээнэ (таслал нэмэгдэхэд үсрэхгүй)
-            const digits = input.value.slice(0, input.selectionStart).replace(/[^\d.]/g, '').length;
-            input.value = format(input.value);
-            let pos = 0;
-            for (let seen = 0; pos < input.value.length && seen < digits; pos++) {
-                if (/[\d.]/.test(input.value[pos])) seen++;
+    function distance(a, b) {
+        const row = Array.from({ length: b.length + 1 }, function (_, i) { return i; });
+        for (let i = 1; i <= a.length; i++) {
+            let prev = row[0];
+            row[0] = i;
+            for (let j = 1; j <= b.length; j++) {
+                const cur = row[j];
+                row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+                prev = cur;
             }
-            input.setSelectionRange(pos, pos);
+        }
+        return row[b.length];
+    }
+    // Ойролцоо утгууд (ижил бичигдсэнийг оруулахгүй), хамгийн ойрын 3
+    function similar(value, items, label) {
+        const v = key(value);
+        if (v.length < 2) return [];
+        return items.map(function (item) {
+            const k = key(label(item));
+            return { item: item, d: distance(v, k), contains: v.length >= 3 && (k.indexOf(v) !== -1 || v.indexOf(k) !== -1) };
+        }).filter(function (r) {
+            return label(r.item).toLowerCase() !== String(value).trim().toLowerCase()
+                && (r.d <= Math.max(1, Math.floor(key(label(r.item)).length / 4)) || r.contains);
+        }).sort(function (a, b) { return a.d - b.d; }).slice(0, 3).map(function (r) { return r.item; });
+    }
+
+    function branch() { return String((branchSelect ? branchSelect.value : myBranchId) || ''); }
+    function inBranch() { return people.filter(function (u) { return !branch() || String(u.branch || '') === branch(); }); }
+    function fullName(u) { return (u.surname ? u.surname + ' ' : '') + u.name; }
+    // Сервертэй ижил таарал (Computer::matchHolderUser): нэр яг, овог бичсэн бол овог ч (хоосон овогтой бол таарна)
+    function exact() {
+        const name = nameInput.value.trim().toLowerCase();
+        const surname = surnameInput ? surnameInput.value.trim().toLowerCase() : '';
+        return inBranch().filter(function (u) {
+            return u.name.toLowerCase() === name && (!surname || !u.surname || u.surname.toLowerCase() === surname);
         });
+    }
+
+    function statusBox(input, id) {
+        let box = document.getElementById(id);
+        if (!box) {
+            box = document.createElement('div');
+            box.id = id;
+            box.className = 'mt-1.5 hidden rounded-lg px-3 py-2 text-xs';
+            input.parentElement.appendChild(box);
+        }
+        return box;
+    }
+    function show(box, tone, html) {
+        box.classList.toggle('hidden', !html);
+        box.classList.remove('bg-emerald-50', 'text-emerald-800', 'bg-amber-50', 'text-amber-800');
+        if (html) box.classList.add('bg-' + tone + '-50', 'text-' + tone + '-800');
+        box.innerHTML = html || '';
+    }
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function chips(list, label) {
+        return list.map(function (item, i) {
+            return '<button type="button" data-pick="' + i + '" class="ml-1 mt-1 !min-h-0 !rounded-full !border !border-blue-200 !bg-white !px-2.5 !py-0.5 !text-xs !font-medium !text-blue-700 hover:!bg-blue-50">' + esc(label(item)) + '</button>';
+        }).join('');
+    }
+
+    let newHolder = false;
+    let deptTypo = null;
+
+    function checkHolder() {
+        const box = statusBox(nameInput, 'holder-status');
+        newHolder = false;
+        // Ажилтан аль хэдийн оноогдсон (засах үед) эсвэл нэр хоосон бол сервер шинээр тааруулахгүй
+        if ((assigned && assigned.value) || nameInput.disabled || !nameInput.value.trim()) return show(box, '', '');
+        const found = exact();
+        if (found.length === 1) {
+            return show(box, 'emerald', '✓ Ажилтан олдлоо: <b>' + esc(fullName(found[0])) + '</b>' + (found[0].username ? ' (' + esc(found[0].username) + ')' : '') + ' — төхөөрөмж түүнд олгогдоно.');
+        }
+        if (found.length > 1) {
+            return show(box, 'amber', '⚠ Ижил нэртэй ' + found.length + ' ажилтан байна. Автоматаар олгогдохгүй: хадгалсны дараа «Ажилтанд олгох»-оор сонгоно уу.');
+        }
+        newHolder = true;
+        const typed = ((surnameInput ? surnameInput.value.trim() + ' ' : '') + nameInput.value.trim()).trim();
+        const near = similar(nameInput.value, inBranch(), function (u) { return u.name; });
+        box.dataset.near = JSON.stringify(near);
+        show(box, 'amber', '＋ «' + esc(typed) + '» нэртэй ажилтан байхгүй. Хадгалахад <b>шинэ ажилтан үүснэ</b>.'
+            + (near.length ? '<div class="mt-1">Та үүнийг хэлсэн үү:' + chips(near, fullName) + '</div>' : ''));
+    }
+
+    function checkDept() {
+        if (!deptInput) return;
+        const box = statusBox(deptInput, 'department-status');
+        deptTypo = null;
+        const value = deptInput.value.trim();
+        const known = departments.some(function (d) { return d.toLowerCase() === value.toLowerCase(); });
+        if (deptInput.disabled || !value || known) return show(box, '', '');
+        const near = similar(value, departments, function (d) { return d; });
+        box.dataset.near = JSON.stringify(near);
+        if (near.length) deptTypo = { value: value, near: near };
+        show(box, 'amber', near.length ? 'Ийм алба жагсаалтад байхгүй. Та үүнийг хэлсэн үү:' + chips(near, function (d) { return d; }) : '');
+    }
+
+    // Санал болгосныг дарахад талбарыг бөглөнө (бусад скрипт: бүртгэлийн дугаар ... шинэчлэгдэнэ)
+    document.addEventListener('click', function (e) {
+        const pick = e.target.closest && e.target.closest('[data-pick]');
+        if (!pick) return;
+        const box = pick.closest('#holder-status, #department-status');
+        const item = JSON.parse(box.dataset.near || '[]')[pick.dataset.pick];
+        if (box.id === 'holder-status') {
+            if (surnameInput) { surnameInput.value = item.surname || ''; surnameInput.dispatchEvent(new Event('input', { bubbles: true })); }
+            nameInput.value = item.name;
+            nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+            deptInput.value = item;
+            deptInput.dispatchEvent(new Event('input', { bubbles: true }));
+            deptInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+
+    [nameInput, surnameInput, branchSelect].forEach(function (el) {
+        if (el) { el.addEventListener('input', checkHolder); el.addEventListener('change', checkHolder); }
+    });
+    if (deptInput) { deptInput.addEventListener('input', checkDept); deptInput.addEventListener('change', checkDept); }
+    checkHolder();
+    checkDept();
+
+    // Хадгалахаас өмнө: шинэ ажилтан үүсэх, эсвэл алба хэлтэс үсгийн алдаатай байж болзошгүй бол асууна
+    nameInput.form.addEventListener('submit', function (e) {
+        checkHolder();
+        checkDept();
+        const notes = [];
+        if (newHolder) {
+            notes.push('«' + ((surnameInput ? surnameInput.value.trim() + ' ' : '') + nameInput.value.trim()).trim() + '» нэртэй ажилтан системд байхгүй тул ШИНЭ АЖИЛТАН үүснэ.');
+        }
+        if (deptTypo) notes.push('«' + deptTypo.value + '» гэсэн шинэ алба нэмэгдэнэ (ойролцоо: «' + deptTypo.near.join('», «') + '»).');
+        if (notes.length && !confirm(notes.join('\n\n') + '\n\nҮргэлжлүүлэх үү?')) e.preventDefault();
     });
 })();
 </script>

@@ -106,7 +106,7 @@
                 <option value="done">✓ Засвар дууссан</option>
             </select>
             <input type="text" name="note" maxlength="1000" placeholder="Тайлбар (заавал биш)" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-            <input type="text" name="cost" inputmode="decimal" placeholder="Зардал ₮ (сэлбэг, ажлын хөлс — заавал биш)" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            <input type="text" name="cost" inputmode="decimal" data-money autocomplete="off" placeholder="Зардал ₮ (сэлбэг, ажлын хөлс — заавал биш)" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
             <button class="w-full rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600">Явц шинэчлэх</button>
         </form>
         <a href="{{ route('repairs.index') }}" class="mt-2 block text-center text-xs text-amber-800 hover:underline">Бүх дараалал харах →</a>
@@ -128,7 +128,7 @@
             </div>
             <div>
                 <label for="repair_cost" class="mb-1 block text-sm font-medium text-slate-700">Зардал ₮ (мэдэгдэж байвал)</label>
-                <input type="text" name="cost" id="repair_cost" inputmode="decimal" value="{{ old('cost') }}" placeholder="Жишээ: 150,000"
+                <input type="text" name="cost" id="repair_cost" inputmode="decimal" data-money autocomplete="off" value="{{ old('cost') }}" placeholder="Жишээ: 150,000"
                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
             </div>
             <button class="w-full rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600">
