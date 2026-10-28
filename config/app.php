@@ -15,6 +15,9 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // Албан баримтын толгойд (хэвлэх / PDF): байгууллагын нэр. Хоосон бол салбарын нэр
+    'organization' => env('APP_ORGANIZATION'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
