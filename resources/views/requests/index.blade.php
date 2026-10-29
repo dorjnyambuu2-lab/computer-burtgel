@@ -108,20 +108,20 @@
                                 </form>
                             @endif
                             {{-- Төлөв, хариу: дарахад нээгдэнэ (шийдвэрлэгдээгүйд «Шийдвэрлэх», бусдад «Засах») --}}
-                            <details class="relative">
+                            <details class="relative" data-popover>
                                 <summary class="flex h-8 cursor-pointer list-none items-center gap-1 rounded-lg px-2.5 text-xs font-semibold [&::-webkit-details-marker]:hidden {{ $pending ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800' }}">
                                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
                                     {{ $pending ? 'Шийдвэрлэх' : 'Засах' }}
                                 </summary>
-                                <form method="POST" action="{{ url('/requests/'.$r->id) }}" class="absolute right-0 z-10 mt-1 w-72 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-lg">
+                                <form method="POST" action="{{ url('/requests/'.$r->id) }}" data-popover-panel class="absolute right-0 z-10 mt-1 w-72 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-lg">
                                     @csrf @method('PATCH')
                                     <label class="block text-xs font-medium text-slate-500">Төлөв
-                                        <select name="status" class="{{ $sel }} mt-1 w-full">
+                                        <select name="status" class="{{ $sel }} mt-1 block w-full">
                                             @foreach ($statuses as $k => $v)<option value="{{ $k }}" @selected($r->status === $k)>{{ $v }}</option>@endforeach
                                         </select>
                                     </label>
                                     <label class="block text-xs font-medium text-slate-500">Ажилтанд хариу
-                                        <input type="text" name="admin_note" value="{{ $r->admin_note }}" maxlength="500" placeholder="Заавал биш" class="{{ $sel }} mt-1 w-full">
+                                        <input type="text" name="admin_note" value="{{ $r->admin_note }}" maxlength="500" placeholder="Заавал биш" class="{{ $sel }} mt-1 block w-full">
                                     </label>
                                     <button type="submit" class="h-9 w-full !min-h-0 !rounded-lg !border-blue-600 !bg-blue-600 !px-3 !py-0 text-sm font-semibold !text-white hover:!bg-blue-700">Хадгалах</button>
                                 </form>

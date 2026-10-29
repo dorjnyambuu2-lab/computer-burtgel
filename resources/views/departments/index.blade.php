@@ -45,12 +45,12 @@
                             <a href="{{ route('computers.index', array_filter(['department' => $d->name, 'branch' => $isSuper ? $d->branch_id : null])) }}"
                                class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs !text-slate-600 hover:bg-slate-200">{{ $d->computers_count }} төхөөрөмж</a>
                             <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{{ $d->users_count }} ажилтан</span>
-                            <details class="group relative">
+                            <details class="group relative" data-popover>
                                 <summary class="flex h-8 cursor-pointer list-none items-center gap-1 rounded-lg px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 [&::-webkit-details-marker]:hidden">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
                                     Засах
                                 </summary>
-                                <div class="absolute right-0 z-10 mt-1 w-80 space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+                                <div data-popover-panel class="absolute right-0 z-10 mt-1 w-80 space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
                                     {{-- Нэр солих: төхөөрөмж, ажилтан дээр шууд солигдоно --}}
                                     <form method="POST" action="{{ route('departments.update', $d) }}" class="flex gap-2">
                                         @csrf @method('PUT')

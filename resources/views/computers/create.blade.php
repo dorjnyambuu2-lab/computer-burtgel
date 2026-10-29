@@ -7,7 +7,6 @@
         Бүх төхөөрөмж
     </a>
     <h1 class="!mb-0 mt-2 text-2xl font-bold text-slate-900">Шинэ төхөөрөмж бүртгэх</h1>
-    <p class="mt-1 text-sm text-slate-500">Төрлөө сонгоод мэдээллийг бөглөнө. Бүртгэлийн дугаар автоматаар үүснэ.</p>
 </div>
 <form method="POST" action="{{ route('computers.store') }}">
     @csrf

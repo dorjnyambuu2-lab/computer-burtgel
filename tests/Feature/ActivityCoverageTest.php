@@ -77,5 +77,22 @@ class ActivityCoverageTest extends TestCase
         $this->actingAs($admin)->get('/activity?type='.urlencode(User::class))->assertOk()
             ->assertSee('МанайАжилтан')->assertDontSee('ДарханАжилтан');
         $this->assertArrayNotHasKey(Branch::class, $this->actingAs($admin)->get('/activity')->viewData('types'));
+
+        // Админ: өөрийн болон салбарын ажилтны үйлдлийг харна, Супер админыхыг (салбарын төхөөрөмж дээр ч) харахгүй
+        $super = User::factory()->superadmin()->create();
+        $pc = Computer::factory()->create(['branch_id' => $admin->branch_id, 'name' => 'Салбарын-PC']);
+        $this->actingAs($super)->put("/computers/{$pc->id}", ['name' => 'СуперЗассан', 'type' => 'desktop', 'status' => 'active',
+            'inventory_number' => $pc->inventory_number, 'branch_id' => $admin->branch_id])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->put("/computers/{$pc->id}", ['name' => 'АдминЗассан', 'type' => 'desktop', 'status' => 'active',
+            'inventory_number' => $pc->inventory_number])->assertSessionHasNoErrors();
+
+        $page = $this->actingAs($admin)->get('/activity')->assertOk();
+        $actors = $page->viewData('logs')->pluck('user_id')->unique();
+        $this->assertFalse($actors->contains($super->id), 'Супер админы үйлдэл Админд харагдахгүй');
+        $this->assertTrue($actors->contains($admin->id));
+        $this->assertFalse($page->viewData('users')->pluck('id')->contains($super->id));
+        $this->assertFalse($page->viewData('users')->pluck('id')->contains($far->id));
+        // Супер админ бүгдийг харна
+        $this->assertTrue($this->actingAs($super)->get('/activity')->viewData('logs')->pluck('user_id')->contains($super->id));
     }
 }

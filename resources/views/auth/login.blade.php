@@ -71,8 +71,13 @@
                     <div class="relative mt-1.5">
                         <input id="password" name="password" type="password" required autocomplete="current-password"
                                placeholder="Нууц үгээ оруулна уу"
-                               class="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 pr-20 text-sm shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100">
-                        <button type="button" id="toggle-pw" class="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-slate-500 hover:text-slate-800">Харах</button>
+                               class="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 pr-12 text-sm shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100">
+                        {{-- Харах / нуух: нүд, зураастай нүд --}}
+                        <button type="button" id="toggle-pw" title="Нууц үг харах" aria-label="Нууц үг харах"
+                                class="absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400 transition hover:text-slate-700">
+                            <svg data-eye viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <svg data-eye-off viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><path d="M17.9 17.9A10.4 10.4 0 0112 19c-6.5 0-10-7-10-7a18.5 18.5 0 015.1-5.9M9.9 5.2A9.6 9.6 0 0112 5c6.5 0 10 7 10 7a18.6 18.6 0 01-2.2 3.2M14.1 14.1a3 3 0 11-4.2-4.2M3 3l18 18"/></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -97,7 +102,10 @@
         var i = document.getElementById('password');
         var show = i.type === 'password';
         i.type = show ? 'text' : 'password';
-        this.textContent = show ? 'Нуух' : 'Харах';
+        this.querySelector('[data-eye]').style.display = show ? 'none' : '';
+        this.querySelector('[data-eye-off]').style.display = show ? '' : 'none';
+        this.title = show ? 'Нууц үг нуух' : 'Нууц үг харах';
+        this.setAttribute('aria-label', this.title);
     });
 </script>
 </body>

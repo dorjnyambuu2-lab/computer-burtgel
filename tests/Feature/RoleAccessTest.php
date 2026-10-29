@@ -34,7 +34,7 @@ class RoleAccessTest extends TestCase
 
     private function pc(array $o = []): Computer
     {
-        return Computer::factory()->create(['category' => 'processor', 'status' => 'active'] + $o);
+        return Computer::factory()->create($o + ['category' => 'processor', 'status' => 'active']);
     }
 
     private function form(array $o = []): array

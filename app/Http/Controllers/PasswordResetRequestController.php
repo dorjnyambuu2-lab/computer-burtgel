@@ -48,7 +48,9 @@ class PasswordResetRequestController extends Controller
             ->update(['status' => 'resolved', 'resolved_by' => $request->user()->id, 'resolved_at' => now()]);
 
         return back()
+            // Ногоон мэдэгдэл 3 секундэд алга болно; түр нууц үгийн шар хайрцаг хэвээр (хуулж авах)
             ->with('success', $user->name.'-д түр нууц үг олголоо. Нэвтэрмэгц шинэ нууц үг солино.')
+            ->with('success_autohide', 3000)
             ->with('temporary_password', ['user' => $user->name.' ('.$user->username.')', 'password' => $temporary]);
     }
 

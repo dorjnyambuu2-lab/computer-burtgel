@@ -14,7 +14,7 @@
             'Төхөөрөмж' => [
                 ['/computers', 'Бүх төхөөрөмж', 'M4 5h16v11H4zM8 20h8M12 16v4',
                     fn() => request()->is('computers') || (request()->is('computers/*') && ! request()->is('computers/trash', 'computers/scan', 'computers/bulk-assign', 'computers/create'))],
-                ['/computers/create', 'Шинээр бүртгэх', 'M12 5v14M5 12h14', fn() => request()->is('computers/create')],
+                ['/computers/create', 'Шинэ төхөөрөмж бүртгэх', 'M12 5v14M5 12h14', fn() => request()->is('computers/create')],
                 ['/computers/bulk-assign', 'Төхөөрөмж олгох', 'M15 7a4 4 0 11-8 0 4 4 0 018 0zM3 21a8 8 0 0114 0M19 8v6M16 11h6', fn() => request()->is('computers/bulk-assign')],
                 // Төхөөрөмж шилжүүлэх: Супер админ, Админ (тоо: өмнөх шийдвэрлэгдээгүй хүсэлт)
                 ...($u->canManageComputers() ? [['/transfers', 'Төхөөрөмж шилжүүлэх', 'M7 7h11l-3-3M17 17H6l3 3',
@@ -125,7 +125,7 @@
             <label for="menu-toggle" class="cursor-pointer rounded-lg border border-slate-200 p-2 lg:hidden">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </label>
-            <div class="hidden text-sm text-slate-500 sm:block">Систем / <span class="font-semibold text-slate-900">@yield('title', 'Хянах самбар')</span></div>
+            <div class="hidden text-sm font-semibold text-slate-900 sm:block">@yield('title', 'Хянах самбар')</div>
 
             <div class="ml-auto flex items-center gap-3">
                 {{-- QR уншуулах: зөвхөн Superadmin / Админ-д (утсан дээр хурдан нээхэд зориулсан) --}}
@@ -190,6 +190,35 @@
         </main>
     </div>
 </div>
+<script>
+// Попап цэс (details[data-popover] > [data-popover-panel]): хүснэгт гүйлгэдэг (overflow) хайрцагт тасрахгүйн тулд
+// нээгдэхэд дэлгэцэд тогтмол (fixed) байрлалаар товчныхоо доор (дэлгэцэнд багтаж) гарна. Нэг удаад нэг л нээлттэй;
+// гадна дарах, Esc, гүйлгэх, цонхны хэмжээ өөрчлөхөд хаагдана
+(function () {
+    function close(except) {
+        document.querySelectorAll('details[data-popover][open]').forEach(function (d) { if (d !== except) d.open = false; });
+    }
+    document.addEventListener('toggle', function (e) {
+        const d = e.target;
+        if (!(d instanceof HTMLDetailsElement) || !d.matches('[data-popover]') || !d.open) return;
+        close(d);
+        const panel = d.querySelector('[data-popover-panel]');
+        const r = d.querySelector('summary').getBoundingClientRect();
+        Object.assign(panel.style, { position: 'fixed', zIndex: 60, margin: 0, right: 'auto' });
+        const top = r.bottom + 4 + panel.offsetHeight > innerHeight - 8 ? r.top - 4 - panel.offsetHeight : r.bottom + 4;
+        panel.style.top = Math.max(8, top) + 'px';
+        panel.style.left = Math.min(Math.max(8, r.right - panel.offsetWidth), innerWidth - panel.offsetWidth - 8) + 'px';
+        const first = panel.querySelector('input:not([type=hidden]), select, textarea');
+        if (first) first.focus();
+    }, true);
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('details[data-popover]')) close();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    window.addEventListener('scroll', function () { close(); }, true);
+    window.addEventListener('resize', function () { close(); });
+})();
+</script>
 <script>
 // Мөнгөн дүн (data-money: үнэ, засварын зардал): бичих явцад мянгатыг таслалаар тусгаарлана
 // (2500000 → 2,500,000). Сервер таслалыг хасаж хадгална (Money::parse)

@@ -20,7 +20,7 @@ class FlowTest extends TestCase
 
     private function pc(array $o = []): Computer
     {
-        return Computer::factory()->create(['category' => 'processor', 'status' => 'active', 'assigned_to' => null] + $o);
+        return Computer::factory()->create($o + ['category' => 'processor', 'status' => 'active', 'assigned_to' => null]);
     }
 
     public function test_password_reset_request_flow(): void
@@ -91,6 +91,34 @@ class FlowTest extends TestCase
         $this->assertNotSame('in_repair', $b->fresh()->status->value);
         $this->assertSame(1, $a->fresh()->repairQueueNumber());
         $this->assertEquals(75000, $b->events()->sum('cost'));
+    }
+
+    public function test_repairs_page_reason_reporter_tabs_and_finish(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $emp = User::factory()->employee()->create(['name' => 'Мэдээлэгч']);
+        $a = $this->pc(['name' => 'A-PC', 'assigned_user_id' => $emp->id]);
+        $b = $this->pc(['name' => 'B-PC']);
+
+        // A: ажилтны хүсэлтээс, B: шууд засварт бүртгэсэн
+        $this->actingAs($emp)->post('/my/requests', ['type' => 'issue', 'computer_id' => $a->id, 'description' => 'Дэлгэц анивчина']);
+        $this->actingAs($admin)->post(route('requests.repair', \App\Models\AssetRequest::firstOrFail()));
+        $this->actingAs($admin)->post(route('computers.repair', $b), ['note' => 'Асахгүй байна']);
+        $this->actingAs($admin)->patch(route('repairs.update', $b), ['stage' => 'diagnosing']);
+
+        $page = $this->actingAs($admin)->get('/repairs')->assertOk()
+            ->assertSee('«Дэлгэц анивчина»', false)->assertSee('«Асахгүй байна»', false)
+            ->assertSee('Мэдээлсэн:')->assertSee('Мэдээлэгч')->assertSee('Дуусгах');
+        $this->assertEqualsCanonicalizing(['queued' => 1, 'diagnosing' => 1], $page->viewData('stageCounts'));
+
+        // «Дараалалд» таб: явц оноогоогүй (A), «Оношилгоо»: B
+        $this->assertSame(['A-PC'], $this->actingAs($admin)->get('/repairs?stage=queued')->viewData('computers')->pluck('name')->all());
+        $this->assertSame(['B-PC'], $this->actingAs($admin)->get('/repairs?stage=diagnosing')->viewData('computers')->pluck('name')->all());
+
+        // Дуусгах: зардал, тайлбартай
+        $this->actingAs($admin)->patch(route('repairs.update', $b), ['stage' => 'done', 'note' => 'Тэжээл сольсон', 'cost' => '80,000'])->assertSessionHasNoErrors();
+        $this->assertNotSame('in_repair', $b->fresh()->status->value);
+        $this->assertSame(['A-PC'], $this->actingAs($admin)->get('/repairs')->viewData('computers')->pluck('name')->all());
     }
 
     public function test_user_edit_delete_and_self_protection(): void

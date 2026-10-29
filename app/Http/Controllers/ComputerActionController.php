@@ -95,7 +95,7 @@ class ComputerActionController extends Controller
             $this->completeReceivedTransfers([$computer->id, ...$items->pluck('id')], $user, $request);
         });
 
-        return back()->with('success', $computer->activityLabel().' → '.$user->name.'-д олголоо.');
+        return back()->with('success', $computer->activityLabel().' → '.$user->name.'-д олголоо.')->with('success_autohide', 3000);
     }
 
     /** Буцаан авах (хариуцагчийг цуцалж, агуулахад оруулна) */
@@ -136,7 +136,7 @@ class ComputerActionController extends Controller
             }
         });
 
-        return back()->with('success', $computer->activityLabel().' буцаан авч, агуулахад бүртгэлээ.');
+        return back()->with('success', $computer->activityLabel().' буцаан авч, агуулахад бүртгэлээ.')->with('success_autohide', 3000);
     }
 
     /**
@@ -167,10 +167,18 @@ class ComputerActionController extends Controller
             'cost.numeric' => 'Зардлыг тоогоор оруулна уу.',
         ]);
 
+        // Аль хэдийн засварт (давхар дараалал, түүх, мэдэгдэл үүсгэхгүй) эсвэл актласан бол оруулахгүй
+        if ($computer->status === ComputerStatus::InRepair) {
+            return back()->withErrors(['note' => $computer->activityLabel().' аль хэдийн засварын дараалалд #'.$computer->repairQueueNumber().' байна.']);
+        }
+        if ($computer->status === ComputerStatus::Decommissioned) {
+            return back()->withErrors(['note' => 'Актласан төхөөрөмжийг засварт оруулах боломжгүй.']);
+        }
+
         // Дарааллын төгсгөлд оруулж, хариуцагч болон админуудад мэдэгдэл илгээнэ
         app(RepairService::class)->start($computer, $request->user(), $data['note'], $data['cost'] ?? null);
 
-        return back()->with('success', $computer->activityLabel().' засварт бүртгэгдэж, дараалалд #'.$computer->repairQueueNumber().' орлоо.');
+        return back()->with('success', $computer->activityLabel().' засварт бүртгэгдэж, дараалалд #'.$computer->repairQueueNumber().' орлоо.')->with('success_autohide', 3000);
     }
 
     /**
@@ -260,7 +268,7 @@ class ComputerActionController extends Controller
             $message .= ' '.$skipped.' нь чөлөөтэй биш байсан тул алгасав.';
         }
 
-        return redirect()->route('computers.bulk-assign', ['user_id' => $user->id])->with('success', $message);
+        return redirect()->route('computers.bulk-assign', ['user_id' => $user->id])->with('success', $message)->with('success_autohide', 3000);
     }
 
     // ───────────────────────── туслах функцүүд ─────────────────────────

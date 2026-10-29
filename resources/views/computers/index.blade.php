@@ -53,7 +53,7 @@
         </a>
         <a href="{{ route('computers.create') }}" class="inline-flex h-10 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-semibold !text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-            Шинээр бүртгэх
+            Шинэ төхөөрөмж бүртгэх
         </a>
     </div>
 </div>

@@ -26,13 +26,18 @@ class ActivityLogController extends Controller
                     ->whereIn('subject_id', User::query()->where('branch_id', $me->branch_id)->select('id')))
                 ->orWhere(fn ($s) => $s->where('subject_type', (new \App\Models\Department)->getMorphClass())
                     ->whereIn('subject_id', \App\Models\Department::query()->where('branch_id', $me->branch_id)->select('id')))))
+            // Админ: зөвхөн өөрийн салбарын хүмүүсийн (өөрийн, салбарын ажилтан, админ) хийсэн үйлдэл — Супер админыхыг харуулахгүй.
+            // «Систем» (хэрэглэгчгүй, жишээ нь скрипт) үйлдэл харагдана
+            ->when($me->isBranchScoped(), fn ($q) => $q->where(fn ($w) => $w->whereNull('user_id')
+                ->orWhereIn('user_id', User::query()->where('branch_id', $me->branch_id)->where('role', '!=', 'superadmin')->select('id'))))
             ->when(isset(ActivityLog::SUBJECT_TYPES[$request->input('type')]), fn ($q) => $q->where('subject_type', $request->input('type')))
             ->when($request->filled('action'), fn ($q) => $q->where('action', $request->input('action')))
-            ->when($request->filled('user_id'), fn ($q) => $q->where('user_id', $request->input('user_id')))
+            ->when(ctype_digit((string) $request->input('user_id')), fn ($q) => $q->where('user_id', (int) $request->input('user_id')))
             // «#12» бол дэс дугаараар (доор), бусад үед компьютерийн нэрээр
             ->when($request->filled('q') && $number === null, fn ($q) => $q->where('subject_label', 'like', '%'.$request->input('q').'%'))
-            ->when($request->filled('from'), fn ($q) => $q->whereDate('created_at', '>=', $request->input('from')))
-            ->when($request->filled('to'), fn ($q) => $q->whereDate('created_at', '<=', $request->input('to')))
+            // Огноо: зөвхөн зөв (YYYY-MM-DD) бол шүүнэ — буруу утга MySQL-д алдаа, хоосон үр дүн өгөхгүй
+            ->when($this->date($request, 'from'), fn ($q, $d) => $q->where('created_at', '>=', $d->startOfDay()))
+            ->when($this->date($request, 'to'), fn ($q, $d) => $q->where('created_at', '<=', $d->endOfDay()))
             ->latest('id');
 
         $logs = \App\Support\RowNumber::paginate($query, $request, 20, $number);
@@ -40,7 +45,10 @@ class ActivityLogController extends Controller
         return view('activity.index', [
             'logs' => $logs,
             'restoreStates' => $request->user()->isSuperadmin() ? $this->restoreStates($logs->getCollection()) : [],
-            'users' => User::query()->when($me->isBranchScoped(), fn ($q) => $q->where('branch_id', $me->branch_id))->orderBy('name')->get(['id', 'name']),
+            // Хэрэглэгч шүүлтүүр: Админд өөрийн салбарын хүмүүс (Супер админы үйлдэл Админд харагдахгүй)
+            'users' => User::query()
+                ->when($me->isBranchScoped(), fn ($q) => $q->where('branch_id', $me->branch_id)->where('role', '!=', 'superadmin'))
+                ->orderBy('name')->get(['id', 'name']),
             // Шүүлтүүрт: хуучин (бичигддэггүй) үйлдлийг хасна; Админд Супер админы л үйлдлүүд хэзээ ч гарахгүй тул мөн хасна
             // Төрөл: Админд салбар хамаарахгүй
             'types' => $me->isSuperadmin() ? ActivityLog::SUBJECT_TYPES : array_diff_key(ActivityLog::SUBJECT_TYPES, [\App\Models\Branch::class => 1]),
@@ -49,6 +57,16 @@ class ActivityLogController extends Controller
                 ...($me->isSuperadmin() ? [] : ActivityLog::SUPERADMIN_ACTIONS),
             ])),
         ]);
+    }
+
+    /** Шүүлтүүрийн огноо (YYYY-MM-DD); буруу бол null */
+    private function date(Request $request, string $key): ?\Illuminate\Support\Carbon
+    {
+        $value = (string) $request->input($key);
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) && checkdate((int) substr($value, 5, 2), (int) substr($value, 8, 2), (int) substr($value, 0, 4))
+            ? \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $value)
+            : null;
     }
 
     /**

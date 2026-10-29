@@ -195,6 +195,18 @@ class Computer extends Model
             }
         });
 
+        // Засвараас аль ч замаар (засах форм, шилжүүлэг ...) гарвал: нээлттэй эвдрэлийн хүсэлтийг хааж, дарааллыг цэгцэлнэ.
+        // «Дуусгах» (RepairService::complete) мөн адил хийдэг тул давхар ажиллахад нөлөөгүй
+        static::updated(function (Computer $computer) {
+            if ($computer->wasChanged('status') && $computer->getOriginal('status') === ComputerStatus::InRepair
+                && $computer->status !== ComputerStatus::InRepair) {
+                AssetRequest::query()->where('computer_id', $computer->id)->where('type', 'issue')
+                    ->whereIn('status', ['pending', 'in_progress'])
+                    ->update(['status' => 'done', 'handled_by' => Auth::id(), 'updated_at' => now()]);
+                app(\App\Support\RepairService::class)->renumber();
+            }
+        });
+
         // Дэс дугаар завсаргүй байна: устгавал (архивлах, бүрмөсөн) дараагийнх нь нэгээр ухарна,
         // сэргээвэл төгсгөлд нь шинэ дугаар авна
         static::deleted(fn () => static::resequence());

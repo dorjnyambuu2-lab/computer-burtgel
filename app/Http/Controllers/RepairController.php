@@ -27,15 +27,28 @@ class RepairController extends Controller
             ->repairQueue()
             ->with('assignedUser:id,name')
             ->withSum(['events as repair_cost_sum' => fn ($q) => $q->reorder()], 'cost')
+            // Эвдрэлийн тайлбар (засварт бүртгэхэд бичсэн) ба мэдээлсэн ажилтан (ажилтны хүсэлтээс ирсэн бол)
+            ->addSelect(['repair_reason' => \App\Models\ComputerEvent::query()->select('note')
+                ->whereColumn('computer_id', 'computers.id')->where('type', 'repair')->latest('id')->limit(1)])
+            ->addSelect(['reported_by' => AssetRequest::query()->join('users', 'users.id', '=', 'asset_requests.user_id')
+                ->select('users.name')->whereColumn('asset_requests.computer_id', 'computers.id')
+                ->where('asset_requests.type', 'issue')->whereIn('asset_requests.status', ['pending', 'in_progress'])
+                ->latest('asset_requests.id')->limit(1)])
             ->search($request->query('q'))
-            ->when(RepairStage::tryFrom((string) $request->query('stage')),
+            ->when($request->query('stage') === 'queued', fn ($q) => $q->where(fn ($w) => $w->whereNull('repair_stage')->orWhere('repair_stage', RepairStage::Queued)))
+            ->when($request->query('stage') !== 'queued' ? RepairStage::tryFrom((string) $request->query('stage')) : null,
                 fn ($q, $stage) => $q->where('repair_stage', $stage))
             ->get();
+
+        // Явцын табуудын тоо (хайлтаас үл хамааран бүх дараалал); явц оноогоогүй нь «Дараалалд»
+        $stageCounts = Computer::query()->repairQueue()->reorder()->selectRaw('repair_stage, count(*) as c')->groupBy('repair_stage')
+            ->pluck('c', 'repair_stage')->mapWithKeys(fn ($c, $k) => [$k === '' || $k === null ? RepairStage::Queued->value : $k => $c])->all();
 
         return view('repairs.index', [
             'computers' => $computers,
             'numbers' => $numbers,
             'stages' => RepairStage::options(),
+            'stageCounts' => $stageCounts,
             'total' => count($numbers),
         ]);
     }
@@ -61,12 +74,12 @@ class RepairController extends Controller
         if ($data['stage'] === 'done') {
             $this->repairs->complete($computer, $request->user(), $data['note'] ?? null, $cost);
 
-            return back()->with('success', $computer->activityLabel().': засвар дууслаа, «'.$computer->status->label().'» төлөвт шилжлээ.');
+            return back()->with('success', $computer->activityLabel().': засвар дууслаа, «'.$computer->status->label().'» төлөвт шилжлээ.')->with('success_autohide', 3000);
         }
 
         $this->repairs->updateStage($computer, $request->user(), RepairStage::from($data['stage']), $data['note'] ?? null, $cost);
 
-        return back()->with('success', $computer->activityLabel().': '.$computer->repair_stage->label().'.');
+        return back()->with('success', $computer->activityLabel().': '.$computer->repair_stage->label().'.')->with('success_autohide', 3000);
     }
 
     public function move(Request $request, Computer $computer): RedirectResponse
@@ -77,16 +90,21 @@ class RepairController extends Controller
 
         return back()->with($moved ? 'success' : 'warning', $moved
             ? $computer->activityLabel().' дараалалд #'.$computer->repairQueueNumber().' боллоо.'
-            : 'Цааш шилжүүлэх боломжгүй.');
+            : 'Цааш шилжүүлэх боломжгүй.')->with('success_autohide', 3000);
     }
 
     /** Ажилтны эвдрэлийн хүсэлтээс компьютерийг засварын дараалалд оруулна */
     public function fromRequest(Request $request, AssetRequest $assetRequest): RedirectResponse
     {
+        // Зөвхөн харах эрхтэй (Админд өөрийн салбарын) хүсэлт
+        abort_unless(AssetRequest::visibleTo($request->user())->whereKey($assetRequest->id)->exists(), 403);
         $computer = $assetRequest->computer;
 
         if ($assetRequest->type !== 'issue' || ! $computer) {
             return back()->withErrors(['request' => 'Энэ хүсэлтэд компьютер сонгоогүй тул дараалалд оруулах боломжгүй.']);
+        }
+        if ($computer->status === ComputerStatus::Decommissioned) {
+            return back()->withErrors(['request' => 'Актласан төхөөрөмжийг засварт оруулах боломжгүй.']);
         }
 
         if ($computer->status !== ComputerStatus::InRepair) {
@@ -98,6 +116,6 @@ class RepairController extends Controller
 
         // Ажилтны хүсэлт → Засвар: дараалалд орсон төхөөрөмжийг Засвар хуудаснаас үргэлжлүүлнэ
         return redirect()->route('repairs.index')
-            ->with('success', $computer->activityLabel().' засварын дараалалд #'.$computer->repairQueueNumber().' орлоо.');
+            ->with('success', $computer->activityLabel().' засварын дараалалд #'.$computer->repairQueueNumber().' орлоо.')->with('success_autohide', 3000);
     }
 }
