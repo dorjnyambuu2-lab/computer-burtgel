@@ -10,31 +10,39 @@
 
     $warranty = $computer->warrantyState();
 
-    // Ажилтанд харуулах мэдээлэл. Дотоод "Тэмдэглэл" талбарыг санаатайгаар оруулаагүй.
+    // Ангилалд хамааралгүй, хоосон талбарыг харуулахгүй (дэлгэц, mouse, keyboard-д CPU, RAM, диск ...) — Админы хуудастай ижил
+    $relevant = \App\Enums\EquipmentCategory::specFieldsFor($computer->category);
+    $specRows = fn (array $rows) => collect($rows)
+        ->filter(fn ($row) => in_array($row[0], $relevant, true) || filled($row[1]))
+        ->map(fn ($row) => $row[1])
+        ->all();
+    $repairNumber = $computer->repairQueueNumber();
+
+    // Ажилтанд харуулах мэдээлэл. Дотоод "Тэмдэглэл", үнийг санаатайгаар оруулаагүй.
     $sections = [
-        'Үндсэн мэдээлэл' => [
+        'Үндсэн мэдээлэл' => array_filter([
             'Бүртгэлийн дугаар' => $computer->inventory_number,
-            'Компьютерийн нэр' => $computer->name,
+            'Нэр' => $computer->name,
             'Ангилал' => $computer->category?->label(),
             'Төрөл' => $computer->type?->label(),
             'Төлөв' => $computer->status?->label(),
-            'Засварын дараалал' => $computer->repairQueueNumber()
-                ? '#'.$computer->repairQueueNumber().' · '.$computer->repair_stage?->label()
-                : null,
-        ],
-        'Техникийн үзүүлэлт' => [
-            'Үйлдвэрлэгч' => $computer->brand,
-            'Загвар' => $computer->model,
-            'Серийн дугаар' => $computer->serial_number,
-            'Процессор (CPU)' => $computer->cpu,
-            'RAM' => $computer->ramLabel(),
-            'Санах ой (диск)' => $computer->storage,
-            'Үйлдлийн систем' => $computer->os,
-        ],
-        'Сүлжээ' => [
+            'Засварын дараалал' => $repairNumber ? '#'.$repairNumber.' · '.($computer->repair_stage?->label() ?? 'Дараалалд') : null,
+        ], fn ($v, $k) => $k !== 'Засварын дараалал' || $v !== null, ARRAY_FILTER_USE_BOTH),
+        'Техникийн үзүүлэлт' => $specRows([
+            'Үйлдвэрлэгч' => ['brand', $computer->brand],
+            'Загвар' => ['model', $computer->model],
+            'Серийн дугаар' => ['serial_number', $computer->serial_number],
+            'Процессор (CPU)' => ['cpu', $computer->cpu],
+            'RAM' => ['ram_gb', $computer->ramLabel()],
+            'Санах ой (диск)' => ['storage', $computer->storage],
+            'Үйлдлийн систем' => ['os', $computer->os],
+            'Үзүүлэлт' => ['specs', $computer->specs],
+        ]),
+        // IP, MAC: зөвхөн бөглөгдсөн бол (дэлгэц, mouse-д байхгүй)
+        'Сүлжээ' => array_filter([
             'IP хаяг' => $computer->ip_address,
             'MAC хаяг' => $computer->mac_address,
-        ],
+        ]),
         'Байршил' => [
             'Алба хэлтэс' => $computer->department,
             'Байршил' => $computer->location,
@@ -80,7 +88,7 @@
         </form>
     @endunless
 
-    @foreach ($sections as $title => $rows)
+    @foreach (array_filter($sections) as $title => $rows)
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 class="mb-3 text-sm font-semibold text-slate-700">{{ $title }}</h2>
             <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">

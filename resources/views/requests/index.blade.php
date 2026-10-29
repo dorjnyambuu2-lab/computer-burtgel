@@ -90,7 +90,7 @@
                         @endif
                     </td>
                     <td class="whitespace-nowrap px-4 py-3">
-                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $badge[$r->status] ?? 'bg-slate-100 text-slate-600' }}"><span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ $statuses[$r->status] ?? $r->status }}</span>
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $badge[$r->status] ?? 'bg-slate-100 text-slate-600' }}"><span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ $r->statusLabel() }}</span>
                         {{-- Засварт байгаа бол явц --}}
                         @if ($r->type === 'issue' && $r->computer?->status === \App\Enums\ComputerStatus::InRepair)
                             <a href="{{ route('repairs.index') }}" class="mt-1 block text-xs font-medium !text-amber-700 hover:underline">Засварт #{{ $queueNumbers[$r->computer->id] ?? '' }} · {{ $r->computer->repair_stage?->label() ?? 'Дараалалд' }}</a>
@@ -117,7 +117,7 @@
                                     @csrf @method('PATCH')
                                     <label class="block text-xs font-medium text-slate-500">Төлөв
                                         <select name="status" class="{{ $sel }} mt-1 block w-full">
-                                            @foreach ($statuses as $k => $v)<option value="{{ $k }}" @selected($r->status === $k)>{{ $v }}</option>@endforeach
+                                            @foreach (\App\Http\Controllers\AssetRequestController::statusesFor($r->type) as $k => $v)<option value="{{ $k }}" @selected($r->status === $k)>{{ $v }}</option>@endforeach
                                         </select>
                                     </label>
                                     <label class="block text-xs font-medium text-slate-500">Ажилтанд хариу

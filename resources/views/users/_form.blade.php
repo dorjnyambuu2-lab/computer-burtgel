@@ -15,7 +15,6 @@
 @endphp
 
 <div class="mx-auto max-w-3xl space-y-6">
-    <p class="text-sm text-slate-500"><span class="text-rose-500">*</span> тэмдэгтэй талбарыг заавал бөглөнө.</p>
 
     @if ($errors->any())
         <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -77,13 +76,27 @@
             </div>
             <div>
                 <label for="password" class="{{ $lb }}">Нууц үг @unless($isEdit)<span class="text-rose-500">*</span>@endunless</label>
-                <input id="password" name="password" type="password" @required(! $isEdit) autocomplete="new-password" class="{{ $in }}">
+                <div class="relative mt-1">
+                    <input id="password" name="password" type="password" @required(! $isEdit) autocomplete="new-password" class="{{ $in }} !mt-0 !pr-11">
+                    <button type="button" data-pw-toggle title="Нууц үг харах" aria-label="Нууц үг харах"
+                            class="absolute inset-y-0 right-0 flex !min-h-0 items-center !rounded-none !border-0 !bg-transparent !px-3 !py-0 !text-slate-400 transition hover:!text-slate-700">
+                        <svg data-eye viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg data-eye-off viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><path d="M17.9 17.9A10.4 10.4 0 0112 19c-6.5 0-10-7-10-7a18.5 18.5 0 015.1-5.9M9.9 5.2A9.6 9.6 0 0112 5c6.5 0 10 7 10 7a18.6 18.6 0 01-2.2 3.2M14.1 14.1a3 3 0 11-4.2-4.2M3 3l18 18"/></svg>
+                    </button>
+                </div>
                 <p class="mt-1 text-xs text-slate-500">{{ $isEdit ? 'Солихгүй бол хоосон үлдээнэ.' : 'Хамгийн багадаа 8 тэмдэгт.' }}</p>
                 @error('password')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
             </div>
             <div>
                 <label for="password_confirmation" class="{{ $lb }}">Нууц үг давтах @unless($isEdit)<span class="text-rose-500">*</span>@endunless</label>
-                <input id="password_confirmation" name="password_confirmation" type="password" @required(! $isEdit) autocomplete="new-password" class="{{ $in }}">
+                <div class="relative mt-1">
+                    <input id="password_confirmation" name="password_confirmation" type="password" @required(! $isEdit) autocomplete="new-password" class="{{ $in }} !mt-0 !pr-11">
+                    <button type="button" data-pw-toggle title="Нууц үг харах" aria-label="Нууц үг харах"
+                            class="absolute inset-y-0 right-0 flex !min-h-0 items-center !rounded-none !border-0 !bg-transparent !px-3 !py-0 !text-slate-400 transition hover:!text-slate-700">
+                        <svg data-eye viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg data-eye-off viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><path d="M17.9 17.9A10.4 10.4 0 0112 19c-6.5 0-10-7-10-7a18.5 18.5 0 015.1-5.9M9.9 5.2A9.6 9.6 0 0112 5c6.5 0 10 7 10 7a18.6 18.6 0 01-2.2 3.2M14.1 14.1a3 3 0 11-4.2-4.2M3 3l18 18"/></svg>
+                    </button>
+                </div>
             </div>
             <div class="md:col-span-2">
                 <input type="hidden" name="is_active" value="0">
@@ -300,7 +313,14 @@
                             @if ($deptValue !== '' && ! $deptList->contains('name', $deptValue))
                                 <option value="{{ $deptValue }}" selected>{{ $deptValue }}</option>
                             @endif
+                            <option value="__new__">＋ Шинэ алба нэмэх…</option>
                         </select>
+                        {{-- Жагсаалтад байхгүй (шинэ салбар г.м.): нэрийг бичнэ, хадгалахад сонгосон салбарт алба үүснэ --}}
+                        <div data-department-new hidden class="mt-2 flex gap-2">
+                            <input type="text" name="department" maxlength="255" disabled class="{{ $in }} !mt-0 min-w-0 flex-1" placeholder="Шинэ албаны нэр" autocomplete="off">
+                            <button type="button" data-department-cancel title="Жагсаалтаас сонгох" aria-label="Жагсаалтаас сонгох"
+                                    class="flex !h-auto !min-h-0 shrink-0 items-center !rounded-xl !border !border-slate-300 !bg-white !px-3 !py-0 !text-slate-500 hover:!bg-slate-50">✕</button>
+                        </div>
                     @else
                         <input id="{{ $field }}" name="{{ $field }}" type="text" value="{{ old($field, $user->$field) }}" maxlength="255"
                                list="{{ $field }}-options" class="{{ $in }}" placeholder="{{ $placeholder }}" autocomplete="off">
@@ -317,8 +337,21 @@
             // Алба: сонгосон салбарын (radio) хэлтсүүд л; өөр салбарынх сонгогдсон бол арилгана
             (function () {
                 const select = document.querySelector('[data-department-select]');
+                const box = document.querySelector('[data-department-new]');
+                const input = box ? box.querySelector('input') : null;
                 const radios = Array.from(document.querySelectorAll('input[name="branch_id"]'));
-                if (!select || !radios.length) return;
+                if (!select) return;
+
+                // «＋ Шинэ алба»: жагсаалтын оронд бичих талбар (зөвхөн аль нэг нь илгээгдэнэ)
+                function typing(on) {
+                    select.hidden = select.disabled = on;
+                    box.hidden = !on;
+                    input.disabled = !on;
+                    if (on) input.focus(); else { input.value = ''; select.value = ''; }
+                }
+                select.addEventListener('change', function () { if (select.value === '__new__') typing(true); });
+                box.querySelector('[data-department-cancel]').addEventListener('click', function () { typing(false); });
+
                 function filter() {
                     const picked = radios.find(function (r) { return r.checked; });
                     const branch = picked && picked.value !== 'new' ? picked.value : '';
@@ -342,3 +375,17 @@
         </button>
     </div>
 </div>
+<script>
+// Нууц үг харах / нуух (нүд, зураастай нүд)
+document.querySelectorAll('[data-pw-toggle]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var input = btn.parentElement.querySelector('input');
+        var show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.querySelector('[data-eye]').style.display = show ? 'none' : '';
+        btn.querySelector('[data-eye-off]').style.display = show ? '' : 'none';
+        btn.title = show ? 'Нууц үг нуух' : 'Нууц үг харах';
+        btn.setAttribute('aria-label', btn.title);
+    });
+});
+</script>

@@ -5,113 +5,142 @@
     $me = auth()->user();
     $q = trim((string) request('q'));
 
-    // Миний төхөөрөмж: хэрэглэгчийн ID-аар (нэр солигдсон ч алга болохгүй); хуучин, хэрэглэгчтэй холбогдоогүй
-    // текстэн хариуцагч нь нэр / нэвтрэх нэр / имэйлээр
-    $mineQuery = \App\Models\Computer::query()->where(function ($w) use ($me) {
-        $w->where('assigned_user_id', $me->id)
-            ->orWhere(fn ($t) => $t->whereNull('assigned_user_id')->whereIn('assigned_to', array_filter([$me->name, $me->username, $me->email])));
-    });
-    $assets = (clone $mineQuery)->when($q !== '', fn($x) => $x->where(fn($w) => $w
-            ->where('name', 'like', "%$q%")->orWhere('serial_number', 'like', "%$q%")
-            ->orWhere('brand', 'like', "%$q%")->orWhere('model', 'like', "%$q%")))
-        ->orderBy('name')->get();
-    $total = (clone $mineQuery)->count();
+    // Миний төхөөрөмж: хэрэглэгчийн ID-аар (нэр солигдсон ч алга болохгүй). Акт баталгаажуулах, эвдрэл
+    // мэдээлэх (AssetRequestController::mine) мөн ижил нөхцөлөөр шалгадаг тул энд ч ижил байна.
+    $mineQuery = \App\Models\Computer::query()->where('assigned_user_id', $me->id);
+    $allMine = (clone $mineQuery)->orderBy('name')->get();
+    $assets = $q === '' ? $allMine : $allMine->filter(fn ($c) => collect([$c->name, $c->serial_number, $c->inventory_number, $c->brand, $c->model])
+        ->contains(fn ($v) => $v !== null && mb_stripos($v, $q) !== false))->values();
+    $total = $allMine->count();
     $queueNumbers = \App\Models\Computer::repairQueueNumbers();
 
     $hasReq = Schema::hasTable('asset_requests');
-    $openIssues = $hasReq ? AssetRequest::where('user_id', $me->id)->where('type', 'issue')->whereIn('status', ['pending', 'in_progress'])->count() : 0;
-    $unack = Schema::hasColumn('computers', 'acknowledged_at') ? (clone $mineQuery)->whereNull('acknowledged_at')->count() : 0;
+    // Шийдэгдээгүй (хүлээгдэж буй, хийгдэж буй) бүх хүсэлт: эвдрэл + захиалга
+    $openRequests = $hasReq ? AssetRequest::where('user_id', $me->id)->whereIn('status', ['pending', 'in_progress'])->count() : 0;
+    $unack = $allMine->whereNull('acknowledged_at')->count();
 
-    $typeMap = ['desktop' => 'Суурин компьютер', 'laptop' => 'Ноутбук', 'server' => 'Сервер', 'all_in_one' => 'All-in-one',
-                'workstation' => 'Ажлын станц', 'tablet' => 'Таблет', 'monitor' => 'Монитор', 'other' => 'Бусад'];
-    $text = function ($v) {
-        if ($v instanceof \UnitEnum) return method_exists($v, 'label') ? (string) $v->label() : (string) ($v instanceof \BackedEnum ? $v->value : $v->name);
-        return is_scalar($v) ? (string) $v : '';
-    };
-    $statusMap = ['new' => 'Шинэ', 'active' => 'Идэвхтэй', 'in_use' => 'Идэвхтэй', 'in_repair' => 'Засварт', 'repair' => 'Засварт',
-                  'storage' => 'Агуулахад', 'retired' => 'Актласан'];
     $in = 'mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
 @endphp
 
-{{-- Акт баталгаажуулалт --}}
+@php
+    // Иж бүрдлээр бүлэглэнэ: үндсэн төхөөрөмж (компьютер ...) → түүний дагалдах хэрэгслүүд (дэлгэц, mouse ...)
+    $assetIds = $assets->pluck('id');
+    $children = $assets->filter(fn ($c) => $c->kit_parent_id && $assetIds->contains($c->kit_parent_id))->groupBy('kit_parent_id');
+    $mains = $assets->reject(fn ($c) => $c->kit_parent_id && $assetIds->contains($c->kit_parent_id))
+        ->sortBy(fn ($c) => [in_array($c->category?->value, ['processor', 'laptop'], true) ? 0 : 1, $c->name])->values();
+    $inRepair = $allMine->filter(fn ($c) => isset($queueNumbers[$c->id]))->count();
+    $deviceName = fn ($c) => trim($c->brand.' '.$c->model) ?: $c->name;
+    $iconPath = fn ($c) => ($c->category ?? \App\Enums\EquipmentCategory::Processor)->icon();
+@endphp
+
+{{-- Үндсэн үйлдлүүд --}}
+<div class="mb-5 flex flex-wrap items-center justify-end gap-4">
+    <div class="flex flex-wrap gap-2">
+        <button type="button" onclick="document.getElementById('dlg-issue').showModal()"
+                class="inline-flex h-10 !min-h-0 items-center gap-2 !rounded-lg !border !border-rose-200 !bg-white !px-4 !py-0 !text-sm !font-semibold !text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:!bg-rose-50 hover:shadow-md">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>
+            Эвдрэл мэдээлэх
+        </button>
+        <button type="button" onclick="document.getElementById('dlg-request').showModal()"
+                class="inline-flex h-10 !min-h-0 items-center gap-2 !rounded-lg !border-blue-600 !bg-blue-600 !px-4 !py-0 !text-sm !font-semibold !text-white shadow-sm transition hover:-translate-y-0.5 hover:!bg-blue-700 hover:shadow-md">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Төхөөрөмж захиалах
+        </button>
+    </div>
+</div>
+
+{{-- Акт баталгаажуулалт (хүлээгдэж буй бол) --}}
 @if ($unack > 0)
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-        <div class="flex items-start gap-3">
-            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-100 text-lg">📝</div>
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+        <div class="flex items-center gap-3">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4M7 3h10l2 3v15H5V6z"/></svg>
+            </span>
             <div>
-                <div class="font-semibold text-amber-900">Акт баталгаажуулалт шаардлагатай</div>
-                <p class="text-sm text-amber-800">Танд хариуцуулсан {{ $unack }} төхөөрөмжийн хүлээлцэх актыг шалгаж, хүлээн авснаа баталгаажуулна уу.</p>
+                <div class="font-semibold text-amber-900">{{ $unack }} төхөөрөмжийн хүлээлцэх акт баталгаажуулаагүй</div>
+                <p class="text-sm text-amber-800">Төхөөрөмжүүдээ шалгаад хүлээн авснаа баталгаажуулна уу.</p>
             </div>
         </div>
         <form method="POST" action="{{ url('/my/acknowledge') }}">@csrf
-            <button type="submit" class="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600">Акт баталгаажуулах</button>
+            <button type="submit" class="h-10 !min-h-0 !rounded-lg !border-amber-500 !bg-amber-500 !px-5 !py-0 !text-sm !font-semibold !text-white hover:!bg-amber-600">Баталгаажуулах</button>
         </form>
     </div>
 @endif
-{{-- Бүх акт баталгаажсан үед байнгын мэдээ харуулахгүй: баталгаажуулсны дараа нэг удаа «Акт баталгаажлаа» гарна --}}
 
-<div class="mb-6 flex flex-wrap items-center justify-end gap-3">
-    <div class="flex flex-wrap gap-3">
-        <button type="button" onclick="document.getElementById('dlg-issue').showModal()"
-                class="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-50">🛠 Эвдрэл мэдээлэх / Засварт өгөх</button>
-        <button type="button" onclick="document.getElementById('dlg-request').showModal()"
-                class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">＋ Шинэ төхөөрөмж захиалах</button>
-    </div>
+{{-- Тоо: дарахад доорх жагсаалт шүүгдэнэ / хүсэлтүүд рүү гүйлгэнэ --}}
+<div class="mb-5 grid gap-3 sm:grid-cols-3">
+    @foreach ([
+        ['all', 'Миний төхөөрөмж', $total, 'bg-blue-50 text-blue-600', 'M4 5h16v11H4zM8 20h8M12 16v4'],
+        ['repair', 'Засварт байгаа', $inRepair, 'bg-amber-50 text-amber-600', 'M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z'],
+        ['requests', 'Хүсэлт', $openRequests, 'bg-violet-50 text-violet-600', 'M9 5h10M9 12h10M9 19h10M4 5h.01M4 12h.01M4 19h.01'],
+    ] as [$key, $label, $value, $tone, $path])
+        <button type="button" data-emp-card="{{ $key }}"
+                class="flex !min-h-0 items-center gap-4 !rounded-2xl !border !border-slate-200 !bg-white !px-5 !py-4 text-left !font-normal !text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:!border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 data-[active]:!border-blue-400 data-[active]:ring-2 data-[active]:ring-blue-100">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl {{ $tone }}">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ $path }}"/></svg>
+            </span>
+            <span>
+                <span class="block text-2xl font-bold leading-none text-slate-900">{{ $value }}</span>
+                <span class="mt-1 block text-xs text-slate-500">{{ $label }}</span>
+            </span>
+        </button>
+    @endforeach
 </div>
 
-{{-- Summary --}}
-<div class="grid gap-4 sm:grid-cols-2">
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div class="text-sm font-semibold text-slate-600">Миний эзэмшиж буй төхөөрөмж</div>
-        <div class="mt-3 text-3xl font-bold">{{ $total }} <span class="text-base font-medium text-slate-500">төхөөрөмж</span></div>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div class="text-sm font-semibold text-slate-600">Идэвхтэй засварын хүсэлт</div>
-        <div class="mt-3 text-3xl font-bold">{{ $openIssues }} <span class="text-base font-medium text-slate-500">хүсэлт</span></div>
-    </div>
-</div>
-
-{{-- Assets --}}
-<section class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-    <div class="flex items-center justify-between p-6 pb-3">
-        <div><h2 class="font-bold">Эзэмшиж буй хөрөнгө</h2></div>
-        @if ($q !== '')<a href="{{ url('/') }}" class="text-xs font-semibold text-blue-600">Хайлт цэвэрлэх</a>@endif
+{{-- Миний төхөөрөмж: иж бүрдлээр, мөр дээр дарахад дэлгэрэнгүй --}}
+<section id="my-devices" class="scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
+        <h2 class="!mb-0 text-xs font-semibold uppercase tracking-wide text-slate-500">Миний төхөөрөмж<span data-emp-filter-label hidden> · Засварт байгаа</span></h2>
+        <span class="flex items-center gap-3">
+            <button type="button" data-emp-card="all" data-emp-reset hidden class="!min-h-0 !border-0 !bg-transparent !p-0 text-xs !font-semibold !text-blue-600 hover:underline">Бүгдийг харах</button>
+            @if ($q !== '')<a href="{{ url('/') }}" class="text-xs font-semibold !text-blue-600 hover:underline">Хайлт цэвэрлэх</a>@endif
+        </span>
     </div>
     <ul class="divide-y divide-slate-100">
-        @forelse ($assets as $c)
-            @php
-                $tv = $text($c->type);
-                $sv = $text($c->status);
-                // Ангилал (Дэлгэц, Mouse ...) байвал түүгээр, үгүй бол төрлөөр (Суурин компьютер ...)
-                $tLabel = $c->category?->label() ?? $typeMap[$tv] ?? ($tv ?: 'Төхөөрөмж');
-                $sLabel = $statusMap[$sv] ?? $sv;
-                $sKey = strtolower($sv);
-                $badge = str_contains($sKey, 'repair') ? 'bg-amber-50 text-amber-700'
-                        : (str_contains($sKey, 'retire') || str_contains($sKey, 'stor') ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700');
-            @endphp
-            <li class="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-                <div class="flex items-center gap-4">
-                    <div class="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-blue-600">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $c->category?->icon() ?? 'M4 5h16v11H4zM8 20h8M12 16v4' }}"/></svg>
+        <li data-emp-repair-empty hidden class="px-5 py-12 text-center text-sm text-slate-400">Засварт байгаа төхөөрөмж алга.</li>
+        @forelse ($mains as $c)
+            @php $kitInRepair = isset($queueNumbers[$c->id]) || ($children[$c->id] ?? collect())->contains(fn ($i) => isset($queueNumbers[$i->id])); @endphp
+            <li data-emp-device @if ($kitInRepair) data-repair @endif>
+                <a href="{{ route('my.computers.show', $c->id) }}" class="flex items-center gap-4 px-5 py-4 !text-slate-900 transition hover:bg-slate-50">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ $iconPath($c) }}"/></svg>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                        <span class="flex flex-wrap items-baseline gap-x-2">
+                            <span class="font-semibold">{{ $deviceName($c) }}</span>
+                            <span class="text-xs text-slate-500">{{ $c->category?->label() ?? $c->type?->label() }}</span>
+                        </span>
+                        <span class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
+                            <span class="font-mono">{{ $c->inventory_number }}</span>
+                            @if ($c->serial_number)<span>S/N {{ $c->serial_number }}</span>@endif
+                            @if ($c->acknowledged_at)<span class="text-emerald-600">✓ Акт баталгаажсан</span>@else<span class="text-amber-600">Акт хүлээгдэж байна</span>@endif
+                        </span>
+                    </span>
+                    <span class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                        @if (isset($queueNumbers[$c->id]))
+                            <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800" title="Засварын дараалал">Засварт #{{ $queueNumbers[$c->id] }} · {{ $c->repair_stage?->label() ?? 'Дараалалд' }}</span>
+                        @else
+                            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $c->status->badgeClasses() }}"><span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ $c->status->label() }}</span>
+                        @endif
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-300" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                    </span>
+                </a>
+                {{-- Иж бүрдлийн дагалдах хэрэгслүүд --}}
+                @if ($children->has($c->id))
+                    <div class="flex flex-wrap gap-2 px-5 pb-4 pl-20">
+                        @foreach ($children[$c->id]->sortBy('kit_index') as $item)
+                            <a href="{{ route('my.computers.show', $item->id) }}" title="{{ $item->inventory_number }}"
+                               class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1 text-xs !text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400" aria-hidden="true"><path d="{{ $iconPath($item) }}"/></svg>
+                                {{ $item->category?->label() }}@if (trim($item->brand.' '.$item->model) !== '') · {{ trim($item->brand.' '.$item->model) }}@endif
+                                @if (isset($queueNumbers[$item->id]))<span class="font-semibold text-amber-700">· Засварт</span>@endif
+                            </a>
+                        @endforeach
                     </div>
-                    <div>
-                        <div class="font-semibold">{{ $tLabel }}: {{ trim($c->brand . ' ' . $c->model) ?: $c->name }}</div>
-                        <div class="text-xs text-slate-500">
-                            Сериал: {{ $c->serial_number ?: '—' }} · Дугаар: {{ $c->inventory_number ?: '—' }}
-                            @if ($c->acknowledged_at ?? null) · <span class="text-emerald-600">Акт баталгаажсан</span>@endif
-                        </div>
-                    </div>
-                </div>
-                <span class="flex flex-wrap items-center gap-2">
-                    @if (isset($queueNumbers[$c->id]))
-                        <span class="rounded-full bg-amber-100 px-3 py-1 font-mono text-xs font-bold text-amber-800" title="Засварын дараалал">#{{ $queueNumbers[$c->id] }}</span>
-                        <span class="rounded-full px-3 py-1 text-xs {{ $c->repair_stage?->badgeClasses() }}">{{ $c->repair_stage?->label() }}</span>
-                    @endif
-                    <span class="rounded-full px-3 py-1 text-xs font-medium {{ $badge }}">Төлөв: {{ $sLabel }}</span>
-                </span>
+                @endif
             </li>
         @empty
-            <li class="px-6 py-10 text-center text-sm text-slate-400">
+            <li data-emp-device class="px-5 py-12 text-center text-sm text-slate-400">
                 {{ $q !== '' ? 'Хайлтад тохирох төхөөрөмж олдсонгүй.' : 'Танд одоогоор хариуцуулсан төхөөрөмж байхгүй байна.' }}
             </li>
         @endforelse
@@ -120,32 +149,75 @@
 
 {{-- Миний хүсэлтүүд --}}
 @php
-    $myReqs = $hasReq ? AssetRequest::where('user_id', $me->id)->latest()->limit(8)->get() : collect();
-    $rs = \App\Http\Controllers\AssetRequestController::STATUSES;
-    $rb = ['pending' => 'bg-amber-50 text-amber-700', 'in_progress' => 'bg-blue-50 text-blue-700', 'done' => 'bg-emerald-50 text-emerald-700', 'rejected' => 'bg-rose-50 text-rose-700'];
+    $myReqs = $hasReq ? AssetRequest::where('user_id', $me->id)->with('computer:id,name,brand,model')->latest()->limit(8)->get() : collect();
+    $rb = ['pending' => 'bg-amber-100 text-amber-800', 'in_progress' => 'bg-blue-100 text-blue-700', 'done' => 'bg-emerald-100 text-emerald-700', 'rejected' => 'bg-rose-100 text-rose-700'];
 @endphp
-@if ($myReqs->isNotEmpty())
-<section class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-    <div class="p-6 pb-3"><h2 class="font-bold">Миний хүсэлтүүд</h2><p class="text-xs text-slate-500">Сүүлд илгээсэн эвдрэл, захиалгууд</p></div>
+@if ($hasReq)
+<section id="my-requests" class="mt-5 scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition">
+    <h2 class="!mb-0 border-b border-slate-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Миний хүсэлтүүд</h2>
     <ul class="divide-y divide-slate-100">
-        @foreach ($myReqs as $r)
-            <li class="flex flex-wrap items-start justify-between gap-3 px-6 py-4">
-                <div>
-                    <div class="font-semibold">{{ $r->type === 'issue' ? '🛠 Эвдрэл' : '＋ Захиалга' }}: {{ $r->subject ?: \Illuminate\Support\Str::limit($r->description, 50) }}</div>
-                    <div class="text-xs text-slate-500">{{ $r->created_at->format('Y-m-d H:i') }}</div>
-                    @if ($r->admin_note)<div class="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">Хариу: {{ $r->admin_note }}</div>@endif
+        @forelse ($myReqs as $r)
+            <li class="flex flex-wrap items-start gap-3 px-5 py-3.5">
+                <span class="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium {{ $r->type === 'issue' ? 'bg-rose-50 text-rose-700' : 'bg-indigo-50 text-indigo-700' }}">{{ $r->type === 'issue' ? 'Эвдрэл' : 'Захиалга' }}</span>
+                <div class="min-w-0 flex-1">
+                    <div class="font-medium text-slate-900">{{ $r->subject ?: \Illuminate\Support\Str::limit($r->description, 60) }}@if ($r->computer)<span class="font-normal text-slate-500"> · {{ trim($r->computer->brand.' '.$r->computer->model) ?: $r->computer->name }}</span>@endif</div>
+                    <div class="text-xs text-slate-400">{{ $r->created_at->format('Y-m-d H:i') }}</div>
+                    @if ($r->admin_note)<div class="mt-1.5 rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600"><span class="font-semibold text-slate-700">Хариу:</span> {{ $r->admin_note }}</div>@endif
                 </div>
-                <span class="rounded-full px-3 py-1 text-xs font-medium {{ $rb[$r->status] ?? 'bg-slate-100 text-slate-600' }}">{{ $rs[$r->status] ?? $r->status }}</span>
+                <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $rb[$r->status] ?? 'bg-slate-100 text-slate-600' }}"><span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ $r->statusLabel() }}</span>
             </li>
-        @endforeach
+        @empty
+            <li class="px-5 py-10 text-center text-sm text-slate-400">Илгээсэн хүсэлт алга.</li>
+        @endforelse
     </ul>
 </section>
 @endif
+
+<script>
+(() => {
+    const cards = document.querySelectorAll('[data-emp-card]');
+    const rows = document.querySelectorAll('[data-emp-device]');
+    const repairEmpty = document.querySelector('[data-emp-repair-empty]');
+    const label = document.querySelector('[data-emp-filter-label]');
+    const reset = document.querySelector('[data-emp-reset]');
+    const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const filter = (mode) => {
+        const repairOnly = mode === 'repair';
+        let shown = 0;
+        rows.forEach((li) => {
+            const show = !repairOnly || li.hasAttribute('data-repair');
+            li.hidden = !show;
+            if (show) shown++;
+        });
+        if (repairEmpty) repairEmpty.hidden = !(repairOnly && shown === 0);
+        if (label) label.hidden = !repairOnly;
+        if (reset) reset.hidden = !repairOnly;
+        cards.forEach((c) => c.toggleAttribute('data-active', repairOnly && c.dataset.empCard === 'repair'));
+    };
+
+    cards.forEach((card) => card.addEventListener('click', () => {
+        const mode = card.dataset.empCard;
+        if (mode === 'requests') {
+            const box = document.getElementById('my-requests');
+            go('my-requests');
+            box?.classList.add('ring-2', 'ring-violet-200');
+            setTimeout(() => box?.classList.remove('ring-2', 'ring-violet-200'), 1200);
+            return;
+        }
+        filter(mode);
+        if (!card.hasAttribute('data-emp-reset')) go('my-devices');
+    }));
+})();
+</script>
 
 {{-- Эвдрэл мэдээлэх: 1) аль төхөөрөмж, 2) ямар асуудал (товч), 3) тайлбар --}}
 @php
     $issueOld = old('type') === 'issue';
     $pickedIssue = $issueOld ? (string) old('computer_id') : '';
+    // Шийдэгдээгүй эвдрлийн хүсэлттэй төхөөрөмжийг дахин мэдээлэхгүй (давхар хүсэлт)
+    $reportedIds = $hasReq ? AssetRequest::where('user_id', $me->id)->where('type', 'issue')->whereIn('status', ['pending', 'in_progress'])
+        ->whereNotNull('computer_id')->pluck('computer_id')->map(fn ($id) => (int) $id)->all() : [];
     // Төхөөрөмжийн төрлөөр түгээмэл асуудлууд (дарахад «Асуудал» талбарт бичигдэнэ)
     $problems = [
         'computer' => ['Асахгүй байна', 'Удаан ажиллаж байна', 'Гацаж, унтарч байна', 'Интернэт холбогдохгүй', 'Програм ажиллахгүй', 'Чимээ гаргаж байна'],
@@ -180,11 +252,14 @@
             <fieldset>
                 <legend class="mb-2 text-sm font-semibold text-slate-800"><span class="mr-1 inline-grid h-5 w-5 place-items-center rounded-full bg-rose-100 text-xs text-rose-700">1</span> Аль төхөөрөмж эвдэрсэн бэ?</legend>
                 <div class="grid gap-2 sm:grid-cols-2">
-                    @foreach ($assets as $c)
-                        @php $inRepair = isset($queueNumbers[$c->id]); @endphp
-                        <label class="{{ $card }} {{ $inRepair ? 'opacity-60' : '' }}">
+                    @foreach ($allMine as $c)
+                        @php
+                            $busy = isset($queueNumbers[$c->id]);
+                            $reported = in_array($c->id, $reportedIds, true);
+                        @endphp
+                        <label class="{{ $card }} {{ $busy || $reported ? 'cursor-not-allowed opacity-60' : '' }}">
                             <input type="radio" name="computer_id" value="{{ $c->id }}" class="sr-only" data-group="{{ $problemGroup($c->category) }}"
-                                   @checked($pickedIssue === (string) $c->id) @disabled($inRepair)>
+                                   @checked($pickedIssue === (string) $c->id) @disabled($busy || $reported)>
                             <span class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600">
                                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ ($c->category ?? \App\Enums\EquipmentCategory::Processor)->icon() }}"/></svg>
                             </span>
@@ -192,7 +267,8 @@
                                 <span class="block text-xs font-medium text-slate-500">{{ $c->category?->label() ?? 'Компьютер' }}</span>
                                 <span class="block truncate text-sm font-semibold text-slate-900" data-device-name>{{ trim($c->brand.' '.$c->model) ?: $c->name }}</span>
                                 <span class="block font-mono text-[11px] text-slate-400">{{ $c->inventory_number }}</span>
-                                @if ($inRepair)<span class="mt-0.5 block text-[11px] font-semibold text-amber-700">Аль хэдийн засварт · #{{ $queueNumbers[$c->id] }}</span>@endif
+                                @if ($busy)<span class="mt-0.5 block text-[11px] font-semibold text-amber-700">Аль хэдийн засварт · #{{ $queueNumbers[$c->id] }}</span>
+                                @elseif ($reported)<span class="mt-0.5 block text-[11px] font-semibold text-amber-700">Эвдрэл мэдээлсэн, хариу хүлээгдэж байна</span>@endif
                             </span>
                         </label>
                     @endforeach
@@ -282,8 +358,7 @@
 
 {{-- Шинэ төхөөрөмж захиалах: төхөөрөмж, тоо, шалтгааныг сонгоод илгээнэ (жагсаалтад байхгүй бол гараар) --}}
 @php
-    $owned = \App\Models\Computer::query()->where('assigned_user_id', $me->id)->get()
-        ->countBy(fn ($c) => $c->category?->value ?? 'other');
+    $owned = $allMine->countBy(fn ($c) => $c->category?->value ?? 'other');
     $reasons = [
         'Шинэ ажилтан, ажлын байрны тоноглол',
         'Одоогийн төхөөрөмж эвдэрсэн / ажиллахгүй',
@@ -399,7 +474,14 @@
         if (!subject.value) { e.preventDefault(); error.classList.remove('hidden'); }
     });
 
-    qtys[0].click(); // анхдагч: 1
+    // Алдаатай буцаж нээгдвэл өмнөх сонголтыг («Дэлгэц ×2») сэргээнэ, үгүй бол анхдагч: 1
+    const prev = subject.value.match(/^(.*?)(?: ×(\d))?$/);
+    const prevItem = prev && prev[1] ? items.find(function (b) { return b.dataset.item === prev[1]; }) : null;
+    if (prev && prev[1]) {
+        if (prevItem) prevItem.click();
+        else { items.find(function (b) { return b.dataset.other === '1'; })?.click(); other.value = prev[1]; }
+    }
+    (qtys.find(function (b) { return prev && b.dataset.qty === prev[2]; }) || qtys[0]).click();
 })();
 </script>
 

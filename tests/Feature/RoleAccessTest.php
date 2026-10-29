@@ -348,6 +348,22 @@ class RoleAccessTest extends TestCase
         }
     }
 
+    public function test_employee_device_page_hides_irrelevant_specs(): void
+    {
+        $employee = User::factory()->employee()->create();
+        $monitor = Computer::factory()->create(['category' => 'monitor', 'assigned_user_id' => $employee->id, 'status' => 'active',
+            'brand' => 'Dell', 'cpu' => null, 'ram_gb' => null, 'storage' => null, 'os' => null, 'specs' => '24 инч', 'ip_address' => null, 'mac_address' => null]);
+        $pc = $this->pc(['assigned_user_id' => $employee->id, 'cpu' => 'Intel i5', 'os' => 'Windows 11']);
+
+        // Дэлгэц: CPU, RAM, диск, ҮС, сүлжээ гарахгүй; үзүүлэлт (24 инч) гарна
+        $this->actingAs($employee)->get("/my/computers/{$monitor->id}")->assertOk()
+            ->assertSee('24 инч')->assertSee('Dell')
+            ->assertDontSee('Процессор (CPU)')->assertDontSee('Санах ой (диск)')->assertDontSee('Үйлдлийн систем')->assertDontSee('IP хаяг')
+            ->assertDontSee('Засварын дараалал');
+        // Компьютер: CPU, ҮС гарна
+        $this->actingAs($employee)->get("/my/computers/{$pc->id}")->assertOk()->assertSee('Процессор (CPU)')->assertSee('Windows 11');
+    }
+
     public function test_employee_cannot_change_registry(): void
     {
         $employee = User::factory()->employee()->create();
@@ -378,6 +394,80 @@ class RoleAccessTest extends TestCase
         $this->actingAs($employee)->post(route('my.computers.acknowledge', $theirs->id))->assertNotFound();
         $this->actingAs($employee)->post(route('my.computers.acknowledge', $mine->id))->assertSessionHasNoErrors();
         $this->assertNotNull($mine->fresh()->acknowledged_at);
+    }
+
+    public function test_employee_cannot_report_same_device_twice_or_while_in_repair(): void
+    {
+        $employee = User::factory()->employee()->create();
+        $pc = $this->pc(['assigned_user_id' => $employee->id]);
+        $broken = $this->pc(['assigned_user_id' => $employee->id, 'status' => 'in_repair']);
+
+        $this->actingAs($employee)->post('/my/requests', ['type' => 'issue', 'computer_id' => $pc->id, 'description' => 'Асахгүй'])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($employee)->post('/my/requests', ['type' => 'issue', 'computer_id' => $pc->id, 'description' => 'Дахиад'])
+            ->assertSessionHasErrors('computer_id');
+        $this->actingAs($employee)->post('/my/requests', ['type' => 'issue', 'computer_id' => $broken->id, 'description' => 'x'])
+            ->assertSessionHasErrors('computer_id');
+        // Захиалгад төхөөрөмж хамаарахгүй
+        $this->actingAs($employee)->post('/my/requests', ['type' => 'request', 'computer_id' => $pc->id, 'subject' => 'Mouse', 'description' => 'x'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, AssetRequest::where('type', 'issue')->count());
+        $this->assertNull(AssetRequest::where('type', 'request')->value('computer_id'));
+    }
+
+    public function test_employee_home_counts_open_requests_and_searches(): void
+    {
+        $employee = User::factory()->employee()->create();
+        $this->pc(['assigned_user_id' => $employee->id, 'name' => 'PC-ALPHA', 'inventory_number' => 'INV-777']);
+        $this->pc(['assigned_user_id' => $employee->id, 'name' => 'PC-BETA']);
+        AssetRequest::create(['user_id' => $employee->id, 'type' => 'issue', 'description' => 'a', 'status' => 'pending']);
+        AssetRequest::create(['user_id' => $employee->id, 'type' => 'request', 'subject' => 'Дэлгэц', 'description' => 'b', 'status' => 'in_progress']);
+        AssetRequest::create(['user_id' => $employee->id, 'type' => 'request', 'subject' => 'Mouse', 'description' => 'c', 'status' => 'done']);
+
+        $html = $this->actingAs($employee)->get('/')->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/>2<\/span>\s*<span[^>]*>Хүсэлт</u', $html);
+
+        // Бүртгэлийн дугаараар хайхад зөвхөн тохирох төхөөрөмж
+        $found = $this->actingAs($employee)->get('/?q=inv-777')->assertOk()->getContent();
+        $this->assertSame(1, substr_count($found, '<li data-emp-device'));
+        $this->assertStringContainsString(route('my.computers.show', Computer::where('inventory_number', 'INV-777')->value('id')), $found);
+    }
+
+    public function test_order_requests_use_own_status_labels(): void
+    {
+        $employee = User::factory()->employee()->create();
+        AssetRequest::create(['user_id' => $employee->id, 'type' => 'request', 'subject' => 'UPS', 'description' => 'a', 'status' => 'in_progress']);
+        AssetRequest::create(['user_id' => $employee->id, 'type' => 'request', 'subject' => 'Mouse', 'description' => 'b', 'status' => 'done']);
+        AssetRequest::create(['user_id' => $employee->id, 'type' => 'issue', 'description' => 'c', 'status' => 'done']);
+
+        $this->actingAs($employee)->get('/')->assertOk()
+            ->assertSee('Зөвшөөрсөн')->assertSee('Хүлээлгэн өгсөн')->assertSee('Дууссан');
+
+        $superadmin = User::factory()->superadmin()->create();
+        $this->actingAs($superadmin)->get('/requests')->assertOk()
+            ->assertSee('<option value="done" selected>Хүлээлгэн өгсөн</option>', false)
+            ->assertSee('<option value="done" selected>Дууссан</option>', false);
+    }
+
+    public function test_new_user_in_new_branch_gets_new_department(): void
+    {
+        $super = User::factory()->superadmin()->create();
+        $base = ['role' => 'admin', 'password' => 'secret123', 'password_confirmation' => 'secret123'];
+
+        $this->actingAs($super)->get('/users/create')->assertOk()->assertSee('＋ Шинэ алба нэмэх…');
+
+        $this->actingAs($super)->post('/users', $base + ['name' => 'Бат', 'username' => 'bat', 'branch_id' => 'new',
+            'new_branch_name' => 'Эрдэнэт', 'new_branch_code' => '0081', 'department' => 'МТ алба'])->assertSessionHasNoErrors();
+        $bat = User::where('username', 'bat')->first();
+        $this->assertSame('Эрдэнэт', $bat->branch->name);
+        $this->assertSame('МТ алба', $bat->department);
+        $this->assertSame($bat->branch_id, $bat->departmentRecord->branch_id);
+
+        // «＋ Шинэ алба» сонгоод нэр бичээгүй бол алба хоосон
+        $this->actingAs($super)->post('/users', $base + ['name' => 'Дорж', 'username' => 'dorj', 'branch_id' => $bat->branch_id, 'department' => '__new__'])
+            ->assertSessionHasNoErrors();
+        $this->assertNull(User::where('username', 'dorj')->value('department'));
     }
 
     public function test_inactive_user_and_forced_password_change(): void

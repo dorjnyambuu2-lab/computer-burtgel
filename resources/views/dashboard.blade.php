@@ -46,7 +46,6 @@
 @else
 <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
     <div>
-        <div class="text-xs text-slate-500">Хянах самбар · Өнөөдөр шинэчлэгдсэн</div>
         <h1 class="text-xl font-bold">Компьютер бүртгэлийн систем</h1>
     </div>
     @if ($canAdd)

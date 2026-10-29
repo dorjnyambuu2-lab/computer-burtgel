@@ -36,6 +36,12 @@ class AssetRequest extends Model
             ->orWhere(fn ($q) => $q->whereNull('computer_id')->whereHas('user', fn ($u) => $u->where('branch_id', $user->branch_id ?? 0))));
     }
 
+    /** Төлвийн нэр: захиалгад «Зөвшөөрсөн», «Хүлээлгэн өгсөн», эвдрэлд «Хийгдэж буй», «Дууссан» */
+    public function statusLabel(): string
+    {
+        return \App\Http\Controllers\AssetRequestController::statusesFor($this->type)[$this->status] ?? (string) $this->status;
+    }
+
     /** Хүсэлтийг шийдвэрлэсэн админ */
     public function handler()
     {

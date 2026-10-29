@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ComputerStatus;
 use App\Models\AssetRequest;
 use App\Models\Computer;
 use Illuminate\Http\Request;
@@ -14,6 +15,20 @@ class AssetRequestController extends Controller
         'done'        => 'Дууссан',
         'rejected'    => 'Татгалзсан',
     ];
+
+    /** Төхөөрөмж захиалгын төлвийн нэр (хадгалах утга ижил, утга нь өөр) */
+    public const REQUEST_STATUSES = [
+        'pending'     => 'Хүлээгдэж буй',
+        'in_progress' => 'Зөвшөөрсөн',
+        'done'        => 'Хүлээлгэн өгсөн',
+        'rejected'    => 'Татгалзсан',
+    ];
+
+    /** Хүсэлтийн төрлөөс хамаарах төлвийн нэрс: эвдрэл → STATUSES, захиалга → REQUEST_STATUSES */
+    public static function statusesFor(?string $type): array
+    {
+        return $type === 'request' ? self::REQUEST_STATUSES : self::STATUSES;
+    }
 
     /** Нэвтэрсэн ажилтанд хариуцуулсан компьютерүүд (хэрэглэгчийн ID-аар, нэр давхцахаас хамаарахгүй) */
     private function mine(Request $request)
@@ -36,8 +51,24 @@ class AssetRequestController extends Controller
             'description.required' => 'Тайлбараа бичнэ үү.',
         ]);
 
-        if (! empty($data['computer_id']) && ! $this->mine($request)->whereKey($data['computer_id'])->exists()) {
-            abort(403);
+        // Захиалга тодорхой төхөөрөмжид хамаарахгүй
+        if ($data['type'] === 'request') {
+            $data['computer_id'] = null;
+        }
+
+        if (! empty($data['computer_id'])) {
+            $computer = $this->mine($request)->find($data['computer_id']) ?? abort(403);
+
+            // Засварт байгаа эсвэл шийдэгдээгүй эвдрлийн хүсэлттэй төхөөрөмжийг дахин мэдээлэхгүй
+            $error = match (true) {
+                $computer->status === ComputerStatus::InRepair => 'Энэ төхөөрөмж аль хэдийн засварт байна.',
+                AssetRequest::where('computer_id', $computer->id)->where('type', 'issue')
+                    ->whereIn('status', ['pending', 'in_progress'])->exists() => 'Энэ төхөөрөмжийн эвдрлийг аль хэдийн мэдээлсэн, хариу хүлээгдэж байна.',
+                default => null,
+            };
+            if ($error) {
+                return back()->withInput()->withErrors(['computer_id' => $error]);
+            }
         }
 
         $assetRequest = AssetRequest::create($data + ['user_id' => $request->user()->id]);
@@ -46,7 +77,7 @@ class AssetRequestController extends Controller
 
         return back()->with('success', $data['type'] === 'issue'
             ? 'Эвдрэлийн мэдээлэл илгээгдлээ.'
-            : 'Төхөөрөмжийн хүсэлт илгээгдлээ.');
+            : 'Төхөөрөмжийн хүсэлт илгээгдлээ.')->with('success_autohide', 3000);
     }
 
     public function acknowledge(Request $request)
@@ -55,7 +86,7 @@ class AssetRequestController extends Controller
         // Акт баталгаажуулж буй компьютерийн IP, MAC-г автоматаар бүртгэнэ
         rescue(fn () => \App\Support\ClientNetwork::syncForEmployee($request->user(), $request), null, report: true);
 
-        return back()->with('success', 'Акт баталгаажлаа. Баярлалаа!');
+        return back()->with('success', 'Акт баталгаажлаа. Баярлалаа!')->with('success_autohide', 3000);
     }
 
     // ---------- Superadmin + Админ ----------

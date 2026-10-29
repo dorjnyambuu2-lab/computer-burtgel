@@ -178,7 +178,8 @@ class UserController extends Controller
 
     private function jobData(array $data): array
     {
-        return collect(User::JOB_FIELDS)->mapWithKeys(fn ($f) => [$f => filled($data[$f] ?? null) ? trim($data[$f]) : null])->all();
+        // «＋ Шинэ алба нэмэх…» сонгоод нэр бичээгүй бол алба хоосон
+        return collect(User::JOB_FIELDS)->mapWithKeys(fn ($f) => [$f => filled($data[$f] ?? null) && $data[$f] !== '__new__' ? trim($data[$f]) : null])->all();
     }
 
     public function destroy(User $user)

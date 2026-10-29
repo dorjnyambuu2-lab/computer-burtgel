@@ -44,7 +44,6 @@
 <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
     <div>
         <h1 class="!mb-0 text-2xl font-bold text-slate-900">Бүх төхөөрөмж</h1>
-        <p class="mt-1 text-sm text-slate-500"><b class="font-semibold text-slate-700">{{ $deviceCount }}</b> төхөөрөмж <span class="text-slate-400">· mouse, keyboard тоологдохгүй</span></p>
     </div>
     <div class="flex flex-wrap gap-2">
         <a href="{{ route('computers.export', request()->query()) }}" class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium !text-slate-700 shadow-sm transition hover:bg-slate-50">

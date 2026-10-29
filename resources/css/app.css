@@ -77,3 +77,8 @@
         overflow-x: auto;
     }
 }
+/* Edge-ийн өөрийн нууц үг харах товчийг нуух: системийн нүдэн товч л харагдана (давхар дүрс гарахгүй) */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none;
+}
