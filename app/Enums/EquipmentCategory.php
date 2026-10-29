@@ -35,8 +35,8 @@ enum EquipmentCategory: string
         };
     }
 
-    /** «Дагалдах хэрэгсэл» табд багтах ангиллууд (бүртгэх формд Mouse, Keyboard тусдаа таб биш) */
-    public const ACCESSORIES = ['mouse', 'keyboard', 'other'];
+    /** «Дагалдах хэрэгсэл» табд багтах ангиллууд (бүртгэх формд Mouse, Keyboard, Сүлжээний төхөөрөмж тусдаа таб биш) */
+    public const ACCESSORIES = ['mouse', 'keyboard', 'network', 'other'];
 
     /** Процессор бүртгэхэд хамт бүртгэж болох төхөөрөмж («Хамт бүртгэх» checkbox) */
     public const WITH_PROCESSOR = ['mouse', 'keyboard', 'network'];
@@ -80,9 +80,9 @@ enum EquipmentCategory: string
     {
         return match ($this) {
             self::Processor, self::Laptop => 'computer',
-            self::Printer, self::Scanner, self::Network => 'network',
-            // Дагалдах хэрэгсэл (mouse, keyboard, бусад): үзүүлэлт бөглөхгүй, зүгээр сонгож бүртгэнэ
-            self::Mouse, self::Keyboard, self::Other => 'none',
+            self::Printer, self::Scanner => 'network',
+            // Дагалдах хэрэгсэл (mouse, keyboard, сүлжээний төхөөрөмж, бусад): үзүүлэлт бөглөхгүй, зүгээр сонгож бүртгэнэ
+            self::Mouse, self::Keyboard, self::Network, self::Other => 'none',
             default => 'basic',
         };
     }

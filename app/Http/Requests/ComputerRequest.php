@@ -115,9 +115,14 @@ class ComputerRequest extends FormRequest
             $data->put('warranty_until', $until);
         }
 
-        // Диск: SSD, HDD тусдаа талбараас «512GB SSD + 1TB HDD» болгоно
-        if ($data->has('storage_ssd') || $data->has('storage_hdd')) {
-            $data->put('storage', \App\Support\SpecSuggestions::composeStorage($data->get('storage_ssd'), $data->get('storage_hdd')));
+        // «＋ Шинэ алба нэмэх…» сонгоод нэр бичээгүй бол алба хоосон
+        if ($data->get('department') === '__new__') {
+            $data->put('department', null);
+        }
+
+        // Диск: SSD, HDD, M.2 тусдаа талбараас «512GB SSD + 1TB HDD + 256GB M.2» болгоно
+        if ($data->has('storage_ssd') || $data->has('storage_hdd') || $data->has('storage_m2')) {
+            $data->put('storage', \App\Support\SpecSuggestions::composeStorage($data->get('storage_ssd'), $data->get('storage_hdd'), $data->get('storage_m2')));
         }
 
         // Үнийг «1,250,000₮» гэж бичсэн ч тоо болгоно

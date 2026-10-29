@@ -90,26 +90,38 @@ class SpecSuggestions
 
     public const HDD_SIZES = ['320GB', '500GB', '1TB', '2TB', '4TB'];
 
-    /** «512GB SSD + 1TB HDD» → ['ssd' => '512GB', 'hdd' => '1TB'] (SSD, HDD-ээс бусад дискийг SSD талбарт) */
+    public const M2_SIZES = ['128GB', '256GB', '512GB', '1TB', '2TB', '256GB NVMe', '512GB NVMe', '1TB NVMe'];
+
+    /** Дискийн төрөл: маягтын талбар => нэгтгэсэн мөрөнд бичигдэх нэр */
+    public const DISK_KINDS = ['ssd' => 'SSD', 'hdd' => 'HDD', 'm2' => 'M.2'];
+
+    /** Дискийн хэсгийн төрөл: «256GB M.2» → m2, «1TB HDD» → hdd, бусад → ssd */
+    private static function diskKind(string $part): string
+    {
+        return preg_match('/\bM\.?2\b/i', $part) ? 'm2' : (preg_match('/\bHDD\b/i', $part) ? 'hdd' : 'ssd');
+    }
+
+    /** «512GB SSD + 1TB HDD + 256GB M.2» → ['ssd' => '512GB', 'hdd' => '1TB', 'm2' => '256GB'] (танигдаагүй дискийг SSD талбарт) */
     public static function storageParts(?string $value): array
     {
-        $parts = ['ssd' => [], 'hdd' => []];
+        $parts = array_fill_keys(array_keys(self::DISK_KINDS), []);
         foreach (preg_split('/\s*\+\s*/', trim((string) self::storage($value))) as $part) {
             if ($part === '') {
                 continue;
             }
-            $kind = preg_match('/\bHDD\b/i', $part) ? 'hdd' : 'ssd';
-            $parts[$kind][] = trim(preg_replace('/\s*\b'.$kind.'\b/i', '', $part));
+            $kind = self::diskKind($part);
+            $label = $kind === 'm2' ? 'M\.?2' : $kind;
+            $parts[$kind][] = trim(preg_replace('/\s*\b'.$label.'\b/i', '', $part));
         }
 
         return array_map(fn ($list) => implode(' + ', $list), $parts);
     }
 
-    /** SSD, HDD талбараас нэг мөр: ('512', '1TB') → «512GB SSD + 1TB HDD» */
-    public static function composeStorage(?string $ssd, ?string $hdd): ?string
+    /** SSD, HDD, M.2 талбараас нэг мөр: ('512', '1TB', '256GB') → «512GB SSD + 1TB HDD + 256GB M.2» */
+    public static function composeStorage(?string $ssd, ?string $hdd, ?string $m2 = null): ?string
     {
         $out = [];
-        foreach (['SSD' => $ssd, 'HDD' => $hdd] as $kind => $value) {
+        foreach (['SSD' => $ssd, 'HDD' => $hdd, 'M.2' => $m2] as $kind => $value) {
             foreach (preg_split('/\s*\+\s*/', trim((string) $value)) as $part) {
                 if ($part === '') {
                     continue;
@@ -117,13 +129,38 @@ class SpecSuggestions
                 if (preg_match('/^\d+(?:[.,]\d+)?$/', $part)) {
                     $part .= 'GB';
                 }
-                $out[] = preg_match('/\b(SSD|HDD|Disk)\b/i', $part) ? $part : $part.' '.$kind;
+                $out[] = preg_match('/\b(SSD|HDD|Disk|M\.?2)\b/i', $part) ? $part : $part.' '.$kind;
             }
         }
 
         return $out ? self::storage(implode(' + ', $out)) : null;
     }
 
+    /** Нийт дискийн хэмжээ GB-ээр (1TB = 1024GB): «512GB SSD + 1TB HDD» → 1536. Хэмжээ танигдахгүй бол null */
+    public static function storageTotalGb(?string $value): ?float
+    {
+        $total = 0.0;
+        $found = false;
+        foreach (preg_split('/\s*\+\s*/', trim((string) $value)) as $part) {
+            if (preg_match('/(\d+(?:[.,]\d+)?)\s*(GB|TB)/i', $part, $m)) {
+                $total += (float) str_replace(',', '.', $m[1]) * (strtoupper($m[2]) === 'TB' ? 1024 : 1);
+                $found = true;
+            }
+        }
+
+        return $found ? $total : null;
+    }
+
+    /** Харуулах: олон диск бол нийт хэмжээтэй — «512GB SSD + 1TB HDD (нийт 1536 GB)» */
+    public static function storageLabel(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+        $total = count(preg_split('/\s*\+\s*/', trim($value))) > 1 ? self::storageTotalGb($value) : null;
+
+        return $total !== null ? $value.' (нийт '.rtrim(rtrim(number_format($total, 1, '.', ''), '0'), '.').' GB)' : $value;
+    }
     /**
      * Дискийг «хэмжээ + төрөл» хэлбэрт: «SSD 512GB» → «512GB SSD», «ssd 512 gb + hdd 1tb» → «512GB SSD + 1TB HDD».
      * Танигдахгүй хэсгийг байгаагаар нь үлдээнэ.

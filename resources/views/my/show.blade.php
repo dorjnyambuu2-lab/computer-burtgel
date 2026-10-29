@@ -34,7 +34,7 @@
             'Серийн дугаар' => ['serial_number', $computer->serial_number],
             'Процессор (CPU)' => ['cpu', $computer->cpu],
             'RAM' => ['ram_gb', $computer->ramLabel()],
-            'Санах ой (диск)' => ['storage', $computer->storage],
+            'Санах ой (диск)' => ['storage', \App\Support\SpecSuggestions::storageLabel($computer->storage)],
             'Үйлдлийн систем' => ['os', $computer->os],
             'Үзүүлэлт' => ['specs', $computer->specs],
         ]),

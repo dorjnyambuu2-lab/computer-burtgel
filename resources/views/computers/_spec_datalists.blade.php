@@ -13,6 +13,7 @@
 <datalist id="sg-ram-module">@foreach (\App\Support\SpecSuggestions::RAM_SIZES as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
 <datalist id="sg-storage-ssd">@foreach (\App\Support\SpecSuggestions::SSD_SIZES as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
 <datalist id="sg-storage-hdd">@foreach (\App\Support\SpecSuggestions::HDD_SIZES as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
+<datalist id="sg-storage-m2">@foreach (\App\Support\SpecSuggestions::M2_SIZES as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
 @foreach (array_keys(\App\Support\SpecSuggestions::ITEM_BRANDS) as $cat)
     <datalist id="sg-brand-{{ $cat }}">@foreach (\App\Support\SpecSuggestions::itemBrands($cat) as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
     <datalist id="sg-model-{{ $cat }}">@foreach (\App\Support\SpecSuggestions::itemModels($cat) as $o)<option value="{{ $o }}"></option>@endforeach</datalist>

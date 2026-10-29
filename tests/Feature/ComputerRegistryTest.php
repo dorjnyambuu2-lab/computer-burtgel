@@ -64,6 +64,34 @@ class ComputerRegistryTest extends TestCase
         $this->assertSoftDeleted($computer);
     }
 
+    public function test_storage_combines_ssd_hdd_m2_and_shows_total(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        $this->actingAs($user)->post('/computers', $this->valid(['storage_ssd' => '512', 'storage_hdd' => '1TB', 'storage_m2' => '256GB']))
+            ->assertSessionHasNoErrors();
+        $computer = Computer::firstOrFail();
+        $this->assertSame('512GB SSD + 1TB HDD + 256GB M.2', $computer->storage);
+
+        $this->actingAs($user)->get("/computers/{$computer->id}")->assertOk()->assertSee('512GB SSD + 1TB HDD + 256GB M.2 (нийт 1792 GB)');
+        // Засахад M.2 өөрийн талбарт буцаж бөглөгдөнө
+        $this->actingAs($user)->get("/computers/{$computer->id}/edit")->assertOk()
+            ->assertSee('id="storage_m2" name="storage_m2" type="text" data-part="m2"', false)->assertSee('value="256GB"', false);
+    }
+
+    public function test_computer_form_can_add_new_department(): void
+    {
+        $user = User::factory()->admin()->create();
+        $this->actingAs($user)->get('/computers/create')->assertOk()->assertSee('＋ Шинэ алба нэмэх…');
+
+        $this->actingAs($user)->post('/computers', $this->valid(['department' => 'Санхүүгийн алба']))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('departments', ['name' => 'Санхүүгийн алба', 'branch_id' => $user->branch_id]);
+
+        // Сонгоод нэр бичээгүй бол алба хоосон
+        $this->actingAs($user)->post('/computers', $this->valid(['inventory_number' => 'PC-0002', 'name' => 'PC-2', 'ip_address' => null, 'mac_address' => null, 'department' => '__new__']))->assertSessionHasNoErrors();
+        $this->assertNull(Computer::where('name', 'PC-2')->value('department'));
+    }
+
     public function test_new_holder_is_added_as_employee(): void
     {
         $admin = User::factory()->admin()->create();

@@ -52,15 +52,6 @@
 
 @php
     $sections = [
-        'Байршил ба хариуцагч' => [
-            ['branch_id', 'Салбар', 'branch', ['required' => true]],
-            ['unit', 'Нэгж', 'text', ['placeholder' => 'Жишээ: Захиргааны нэгж']],
-            ['department', 'Алба', 'department', []],
-            ['position', 'Албан тушаал', 'text', ['placeholder' => 'Жишээ: Ахлах мэргэжилтэн']],
-            ['location', 'Байршил', 'text', ['placeholder' => 'Байр, давхар, өрөө']],
-            ['holder_surname', 'Овог', 'text', ['placeholder' => 'Хариуцагчийн овог']],
-            ['holder_name', 'Нэр', 'text', ['placeholder' => 'Хариуцагчийн нэр']],
-        ],
         'Үндсэн мэдээлэл' => [
             // Шинээр бүртгэхэд хоосон орхивол автоматаар үүснэ (засахад заавал)
             ['inventory_number', 'Бүртгэлийн дугаар', 'text', $isEdit ? ['required' => true] : ['placeholder' => 'Автоматаар үүснэ', 'readonly' => true]],
@@ -80,6 +71,15 @@
             ['os', 'Үйлдлийн систем', 'text', ['placeholder' => 'Windows 11 Pro']],
             ['storage', 'Санах ой (диск)', 'storage', []],
             ['specs', 'Үзүүлэлт', 'text', ['placeholder' => 'Дэлгэцийн хэмжээ, printer-ийн төрөл гэх мэт']],
+        ],
+        'Байршил ба хариуцагч' => [
+            ['branch_id', 'Салбар', 'branch', ['required' => true]],
+            ['location', 'Байршил', 'text', ['placeholder' => 'Байр, давхар, өрөө']],
+            ['holder_surname', 'Хариуцагчийн овог', 'text', ['placeholder' => 'Овог']],
+            ['holder_name', 'Хариуцагчийн нэр', 'text', ['placeholder' => 'Нэр']],
+            ['unit', 'Нэгж', 'text', ['placeholder' => 'Жишээ: Захиргааны нэгж']],
+            ['department', 'Алба', 'department', []],
+            ['position', 'Албан тушаал', 'text', ['placeholder' => 'Жишээ: Ахлах мэргэжилтэн']],
         ],
         'Худалдан авалт ба баталгаа' => [
             ['purchase_date', 'Худалдан авсан огноо', 'date', []],
@@ -109,7 +109,7 @@
         <nav id="category-tabs" role="tablist" aria-label="Төхөөрөмжийн төрөл"
             class="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
             @foreach (\App\Enums\EquipmentCategory::cases() as $case)
-                {{-- Mouse, Keyboard нь «Дагалдах хэрэгсэл» табд (доорх дэд сонголт) --}}
+                {{-- Mouse, Keyboard, Сүлжээний төхөөрөмж нь «Дагалдах хэрэгсэл» табд (доорх дэд сонголт) --}}
                 @continue(in_array($case->value, \App\Enums\EquipmentCategory::ACCESSORIES, true) && $case !== \App\Enums\EquipmentCategory::Other)
                 <button type="button" role="tab" data-tab="{{ $case === \App\Enums\EquipmentCategory::Other ? 'accessory' : $case->value }}"
                         class="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl !border-0 !bg-transparent px-3.5 py-2 text-sm font-medium !text-slate-600 hover:!bg-slate-100">
@@ -118,7 +118,7 @@
                 </button>
             @endforeach
         </nav>
-        {{-- «Дагалдах хэрэгсэл»-ийн дэд сонголт: Mouse, Keyboard, Бусад --}}
+        {{-- «Дагалдах хэрэгсэл»-ийн дэд сонголт: Mouse, Keyboard, Сүлжээний төхөөрөмж, Бусад --}}
         <div id="accessory-tabs" role="tablist" aria-label="Дагалдах хэрэгсэл" class="-mt-3 hidden flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
             @foreach (\App\Enums\EquipmentCategory::ACCESSORIES as $value)
                 @php $case = \App\Enums\EquipmentCategory::from($value); @endphp
@@ -145,7 +145,7 @@
     @endif
 
     @if ($errors->any())
-        <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
             Мэдээллээ шалгана уу: {{ $errors->count() }} талбарт алдаа байна.
         </div>
     @endif
@@ -158,12 +158,12 @@
     @foreach ($sections as $title => $fields)
         <section class="rounded-2xl border border-slate-200 bg-white shadow-sm"
                 @if ($title === 'Техникийн үзүүлэлт') data-per-item @endif>
-            {{-- Хэсгийн гарчиг: дугаартай (1 Байршил ба хариуцагч, 2 Үндсэн мэдээлэл ...) --}}
+            {{-- Хэсгийн гарчиг: дугаартай (1 Үндсэн мэдээлэл, 2 Техникийн үзүүлэлт ...) --}}
             <h2 class="!mb-0 flex items-center gap-3 border-b border-slate-100 px-6 py-4 text-base font-semibold text-slate-900">
                 <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-600">{{ $loop->iteration }}</span>
                 {{ $title }}
             </h2>
-            <div class="grid grid-cols-1 gap-x-6 gap-y-5 p-6 md:grid-cols-2">
+            <div class="grid grid-cols-1 gap-x-6 gap-y-4 px-6 py-5 md:grid-cols-2">
                 @foreach ($fields as [$name, $text, $kind, $o])
                     <div class="{{ (($kind === 'category' && ! $isEdit) || $kind === 'storage') ? 'md:col-span-2' : '' }}" @if ($kind === 'type') data-type-field @endif
                         @if (in_array($name, \App\Enums\EquipmentCategory::ALL_SPEC_FIELDS, true)) data-spec-field="{{ $name }}" @endif>
@@ -201,7 +201,6 @@
                                     <option value="{{ $k }}" @selected((string) $val($name) === (string) $k)>{{ $v }}</option>
                                 @endforeach
                             </select>
-                            <p class="mt-1 text-xs text-slate-400">Хоосон орхивол нэрнээс нь таниж ангилна (жишээ: mouse, keyboard, монитор, printer).</p>
                         @elseif ($kind === 'category')
                             {{-- Нэмэх үед: нэг дор олныг сонгоно. Ангилал бүрээр тусдаа төхөөрөмж бүртгэгдэнэ --}}
                             {{-- Дээрх табаар нэгийг сонгоно; хэд хэдэн төхөөрөмжийг нэг дор бүртгэх бол энд нэмж сонгоно --}}
@@ -212,7 +211,7 @@
                             </summary>
                             <div id="category-box" class="border-t border-slate-200 p-3">
                                 <div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-                                    <span>Хамт бүртгэх төхөөрөмжүүдээ сонгоно (жишээ нь компьютер + дэлгэц + mouse)</span>
+                                    <span>Хамт бүртгэх төхөөрөмжүүд</span>
                                     <span class="flex gap-3">
                                         <button type="button" id="category-core" class="!border-0 !bg-transparent !p-0 !text-xs font-medium text-blue-600 hover:underline">Үндсэн 5-г сонгох</button>
                                         <button type="button" id="category-clear" class="!border-0 !bg-transparent !p-0 !text-xs font-medium text-slate-500 hover:underline">Цэвэрлэх</button>
@@ -238,7 +237,8 @@
                                         <input type="checkbox" name="with_accessories[]" value="{{ $value }}" class="h-4 w-4" @checked(in_array($value, $withPicked, true))>
                                         {{ \App\Enums\EquipmentCategory::from($value)->label() }}
                                     </label>
-                                @endforeach                            </div>
+                                @endforeach
+                            </div>
                             @if (! empty($detectedDevices))
                                 {{-- Скрипт энэ компьютерт холбогдсон дэлгэц, printer-ийг олсон --}}
                                 <div id="detected-devices" class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -290,7 +290,6 @@
                             @php $me = auth()->user(); @endphp
                             @if ($me->isBranchScoped())
                                 <div class="{{ $in }} bg-slate-50 text-slate-700">{{ $me->branch?->name ?? 'Салбар оноогоогүй' }}</div>
-                                <p class="mt-1 text-xs text-slate-400">Таны хариуцах салбар. Өөр салбарт бүртгэх бол Супер админд хандана.</p>
                             @else
                                 @php
                                     $branchList = \App\Models\Branch::query()->orderBy('name')->get(['id', 'name', 'code']);
@@ -302,7 +301,6 @@
                                         <option value="{{ $b->id }}" @selected($branchValue === (string) $b->id)>{{ $b->label() }}</option>
                                     @endforeach
                                 </select>
-                                <p class="mt-1 text-xs text-slate-400">Энэ салбарын Админ уг төхөөрөмжийг харж удирдана.</p>
                             @endif
                         @elseif ($kind === 'kit')
                             {{-- Дэлгэц, mouse зэргийг байгаа компьютерийн иж бүрдэлд нэмэх: дугаар нь PC-0012-3 гэх мэт --}}
@@ -317,22 +315,23 @@
                             </select>
                             <p id="kit-hint" class="mt-1 text-xs text-slate-400">Компьютерийн дагалдах хэрэгсэл бол сонгоно: дугаар нь компьютерийн дугаар + дэд дугаар болно.</p>
                         @elseif ($kind === 'storage')
-                            {{-- SSD, HDD-г тусад нь бөглөнө; хадгалахад «512GB SSD + 1TB HDD» нэг мөр болно (доорх скрипт, ComputerRequest) --}}
+                            {{-- SSD, HDD, M.2-г тусад нь бөглөнө; хадгалахад «512GB SSD + 1TB HDD + 256GB M.2» нэг мөр болно, доор нь нийт GB (доорх скрипт, ComputerRequest) --}}
                             @php $disk = \App\Support\SpecSuggestions::storageParts($val('storage')); @endphp
                             <input type="hidden" id="storage" name="storage" value="{{ $val('storage') }}">
-                            <div data-storage-parts class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                @foreach (['ssd' => 'SSD', 'hdd' => 'HDD'] as $part => $partLabel)
+                            <div data-storage-parts class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                @foreach (\App\Support\SpecSuggestions::DISK_KINDS as $part => $partLabel)
                                     <div>
                                         <label for="storage_{{ $part }}" class="{{ $lb }}">
                                             Санах ой — {{ $partLabel }}
                                             @if ($auto)<span class="ml-1 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">авто</span>@endif
                                         </label>
                                         <input id="storage_{{ $part }}" name="storage_{{ $part }}" type="text" data-part="{{ $part }}"
-                                                value="{{ old('storage_'.$part, $disk[$part]) }}" placeholder="{{ $part === 'ssd' ? 'Жишээ: 512GB' : 'Жишээ: 1TB' }}"
+                                                value="{{ old('storage_'.$part, $disk[$part]) }}" placeholder="{{ ['ssd' => 'Жишээ: 512GB', 'hdd' => 'Жишээ: 1TB', 'm2' => 'Жишээ: 256GB'][$part] }}"
                                                 list="sg-storage-{{ $part }}" autocomplete="off"
                                                 class="{{ $in }} @if ($auto) !border-emerald-400 bg-emerald-50/40 @endif @error($name) border-rose-400 @enderror">
                                     </div>
                                 @endforeach
+                                <p data-storage-total class="text-sm text-slate-500 md:col-span-3">Нийт: <b class="font-semibold text-slate-800">—</b></p>
                             </div>
                         @elseif ($kind === 'department')
                             {{-- Алба: «Алба хэлтэс» хүснэгтээс сонгоно (Супер админд сонгосон салбарынх л харагдана) --}}
@@ -351,8 +350,14 @@
                                 @if ($deptValue !== '' && ! $deptList->contains('name', $deptValue))
                                     <option value="{{ $deptValue }}" selected>{{ $deptValue }}</option>
                                 @endif
+                                <option value="__new__">＋ Шинэ алба нэмэх…</option>
                             </select>
-                            <p class="mt-1 text-xs text-slate-400">Жагсаалтад байхгүй бол <a href="{{ route('departments.index') }}" target="_blank" class="!text-blue-600 hover:underline">Алба хэлтэс</a> хуудсанд нэмнэ.</p>
+                            {{-- Жагсаалтад байхгүй бол нэрийг бичнэ: хадгалахад сонгосон салбарт алба үүснэ --}}
+                            <div data-department-new hidden class="mt-1 flex gap-2">
+                                <input type="text" id="department-new" name="department" maxlength="255" disabled class="{{ $in }} !mt-0 min-w-0 flex-1" placeholder="Шинэ албаны нэр" autocomplete="off">
+                                <button type="button" data-department-cancel title="Жагсаалтаас сонгох" aria-label="Жагсаалтаас сонгох"
+                                        class="flex !min-h-0 shrink-0 items-center !rounded-xl !border !border-slate-300 !bg-white !px-3 !py-0 !text-slate-500 hover:!bg-slate-50">✕</button>
+                            </div>
                         @elseif ($kind === 'ram')
                             {{-- RAM: модуль бүрийг тусад нь бичиж «+» дарж нэмнэ; хадгалахад «8GB + 4GB» нэг мөр болно (доорх скрипт) --}}
                             <input type="hidden" id="ram_gb" name="ram_gb" value="{{ $val('ram_gb') }}">
@@ -399,18 +404,18 @@
     </section>
 
     {{-- Үйлдлийн товчнууд --}}
-    <div class="sticky bottom-0 -mx-4 flex items-center justify-end gap-3 border-t border-slate-200 bg-white/90 px-4 py-4 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
+    <div class="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
         <a href="{{ url('/computers') }}"
-            class="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Цуцлах</a>
+            class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold !text-slate-700 transition hover:bg-slate-100">Цуцлах</a>
         @unless ($isEdit)
             {{-- Хадгалаад ижил мэдээлэлтэй шинэ форм нээнэ (олон компьютерийг дараалан бүртгэхэд) --}}
             <button type="submit" name="save_and_new" value="1" id="save-and-new"
-                    class="rounded-xl border border-blue-600 bg-white px-5 py-2.5 text-sm font-semibold !text-blue-700 hover:bg-blue-50">
-                Хадгалаад дараагийнхыг бүртгэх
+                    class="inline-flex h-10 !min-h-0 items-center !rounded-lg !border-blue-600 !bg-white !px-4 !py-0 text-sm font-semibold !text-blue-700 transition hover:!bg-blue-50">
+                Хадгалаад дараагийнх
             </button>
         @endunless
         <button type="submit"
-                class="rounded-xl border border-blue-600 bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+                class="inline-flex h-10 !min-h-0 items-center !rounded-lg !border-blue-600 !bg-blue-600 !px-6 !py-0 text-sm font-semibold !text-white shadow-sm transition hover:!bg-blue-700">
             {{ $isEdit ? 'Өөрчлөлтийг хадгалах' : 'Хадгалах' }}
         </button>
     </div>
@@ -488,7 +493,22 @@
 (function () {
     const select = document.querySelector('[data-department-select]');
     const branch = document.getElementById('branch_id');
-    if (!select || !branch) return;
+    if (!select) return;
+
+    // «＋ Шинэ алба нэмэх…»: жагсаалтын оронд бичих талбар (зөвхөн аль нэг нь илгээгдэнэ)
+    const box = document.querySelector('[data-department-new]');
+    const input = box.querySelector('input');
+    function typing(on) {
+        select.hidden = select.disabled = on;
+        box.hidden = !on;
+        input.disabled = !on;
+        if (on) input.focus(); else { input.value = ''; select.value = ''; }
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    select.addEventListener('change', function () { if (select.value === '__new__') typing(true); });
+    box.querySelector('[data-department-cancel]').addEventListener('click', function () { typing(false); });
+
+    if (!branch) return;
     function filter() {
         Array.from(select.options).forEach(function (o) {
             if (!o.dataset.branch) return; // «— Алба сонгох —», хуучин утга
@@ -507,7 +527,8 @@
 (function () {
     const nameInput = document.getElementById('holder_name');
     const surnameInput = document.getElementById('holder_surname');
-    const deptInput = document.getElementById('department');
+    const deptSelect = document.getElementById('department');
+    const deptNew = document.getElementById('department-new');
     const assigned = document.getElementById('assigned_user_id');
     const branchSelect = document.getElementById('branch_id');
     const myBranchId = @json(auth()->user()->isBranchScoped() ? auth()->user()->branch_id : null);
@@ -609,6 +630,7 @@
     }
 
     function checkDept() {
+        const deptInput = deptNew && !deptNew.disabled ? deptNew : deptSelect;
         if (!deptInput) return;
         const box = statusBox(deptInput, 'department-status');
         deptTypo = null;
@@ -632,6 +654,7 @@
             nameInput.value = item.name;
             nameInput.dispatchEvent(new Event('input', { bubbles: true }));
         } else {
+            const deptInput = deptNew && !deptNew.disabled ? deptNew : deptSelect;
             deptInput.value = item;
             deptInput.dispatchEvent(new Event('input', { bubbles: true }));
             deptInput.dispatchEvent(new Event('change', { bubbles: true }));
@@ -641,7 +664,9 @@
     [nameInput, surnameInput, branchSelect].forEach(function (el) {
         if (el) { el.addEventListener('input', checkHolder); el.addEventListener('change', checkHolder); }
     });
-    if (deptInput) { deptInput.addEventListener('input', checkDept); deptInput.addEventListener('change', checkDept); }
+    [deptSelect, deptNew].forEach(function (el) {
+        if (el) { el.addEventListener('input', checkDept); el.addEventListener('change', checkDept); }
+    });
     checkHolder();
     checkDept();
 
@@ -660,42 +685,69 @@
 </script>
 
 <script>
-// Диск: SSD, HDD талбарыг нуугдсан «storage» талбарт «512GB SSD + 1TB HDD» болгон нэгтгэнэ (SpecSuggestions::composeStorage-тэй ижил)
+// Диск: SSD, HDD, M.2 талбарыг нуугдсан «storage» талбарт «512GB SSD + 1TB HDD + 256GB M.2» болгон нэгтгэж,
+// нийт хэмжээг GB-ээр харуулна (SpecSuggestions::composeStorage, storageTotalGb-тэй ижил; 1TB = 1024GB)
 window.storageDisk = (function () {
-    function compose(ssd, hdd) {
+    const kinds = { ssd: 'SSD', hdd: 'HDD', m2: 'M.2' };
+    function compose(values) {
         const out = [];
-        [['SSD', ssd], ['HDD', hdd]].forEach(function (pair) {
-            String(pair[1] || '').split(/\s*\+\s*/).forEach(function (part) {
+        Object.keys(kinds).forEach(function (kind) {
+            String(values[kind] || '').split(/\s*\+\s*/).forEach(function (part) {
                 part = part.trim();
                 if (part === '') return;
                 if (/^\d+([.,]\d+)?$/.test(part)) part += 'GB';
-                out.push(/\b(SSD|HDD|Disk)\b/i.test(part) ? part : part + ' ' + pair[0]);
+                out.push(/\b(SSD|HDD|Disk|M\.?2)\b/i.test(part) ? part : part + ' ' + kinds[kind]);
             });
         });
         return out.join(' + ');
     }
+    function kindOf(part) { return /\bM\.?2\b/i.test(part) ? 'm2' : (/\bHDD\b/i.test(part) ? 'hdd' : 'ssd'); }
     function split(value) {
-        const parts = { ssd: [], hdd: [] };
+        const parts = { ssd: [], hdd: [], m2: [] };
         String(value || '').split(/\s*\+\s*/).forEach(function (part) {
             part = part.trim();
             if (part === '') return;
-            const kind = /\bHDD\b/i.test(part) ? 'hdd' : 'ssd';
-            parts[kind].push(part.replace(new RegExp('\\s*\\b' + kind + '\\b', 'i'), '').trim());
+            const kind = kindOf(part);
+            parts[kind].push(part.replace(new RegExp('\\s*\\b' + (kind === 'm2' ? 'M\\.?2' : kind) + '\\b', 'i'), '').trim());
         });
-        return { ssd: parts.ssd.join(' + '), hdd: parts.hdd.join(' + ') };
+        return { ssd: parts.ssd.join(' + '), hdd: parts.hdd.join(' + '), m2: parts.m2.join(' + ') };
+    }
+    function totalGb(value) {
+        let total = 0, found = false;
+        String(value || '').split(/\s*\+\s*/).forEach(function (part) {
+            const m = part.match(/(\d+(?:[.,]\d+)?)\s*(GB|TB)/i);
+            if (!m) return;
+            total += parseFloat(m[1].replace(',', '.')) * (m[2].toUpperCase() === 'TB' ? 1024 : 1);
+            found = true;
+        });
+        return found ? Math.round(total * 10) / 10 : null;
     }
     function part(box, kind) { return box.querySelector('[data-part="' + kind + '"]'); }
-    // Нуугдсан утгаас SSD, HDD талбарыг бөглөнө (картанд үндсэн хэсгээс хуулах, скриптээр уншсан үед)
+    function showTotal(box, value) {
+        const out = box.querySelector('[data-storage-total] b');
+        if (!out) return;
+        const t = totalGb(value);
+        out.textContent = t === null ? '—' : t + ' GB';
+    }
+    function sync(box) {
+        const values = {};
+        Object.keys(kinds).forEach(function (k) { values[k] = part(box, k).value; });
+        box.previousElementSibling.value = compose(values);
+        showTotal(box, box.previousElementSibling.value);
+    }
+    // Нуугдсан утгаас SSD, HDD, M.2 талбарыг бөглөнө (картанд үндсэн хэсгээс хуулах, скриптээр уншсан үед)
     function fill(box) {
         const parts = split(box.previousElementSibling.value);
-        part(box, 'ssd').value = parts.ssd;
-        part(box, 'hdd').value = parts.hdd;
+        Object.keys(kinds).forEach(function (k) { part(box, k).value = parts[k]; });
+        showTotal(box, box.previousElementSibling.value);
     }
     document.addEventListener('input', function (e) {
         const box = e.target.closest && e.target.closest('[data-storage-parts]');
-        if (box) box.previousElementSibling.value = compose(part(box, 'ssd').value, part(box, 'hdd').value);
+        if (box) sync(box);
     });
-    return { fill: fill };
+    // Засах, алдаатай буцахад: бөглөгдсөн талбаруудаас нийтийг шууд харуулна
+    document.querySelectorAll('[data-storage-parts]').forEach(sync);
+    return { fill: fill, kinds: kinds };
 })();
 
 // RAM: нэг талбарын дотор модулиуд chip байдлаар: [4GB] + [4GB ×]  [+ Модуль]   Нийт 8 GB
@@ -980,7 +1032,7 @@ window.ramModules = (function () {
         const grid = document.createElement('div');
         grid.className = 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3';
         fieldsOf(cat).forEach(function (f) {
-            // Диск: SSD, HDD тусдаа; нуугдсан items[][storage]-д нэгтгэнэ
+            // Диск: SSD, HDD, M.2 тусдаа; нуугдсан items[][storage]-д нэгтгэнэ, ард нь нийт
             if (f === 'storage') {
                 const stored = document.createElement('input');
                 stored.type = 'hidden';
@@ -990,20 +1042,25 @@ window.ramModules = (function () {
                 const box = document.createElement('div');
                 box.dataset.storageParts = '';
                 box.className = 'contents';
-                ['ssd', 'hdd'].forEach(function (kind) {
+                Object.keys(window.storageDisk.kinds).forEach(function (kind) {
                     const wrap = document.createElement('label');
                     wrap.className = 'block text-xs font-medium text-slate-600';
-                    wrap.textContent = 'Санах ой — ' + kind.toUpperCase();
+                    wrap.textContent = 'Санах ой — ' + window.storageDisk.kinds[kind];
                     const input = document.createElement('input');
                     input.type = 'text';
                     input.dataset.part = kind;
                     input.autocomplete = 'off';
                     input.className = inputClass;
-                    input.placeholder = kind === 'ssd' ? 'Жишээ: 512GB' : 'Жишээ: 1TB';
+                    input.placeholder = { ssd: 'Жишээ: 512GB', hdd: 'Жишээ: 1TB', m2: 'Жишээ: 256GB' }[kind];
                     input.setAttribute('list', 'sg-storage-' + kind);
                     wrap.appendChild(input);
                     box.appendChild(wrap);
                 });
+                const total = document.createElement('p');
+                total.dataset.storageTotal = '';
+                total.className = 'self-end pb-2 text-xs text-slate-500';
+                total.innerHTML = 'Нийт: <b class="font-semibold text-slate-800">—</b>';
+                box.appendChild(total);
                 grid.append(stored, box);
                 window.storageDisk.fill(box);
                 return;

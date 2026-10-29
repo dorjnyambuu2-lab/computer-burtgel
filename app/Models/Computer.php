@@ -790,7 +790,7 @@ class Computer extends Model
                 'Серийн дугаар' => ['serial_number', $this->serial_number],
                 'Процессор (CPU)' => ['cpu', $this->cpu],
                 'RAM' => ['ram_gb', $this->ramLabel()],
-                'Санах ой (диск)' => ['storage', $this->storage],
+                'Санах ой (диск)' => ['storage', \App\Support\SpecSuggestions::storageLabel($this->storage)],
                 'Үйлдлийн систем' => ['os', $this->os],
                 'Үзүүлэлт' => ['specs', $this->specs],
             ]),
