@@ -44,9 +44,9 @@
         }
     }
 
-    // Эрэмбэлэх: ?sort=name|username|role|email|last_seen_at|created_at&dir=asc|desc
-    $sorts = ['name', 'username', 'role', 'email', 'created_at'] + ($hasLast ? [5 => 'last_seen_at'] : []);
-    $sort = in_array(request('sort'), $sorts, true) ? request('sort') : 'name';
+    // Эрэмбэлэх: ?sort=code|name|username|role|email|last_seen_at|created_at&dir=asc|desc (анхдагч: ID — U1, U2, U3 ...)
+    $sorts = ['code', 'name', 'username', 'role', 'email', 'created_at'] + ($hasLast ? [6 => 'last_seen_at'] : []);
+    $sort = in_array(request('sort'), $sorts, true) ? request('sort') : 'code';
     $dir = request('dir') === 'desc' ? 'desc' : 'asc';
     $sortLink = function (string $key, string $label) use ($sort, $dir) {
         $next = $sort === $key && $dir === 'asc' ? 'desc' : 'asc';
@@ -55,7 +55,14 @@
         return '<a href="'.e(request()->fullUrlWithQuery(['sort' => $key, 'dir' => $next, 'page' => null])).'" class="!text-slate-500 hover:!text-slate-900">'.e($label).$arrow.'</a>';
     };
 
-    $users = \App\Support\RowNumber::paginate($query->orderBy($sort, $dir)->orderBy('id'), request(), 15, $rowNumber);
+    if ($sort === 'code') {
+        // ID: бүлгээр (SA → A → U), дараа нь тоогоор (U2 < U10: эхлээд урт, дараа нь текст)
+        $query->orderByRaw("CASE role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END $dir")
+            ->orderByRaw("LENGTH(code) $dir")->orderBy('code', $dir);
+    } else {
+        $query->orderBy($sort, $dir);
+    }
+    $users = \App\Support\RowNumber::paginate($query->orderBy('id'), request(), 15, $rowNumber);
     $filtered = $q !== '' || $role || $status || $branchFilter !== '' || request('date_from') || request('date_to');
     $inp = 'rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
 @endphp
@@ -109,7 +116,7 @@
             <thead>
                 <tr>
                     <th class="w-12">№</th>
-                    <th>ID</th>
+                    <th>{!! $sortLink('code', 'ID') !!}</th>
                     <th>{!! $sortLink('name', 'Нэр') !!}</th><th>{!! $sortLink('username', 'Нэвтрэх нэр') !!}</th>
                     <th>{!! $sortLink('role', 'Эрх') !!}</th><th>Салбар</th><th>{!! $sortLink('email', 'Имэйл') !!}</th>
                     <th>{!! $hasLast ? $sortLink('last_seen_at', 'Сүүлд идэвхтэй байсан') : 'Сүүлд идэвхтэй байсан' !!}</th>

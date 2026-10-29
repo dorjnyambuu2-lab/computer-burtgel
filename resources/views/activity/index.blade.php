@@ -28,7 +28,6 @@
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
             <h1 class="!mb-0 text-2xl font-bold text-slate-900">Үйлдлийн түүх</h1>
-            <p class="mt-1 text-sm text-slate-500">Төхөөрөмж, хэрэглэгч, салбар, алба хэлтсийн өөрчлөлт, нэвтрэлт: хэн, хэзээ, юуг · нийт <b class="font-semibold text-slate-700">{{ $logs->total() }}</b></p>
         </div>
         @if ($isSuper)
             <button type="button" id="delete-selected" disabled

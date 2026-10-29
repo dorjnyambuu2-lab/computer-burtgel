@@ -157,6 +157,27 @@ class RoleAccessTest extends TestCase
             ->assertSee('Ажлын мэдээлэл')->assertSee('МТ алба')->assertSee('Нууц үг солих');
     }
 
+    public function test_users_list_sorted_by_code_numerically_by_default(): void
+    {
+        $super = User::factory()->superadmin()->create();
+        $admin = User::factory()->admin()->create();
+        foreach ([2, 10, 1] as $n) {
+            User::factory()->employee()->create(['name' => 'Ажилтан'.$n])->forceFill(['code' => 'U'.$n])->saveQuietly();
+        }
+
+        // Жагсаалт view дотор тооцоологддог тул ID-уудыг HTML-ийн дарааллаар уншина
+        $codes = function (User $who, string $q = '') {
+            preg_match_all('/font-mono text-xs font-semibold text-slate-600">([^<]+)</u', $this->actingAs($who)->get('/users'.$q)->assertOk()->getContent(), $m);
+
+            return $m[1];
+        };
+        // Супер админ (өөрөө жагсаалтад гарахгүй): A → U1, U2, U10
+        $this->assertSame([$admin->code, 'U1', 'U2', 'U10'], $codes($super));
+        $this->assertSame(['U10', 'U2', 'U1'], array_slice($codes($super, '?sort=code&dir=desc'), 0, 3));
+        // Админ: өөрийн салбарын ажилтнууд U1, U2, U10
+        $this->assertSame(['U1', 'U2', 'U10'], $codes($admin));
+    }
+
     // ───────────── Админ ─────────────
 
     public function test_admin_opens_manager_pages_but_not_superadmin_ones(): void

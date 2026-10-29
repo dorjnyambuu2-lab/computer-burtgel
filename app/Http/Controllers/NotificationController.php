@@ -34,6 +34,6 @@ class NotificationController extends Controller
     {
         $request->user()->unreadNotifications->markAsRead();
 
-        return back()->with('success', 'Бүх мэдэгдлийг уншсан болголоо.');
+        return back()->with('success', 'Бүх мэдэгдлийг уншсан болголоо.')->with('success_autohide', 3000);
     }
 }

@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Устгасан компьютерууд')
+@section('title', 'Устгасан')
 
 @section('content')
     @php $isSuper = auth()->user()->isSuperadmin(); $err = $errors->getBag('forceDelete'); @endphp
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
-            <h1 class="!mb-0 text-xl font-bold">Устгасан компьютерууд (архив)</h1>        </div>
+            <h1 class="!mb-0 text-xl font-bold">Устгасан</h1>        </div>
         <a href="{{ route('computers.index') }}" class="text-sm text-indigo-600 hover:underline">← Компьютерүүд</a>
     </div>
 
