@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /** Салбар: салбар бүрийн Админ зөвхөн тухайн салбарын төхөөрөмж, ажилтныг удирдана */
 class Branch extends Model
 {
+    use Concerns\LogsActivity; // нэмэх, засах, устгах «Үйлдлийн түүх»-д
+
     protected $fillable = ['name', 'code', 'address'];
 
     public function computers(): HasMany

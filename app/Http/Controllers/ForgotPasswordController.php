@@ -48,7 +48,7 @@ class ForgotPasswordController extends Controller
                 report($e);
             }
         } elseif ($user) {
-            $this->requestFromSuperadmin($user, $request);
+            $this->requestReset($user, $request);
         }
 
         // Бүртгэл байгаа эсэх, ямар эрхтэйг илчлэхгүйн тулд ижил хариу өгнө
@@ -57,7 +57,13 @@ class ForgotPasswordController extends Controller
             .'Админы хүсэлт Супер админ руу, ажилтны хүсэлт салбарын Админ болон Супер админ руу автоматаар илгээгдсэн тул түр нууц үгийг тэднээс авна уу.');
     }
 
-    private function requestFromSuperadmin(User $user, Request $request): void
+    /**
+     * Нууц үг сэргээх хүсэлт үүсгэж, шийдвэрлэх эрхтэй хүмүүст мэдэгдэнэ:
+     *  - Ажилтан: өөрийн салбарын Админ + Супер админ (аль нэг нь түр нууц үг олгоно; салбаргүй бол Супер админ)
+     *  - Админ: зөвхөн Супер админ
+     * Хэн шийдвэрлэж болохыг PasswordResetRequest::scopeVisibleTo тодорхойлно.
+     */
+    private function requestReset(User $user, Request $request): void
     {
         // Давтан дарвал шинэ хүсэлт үүсгэхгүй
         if (PasswordResetRequest::where('user_id', $user->id)->where('status', 'pending')->exists()) {

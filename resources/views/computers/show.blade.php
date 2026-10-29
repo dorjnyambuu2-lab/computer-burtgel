@@ -84,9 +84,9 @@
                 @method('DELETE')
                 {{-- «Засах»-тай ижил: дүүрэн өнгө, hover-т дээш хөдөлж сүүдэр томорно --}}
                 <button class="inline-flex h-10 !min-h-0 items-center gap-1.5 !rounded-lg !border !border-rose-600 !bg-rose-600 !px-4 !py-0 !text-sm !font-semibold !text-white shadow-sm transition hover:-translate-y-0.5 hover:!border-rose-700 hover:!bg-rose-700 hover:shadow-md">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
-                    Устгах
-                </button>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
+                        Устгах
+                    </button>
             </form>
         </div>
     </div>
@@ -150,10 +150,10 @@
                 </div>
             @endif
 
-            {{-- Зардлын тооцоо --}}
+            {{-- Үнэ: худалдан авсан үнэ, засварын зардал, нийт өртөг --}}
             <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-3">
-                    <h2 class="!mb-0 text-xs font-semibold uppercase tracking-wide text-slate-500">Зардлын тооцоо</h2>
+                    <h2 class="!mb-0 text-xs font-semibold uppercase tracking-wide text-slate-500">Үнэ</h2>
                     @if ($cost['price'] === null)
                         <a href="{{ route('computers.edit', $computer) }}" class="text-xs !text-blue-600 hover:underline">Үнэ оруулах →</a>
                     @endif
@@ -168,9 +168,10 @@
                         <dt class="text-xs text-amber-700">Засварын зардал <span class="text-amber-600/80">· {{ $cost['repair_count'] }} удаа засварт орсон</span></dt>
                         <dd class="mt-1 text-lg font-semibold text-amber-900">{{ $money($cost['repair_cost']) }}</dd>
                     </div>
+                    {{-- Нийт: иж бүрдэлтэй бол бүх гишүүний (компьютер, дэлгэц, mouse ...) үнэ + засвар, эс бөгөөс энэ төхөөрөмжийнх --}}
                     <div class="rounded-xl bg-blue-50 px-4 py-3">
-                        <dt class="text-xs text-blue-700">Нийт өртөг (үнэ + засвар)</dt>
-                        <dd class="mt-1 text-lg font-bold text-blue-900">{{ $money($cost['total']) }}</dd>
+                        <dt class="text-xs text-blue-700">Нийт @if ($cost['kit'])<span class="text-blue-600/80">· иж бүрдэл {{ $cost['kit']['count'] }} төхөөрөмж</span>@endif</dt>
+                        <dd class="mt-1 text-lg font-bold text-blue-900">{{ $money($cost['kit'] ? $cost['kit']['total'] : $cost['total']) }}</dd>
                     </div>
                 </dl>
                 @if ($cost['price'] && $cost['repair_cost'] > 0)

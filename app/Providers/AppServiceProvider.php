@@ -29,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, function (Login $event) {
             User::whereKey($event->user->getAuthIdentifier())
                 ->update(['last_login_at' => now(), 'last_seen_at' => now(), 'is_online' => true]);
+            \App\Models\ActivityLog::forUser($event->user, 'login');
 
             // Ажилтан өөрийн компьютероос нэвтэрвэл тэр компьютерийн IP, MAC-г бүртгэлд автоматаар бичнэ.
             // Сүлжээ шалгахад алдаа гарсан ч нэвтрэлтэд нөлөөлөхгүй.
@@ -41,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Logout::class, function (Logout $event) {
             if ($event->user) {
                 User::whereKey($event->user->getAuthIdentifier())->update(['last_seen_at' => now(), 'is_online' => false]);
+                \App\Models\ActivityLog::forUser($event->user, 'logout');
             }
         });
 

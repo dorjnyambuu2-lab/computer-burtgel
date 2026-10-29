@@ -18,10 +18,15 @@ class ActivityLogController extends Controller
         $number = \App\Support\RowNumber::parse($request->input('q'));
 
         $query = ActivityLog::with('user')
-            // Админ: зөвхөн өөрийн салбарын төхөөрөмжүүдийн түүх (BranchScope-оор шүүгдсэн id-ууд)
-            ->when($me->isBranchScoped(), fn ($q) => $q
-                ->where('subject_type', (new Computer)->getMorphClass())
-                ->whereIn('subject_id', Computer::withTrashed()->select('id')))
+            // Админ: зөвхөн өөрийн салбарын төхөөрөмж (BranchScope-оор шүүгдсэн id-ууд), хэрэглэгч, алба хэлтсийн түүх
+            ->when($me->isBranchScoped(), fn ($q) => $q->where(fn ($w) => $w
+                ->where(fn ($s) => $s->where('subject_type', (new Computer)->getMorphClass())
+                    ->whereIn('subject_id', Computer::withTrashed()->select('id')))
+                ->orWhere(fn ($s) => $s->where('subject_type', (new User)->getMorphClass())
+                    ->whereIn('subject_id', User::query()->where('branch_id', $me->branch_id)->select('id')))
+                ->orWhere(fn ($s) => $s->where('subject_type', (new \App\Models\Department)->getMorphClass())
+                    ->whereIn('subject_id', \App\Models\Department::query()->where('branch_id', $me->branch_id)->select('id')))))
+            ->when(isset(ActivityLog::SUBJECT_TYPES[$request->input('type')]), fn ($q) => $q->where('subject_type', $request->input('type')))
             ->when($request->filled('action'), fn ($q) => $q->where('action', $request->input('action')))
             ->when($request->filled('user_id'), fn ($q) => $q->where('user_id', $request->input('user_id')))
             // «#12» бол дэс дугаараар (доор), бусад үед компьютерийн нэрээр
@@ -36,7 +41,13 @@ class ActivityLogController extends Controller
             'logs' => $logs,
             'restoreStates' => $request->user()->isSuperadmin() ? $this->restoreStates($logs->getCollection()) : [],
             'users' => User::query()->when($me->isBranchScoped(), fn ($q) => $q->where('branch_id', $me->branch_id))->orderBy('name')->get(['id', 'name']),
-            'actions' => ActivityLog::ACTIONS,
+            // Шүүлтүүрт: хуучин (бичигддэггүй) үйлдлийг хасна; Админд Супер админы л үйлдлүүд хэзээ ч гарахгүй тул мөн хасна
+            // Төрөл: Админд салбар хамаарахгүй
+            'types' => $me->isSuperadmin() ? ActivityLog::SUBJECT_TYPES : array_diff_key(ActivityLog::SUBJECT_TYPES, [\App\Models\Branch::class => 1]),
+            'actions' => array_diff_key(ActivityLog::ACTIONS, array_flip([
+                ...ActivityLog::LEGACY_ACTIONS,
+                ...($me->isSuperadmin() ? [] : ActivityLog::SUPERADMIN_ACTIONS),
+            ])),
         ]);
     }
 

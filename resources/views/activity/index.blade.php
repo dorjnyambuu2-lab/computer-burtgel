@@ -9,7 +9,7 @@
         // Түүхийг бүрмөсөн устгах эрх зөвхөн Супер админд
         $isSuper = auth()->user()->isSuperadmin();
         $err = $errors->getBag('deleteLogs');
-        $filtered = request()->hasAny(['q', 'action', 'user_id', 'from', 'to']) && collect(request()->only(['q', 'action', 'user_id', 'from', 'to']))->filter()->isNotEmpty();
+        $filtered = request()->hasAny(['q', 'type', 'action', 'user_id', 'from', 'to']) && collect(request()->only(['q', 'type', 'action', 'user_id', 'from', 'to']))->filter()->isNotEmpty();
         $cols = $isSuper ? 8 : 7;
         // Өдрийн гарчиг: «Өнөөдөр», «Өчигдөр», эсвэл огноо
         $dayLabel = fn ($d) => $d->isToday() ? 'Өнөөдөр' : ($d->isYesterday() ? 'Өчигдөр' : $d->format('Y-m-d'));
@@ -28,7 +28,7 @@
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
             <h1 class="!mb-0 text-2xl font-bold text-slate-900">Үйлдлийн түүх</h1>
-            <p class="mt-1 text-sm text-slate-500">Төхөөрөмжийн бүх өөрчлөлт: хэн, хэзээ, юуг өөрчилсөн · нийт <b class="font-semibold text-slate-700">{{ $logs->total() }}</b></p>
+            <p class="mt-1 text-sm text-slate-500">Төхөөрөмж, хэрэглэгч, салбар, алба хэлтсийн өөрчлөлт, нэвтрэлт: хэн, хэзээ, юуг · нийт <b class="font-semibold text-slate-700">{{ $logs->total() }}</b></p>
         </div>
         @if ($isSuper)
             <button type="button" id="delete-selected" disabled
@@ -43,12 +43,21 @@
         <div class="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $err->first() }}</div>
     @endif
 
-    <form method="GET" class="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[2fr_1.3fr_1.3fr_1fr_1fr_auto]">
-        <label class="block text-xs font-medium text-slate-500">Төхөөрөмж
+    <form method="GET" class="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1.8fr_1.1fr_1.2fr_1.2fr_1fr_1fr_auto]">
+        <label class="block text-xs font-medium text-slate-500">Хайх
             <div class="relative mt-1">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                 <input type="search" name="q" value="{{ request('q') }}" placeholder="#12, нэр, дугаар..." class="{{ $input }} !pl-9">
             </div>
+        </label>
+        {{-- Төрөл: төхөөрөмж, хэрэглэгч, салбар, алба хэлтэс --}}
+        <label class="block text-xs font-medium text-slate-500">Төрөл
+            <select name="type" class="{{ $input }} mt-1">
+                <option value="">Бүгд</option>
+                @foreach ($types as $key => $label)
+                    <option value="{{ $key }}" @selected(request('type') === $key)>{{ $label }}</option>
+                @endforeach
+            </select>
         </label>
         <label class="block text-xs font-medium text-slate-500">Үйлдэл
             <select name="action" class="{{ $input }} mt-1">
@@ -92,7 +101,7 @@
                     <th class="w-16 px-4 py-3">Цаг</th>
                     <th class="px-4 py-3">Хэн</th>
                     <th class="px-4 py-3">Үйлдэл</th>
-                    <th class="px-4 py-3">Төхөөрөмж</th>
+                    <th class="px-4 py-3">Юуг</th>
                     <th class="min-w-72 px-4 py-3">Өөрчлөлт</th>
                     <th class="px-4 py-3"><span class="sr-only">Үйлдэл</span></th>
                 </tr>
@@ -135,6 +144,10 @@
                         </td>
                         <td class="max-w-xs px-4 py-2.5">
                             <div class="flex min-w-0 items-baseline gap-2">
+                                {{-- Төхөөрөмжөөс бусад (хэрэглэгч, салбар, алба хэлтэс): төрлийн тэмдэг --}}
+                                @if ($log->subject_type && $log->subject_type !== \App\Models\Computer::class && $log->subjectTypeLabel())
+                                    <span class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">{{ $log->subjectTypeLabel() }}</span>
+                                @endif
                                 @if ($restore === 'active')
                                     <a href="{{ route('computers.show', $log->subject_id) }}" title="Төхөөрөмжийг нээх" class="truncate font-semibold !text-slate-900 hover:!text-blue-700 hover:underline">{{ $subjectName }}</a>
                                 @else

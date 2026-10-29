@@ -23,12 +23,18 @@ trait LogsActivity
         'created_at', 'updated_at', 'deleted_at', 'password', 'remember_token',
     ];
 
+    /** Лог руу бичихгүй талбарууд (model нэмэлт талбар нэмж дарж бичиж болно) */
+    protected static function activityIgnored(): array
+    {
+        return static::$activityIgnore;
+    }
+
     public static function bootLogsActivity(): void
     {
         static::created(function ($model) {
             $new = [];
             foreach ($model->getAttributes() as $field => $value) {
-                if (in_array($field, static::$activityIgnore, true) || $value === null || $value === '') {
+                if (in_array($field, static::activityIgnored(), true) || $value === null || $value === '') {
                     continue;
                 }
                 $new[$field] = ['new' => $value];
@@ -39,7 +45,7 @@ trait LogsActivity
         static::updated(function ($model) {
             $changes = [];
             foreach ($model->getChanges() as $field => $value) {
-                if (in_array($field, static::$activityIgnore, true)) {
+                if (in_array($field, static::activityIgnored(), true)) {
                     continue;
                 }
                 $changes[$field] = [

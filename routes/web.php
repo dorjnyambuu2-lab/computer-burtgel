@@ -11,6 +11,7 @@ use App\Http\Controllers\ComputerQrController;
 use App\Http\Controllers\ComputerToolsController;
 use App\Http\Controllers\ComputerTransferController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\MyComputerController;
 use App\Http\Controllers\NotificationController;
@@ -124,6 +125,10 @@ Route::middleware('auth')->group(function () {
 
         // Хэрэглэгч: Супер админ — админ бүртгэнэ; Админ — өөрийн салбарын ажилтан бүртгэнэ (User::canManageUsers/canEditUser)
         Route::resource('users', UserController::class)->except(['show']);
+
+        // Алба хэлтэс: Супер админ бүх салбарын, Админ өөрийн салбарын (нэмэх, нэр солих, нэгтгэх, устгах)
+        Route::resource('departments', DepartmentController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::post('departments/{department}/merge', [DepartmentController::class, 'merge'])->name('departments.merge');
 
         // Нууц үг сэргээх хүсэлтүүд: Супер админ — админ, ажилтных; Админ — өөрийн салбарын ажилтных
         Route::get('password-requests', [PasswordResetRequestController::class, 'index'])->name('password-requests.index');

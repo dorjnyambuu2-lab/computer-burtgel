@@ -12,7 +12,21 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, Concerns\SyncsDepartment, Concerns\LogsActivity;
+
+    /** Түүхэнд бичихгүй: нууц үг (тусдаа «Нууц үг сольсон» үйлдэл), идэвхтэй байдлын техникийн талбарууд */
+    protected static function activityIgnored(): array
+    {
+        return [...static::$activityIgnore, 'last_login_at', 'last_seen_at', 'is_online', 'email_verified_at'];
+    }
+
+    /** Түүхэнд харагдах нэр: «Овог Нэр (нэвтрэх нэр)» */
+    public function activityLabel(): string
+    {
+        $name = trim($this->surname.' '.$this->name) ?: 'Хэрэглэгч #'.$this->getKey();
+
+        return $this->username ? $name.' ('.$this->username.')' : $name;
+    }
 
     public const ROLES = [
         'superadmin' => 'Супер админ',
@@ -25,7 +39,7 @@ class User extends Authenticatable
         'inactive' => 'Идэвхгүй',
     ];
 
-    protected $fillable = ['name', 'surname', 'username', 'email', 'password', 'role', 'branch_id', 'unit', 'department', 'position', 'is_active', 'must_change_password'];
+    protected $fillable = ['name', 'surname', 'username', 'email', 'password', 'role', 'branch_id', 'unit', 'department', 'department_id', 'position', 'is_active', 'must_change_password'];
 
     /** Ажлын мэдээллийн талбарууд (профайл болон компьютерийн хариуцагчид ашиглана) */
     public const JOB_FIELDS = ['surname', 'unit', 'department', 'position'];
@@ -48,6 +62,17 @@ class User extends Authenticatable
                     ->update(['assigned_to' => $user->name]);
             }
         });
+
+        // Нууц үг солигдсон: өөрөө сольсон бол «Нууц үг сольсон», бусад (Админ түр нууц үг олгосон) «Нууц үг шинэчилсэн».
+        // Нууц үгийн утга түүхэнд бичигдэхгүй
+        static::updated(function (User $user) {
+            if ($user->wasChanged('password')) {
+                $user->recordActivity(\Illuminate\Support\Facades\Auth::id() === $user->id ? 'password_changed' : 'password_reset');
+            }
+        });
+
+        // Алба хэлтэс: «department» текстийг салбарын хэлтэстэй тааруулна
+        static::registerDepartmentSync();
     }
 
     /** Хариуцах / харьяалах салбар (Супер админд байхгүй — бүх салбар) */

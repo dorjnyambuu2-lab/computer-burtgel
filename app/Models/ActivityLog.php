@@ -28,7 +28,46 @@ class ActivityLog extends Model
         'force_delete_approved' => 'Бүрмөсөн устгахыг зөвшөөрсөн',
         'logs_deleted' => 'Түүх устгасан',
         'restored_from_log' => 'Түүхээс сэргээсэн',
+        'merged' => 'Нэгтгэсэн',
+        'login' => 'Нэвтэрсэн',
+        'logout' => 'Гарсан',
+        'password_changed' => 'Нууц үг сольсон',
+        'password_reset' => 'Нууц үг шинэчилсэн',
     ];
+
+    /** Түүхийн «Төрөл»: morph класс => шошго (шүүлтүүр, мөрийн тэмдэг) */
+    public const SUBJECT_TYPES = [
+        Computer::class => 'Төхөөрөмж',
+        User::class => 'Хэрэглэгч',
+        Branch::class => 'Салбар',
+        Department::class => 'Алба хэлтэс',
+    ];
+
+    /** Нэвтрэх, гарах: хэрэглэгч өөрөө (Auth-аас үл хамааран, гарах үед ч) */
+    public static function forUser(User $user, string $action): void
+    {
+        static::create([
+            'user_id' => $user->id,
+            'action' => $action,
+            'subject_type' => $user->getMorphClass(),
+            'subject_id' => $user->id,
+            'subject_label' => $user->activityLabel(),
+        ]);
+    }
+
+    public function subjectTypeLabel(): ?string
+    {
+        return self::SUBJECT_TYPES[$this->subject_type] ?? null;
+    }
+
+    /** Зөвхөн Супер админ хийдэг үйлдлүүд (Админы түүхэнд гарахгүй) */
+    public const SUPERADMIN_ACTIONS = ['force_deleted', 'force_delete_approved', 'logs_deleted'];
+
+    /**
+     * Одоо бичигддэггүй хуучин үйлдэл (Админ хүсэлт → Супер админ зөвшөөрөх урсгал хасагдсан):
+     * шүүлтүүрт харуулахгүй, хуучин тэмдэглэл байвал шошго нь зөв харагдана
+     */
+    public const LEGACY_ACTIONS = ['force_delete_approved'];
 
     public const ACTION_COLORS = [
         'created' => 'bg-emerald-100 text-emerald-700',
@@ -39,6 +78,11 @@ class ActivityLog extends Model
         'force_delete_approved' => 'bg-rose-100 text-rose-700',
         'logs_deleted' => 'bg-slate-800 text-white',
         'restored_from_log' => 'bg-amber-100 text-amber-700',
+        'merged' => 'bg-violet-100 text-violet-700',
+        'login' => 'bg-sky-100 text-sky-700',
+        'logout' => 'bg-slate-100 text-slate-600',
+        'password_changed' => 'bg-orange-100 text-orange-700',
+        'password_reset' => 'bg-orange-100 text-orange-700',
     ];
 
     // Талбарын нэрийг монголоор харуулах (өөрийн баганын нэрээр засч болно)
@@ -84,11 +128,26 @@ class ActivityLog extends Model
         'qr_code' => 'QR дугаар',
         'acknowledged_at' => 'Акт баталгаажсан',
         'network_updated_at' => 'Сүлжээ шинэчлэгдсэн',
+        // Хэрэглэгч
+        'surname' => 'Овог',
+        'username' => 'Нэвтрэх нэр',
+        'email' => 'Имэйл',
+        'role' => 'Эрх',
+        'is_active' => 'Идэвхтэй',
+        'must_change_password' => 'Нууц үг солих шаардлагатай',
+        'code' => 'Код',
+        // Салбар
+        'address' => 'Хаяг',
+        // Алба хэлтэс (нэгтгэх)
+        'merged_into' => 'Нэгтгэсэн алба',
+        'moved_devices' => 'Шилжсэн төхөөрөмж',
+        'moved_users' => 'Шилжсэн ажилтан',
     ];
 
     /** Түүхэнд харуулахгүй талбар (давхардсан эсвэл техникийн: хариуцагчийн нэр «Хариуцагч»-д байна) */
     // deleted_by: үйлдэл («Устгасан», «Сэргээсэн») болон «Хэн» баганаас аль хэдийн харагдана
-    public const HIDDEN_FIELDS = ['assigned_user_id', 'ram_modules', 'updated_at', 'created_at', 'id', 'deleted_by'];
+    // department_id: «Алба» (department) текстээс аль хэдийн харагдана
+    public const HIDDEN_FIELDS = ['assigned_user_id', 'ram_modules', 'updated_at', 'created_at', 'id', 'deleted_by', 'department_id'];
 
     /** Дэлгэрэнгүй цонхонд талбаруудыг бүлэглэх (бүлэгт ороогүй нь «Бусад») */
     public const FIELD_GROUPS = [
@@ -105,6 +164,10 @@ class ActivityLog extends Model
         'restored' => 'Устгасан хэсгээс сэргээгдсэн',
         'force_deleted' => 'Бүрмөсөн устгагдсан',
         'restored_from_log' => 'Түүхээс сэргээгдсэн',
+        'login' => 'Системд нэвтэрсэн',
+        'logout' => 'Системээс гарсан',
+        'password_changed' => 'Өөрийн нууц үгээ сольсон',
+        'password_reset' => 'Түр нууц үг олгосон',
     ];
 
     public static function fieldLabel(string $field): string
@@ -135,6 +198,8 @@ class ActivityLog extends Model
             'created_by', 'deleted_by', 'approved_by' => $names['u'.$value] ??= User::query()->whereKey($value)->value('name'),
             'purchase_price', 'cost' => is_numeric($value) ? \App\Support\Money::format($value) : null,
             'ram_gb' => is_numeric($value) ? $value.' GB' : null,
+            'role' => User::ROLES[$value] ?? null,
+            'is_active', 'must_change_password' => in_array((string) $value, ['1', 'true'], true) ? 'Тийм' : 'Үгүй',
             default => null,
         };
         if ($label !== null) {

@@ -51,8 +51,6 @@ class FlowTest extends TestCase
 
     public function test_pending_transfer_receive_issue_and_reject_with_kit(): void
     {
-        $this->markTestSkipped('Мэдэгдэж буй алдаа (засагдаагүй): ComputerTransferController::receive(), issue() иж бүрдлийн хэрэгслийг хамт хөдөлгөдөггүй.');
-
         $admin = User::factory()->admin()->create();
         $from = User::factory()->employee()->create();
         $to = User::factory()->employee()->create();
@@ -175,6 +173,50 @@ class FlowTest extends TestCase
         $far = User::factory()->admin()->create(['branch_id' => Branch::create(['name' => 'Дархан', 'code' => 'DRH'])->id]);
         $this->actingAs($far)->get(route('computers.print', $c))->assertNotFound();
         $this->actingAs(User::factory()->employee()->create())->get(route('computers.print', $c))->assertRedirect('/');
+    }
+
+    public function test_cost_summary_kit_total_and_unknown_price(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $pc = $this->pc(['purchase_price' => 2500000]);
+        $mon = Computer::factory()->create(['category' => 'monitor', 'status' => 'active', 'kit_parent_id' => $pc->id, 'purchase_price' => 1250000]);
+        Computer::factory()->create(['category' => 'mouse', 'status' => 'active', 'kit_parent_id' => $pc->id, 'purchase_price' => null]);
+        $this->actingAs($admin)->post(route('computers.repair', $mon), ['note' => 'Асахгүй байна', 'cost' => '100,000']);
+
+        // Компьютер дангаараа: 2,500,000; иж бүрдэл: 2,500,000 + 1,250,000 + засвар 100,000; mouse-ийн үнэ алга
+        $cost = $pc->fresh()->costSummary();
+        $this->assertEquals(2500000, $cost['total']);
+        $this->assertEquals(['count' => 3, 'price' => 3750000, 'repair_cost' => 100000, 'total' => 3850000, 'missing' => 1], $cost['kit']);
+        // Дэлгэцийн хуудсанд ч иж бүрдлийн нийт ижил
+        $this->assertEquals(3850000, $mon->fresh()->costSummary()['kit']['total']);
+
+        $this->actingAs($admin)->get("/computers/{$pc->id}")->assertOk()
+            ->assertSee('иж бүрдэл 3 төхөөрөмж')->assertSee('3,850,000₮')->assertDontSee('төхөөрөмжийн үнэ оруулаагүй');
+
+        // Үнэ ч, засвар ч мэдэгдэхгүй: «0₮» биш «—»
+        $alone = $this->pc(['purchase_price' => null]);
+        $this->assertNull($alone->costSummary()['total']);
+        $this->assertNull($alone->costSummary()['kit']);
+    }
+
+    public function test_requests_page_tabs_counts_reply_and_handler(): void
+    {
+        $admin = User::factory()->admin()->create(['name' => 'Шийдэгч']);
+        $emp = User::factory()->employee()->create(['name' => 'Цэцэг']);
+        $pc = $this->pc(['assigned_user_id' => $emp->id]);
+        \App\Models\AssetRequest::create(['user_id' => $emp->id, 'type' => 'issue', 'computer_id' => $pc->id, 'description' => 'Анивчаад байна']);
+        $done = \App\Models\AssetRequest::create(['user_id' => $emp->id, 'type' => 'request', 'subject' => 'Дэлгэц', 'description' => 'Хэрэгтэй']);
+        $this->actingAs($admin)->patch('/requests/'.$done->id, ['status' => 'done', 'admin_note' => 'Олгосон'])->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)->get('/requests')->assertOk()
+            ->assertSee('Ажилтны хүсэлт')->assertSee('1</b> хүсэлт шийдвэрлэхийг хүлээж байна', false)
+            ->assertSee('Шийдвэрлэх')->assertSee('Хариу:')->assertSee('Олгосон')->assertSee('Шийдэгч')
+            ->assertSee(route('computers.show', $pc))
+            ->assertViewHas('statusCounts', ['done' => 1, 'pending' => 1]);
+
+        // Таб: зөвхөн хүлээгдэж буй
+        $this->actingAs($admin)->get('/requests?status=pending')->assertOk()
+            ->assertViewHas('requests', fn ($p) => $p->total() === 1 && $p->first()->status === 'pending');
     }
 
     public function test_profile_update_and_login_by_username_or_email(): void

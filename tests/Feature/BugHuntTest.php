@@ -75,6 +75,28 @@ class BugHuntTest extends TestCase
         $this->assertNull($w['mon']->fresh()->assigned_user_id, 'Иж бүрдлийн дэлгэц хамт буцаагдах ёстой');
     }
 
+    public function test_kit_items_follow_main_status_and_holder_except_repair(): void
+    {
+        $w = $this->seedWorld();
+        $mouse = Computer::factory()->create(['category' => 'mouse', 'status' => 'new', 'kit_parent_id' => $w['pc']->id, 'assigned_user_id' => null]);
+        $data = ['type' => 'desktop', 'name' => $w['pc']->name, 'inventory_number' => $w['pc']->inventory_number, 'category' => 'processor'];
+
+        // Засах формоор төлөв солиход хэрэгслүүд дагана
+        $this->actingAs($w['admin'])->put("/computers/{$w['pc']->id}", $data + ['status' => 'in_storage'])->assertSessionHasNoErrors();
+        $this->assertSame(['in_storage', 'in_storage'], [$w['mon']->fresh()->status->value, $mouse->fresh()->status->value]);
+
+        // «Засварт» нь зөвхөн компьютерт
+        $this->actingAs($w['admin'])->post(route('computers.repair', $w['pc']), ['note' => 'Асахгүй байна'])->assertSessionHasNoErrors();
+        $this->assertSame('in_storage', $w['mon']->fresh()->status->value);
+
+        // Хариуцагч солигдоход (Супер админ ч) хэрэгслүүд дагана
+        $other = User::factory()->employee()->create();
+        Computer::$transferring = true;
+        $w['pc']->fresh()->update(['assigned_user_id' => $other->id, 'status' => 'active']);
+        Computer::$transferring = false;
+        $this->assertSame([$other->id, 'active'], [$mouse->fresh()->assigned_user_id, $mouse->fresh()->status->value]);
+    }
+
     public function test_branch_change_moves_kit_items(): void
     {
         $w = $this->seedWorld();

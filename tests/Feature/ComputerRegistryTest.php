@@ -176,6 +176,20 @@ class ComputerRegistryTest extends TestCase
         $this->actingAs($admin)->get("/computers/{$computer->id}/edit")->assertOk()->assertViewHas('holderCandidates');
     }
 
+    public function test_dashboard_department_chart_shows_top_five_real_departments(): void
+    {
+        $admin = User::factory()->admin()->create();
+        foreach (['А' => 6, 'Б' => 5, 'В' => 4, 'Г' => 3, 'Д' => 2, 'Е' => 1] as $dept => $n) {
+            Computer::factory()->count($n)->create(['category' => 'processor', 'department' => $dept]);
+        }
+        Computer::factory()->count(9)->create(['category' => 'processor', 'department' => null]); // хамгийн олон ч хэлтэс биш
+
+        $html = $this->actingAs($admin)->get('/')->assertOk()->assertSee('Хамгийн олон төхөөрөмжтэй 5 алба хэлтэс')->getContent();
+        // Диаграмын шошгууд: А–Д (Е, «Бусад», «Хэлтэс оруулаагүй» биш)
+        preg_match_all('/max-w-20 truncate" title="([^"]+)"/u', $html, $m);
+        $this->assertSame(['А', 'Б', 'В', 'Г', 'Д'], $m[1]);
+    }
+
     public function test_dashboard_recent_skips_accessories(): void
     {
         $admin = User::factory()->admin()->create();

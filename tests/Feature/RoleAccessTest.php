@@ -175,6 +175,19 @@ class RoleAccessTest extends TestCase
         $this->assertSoftDeleted($c);
     }
 
+    public function test_activity_action_filter_hides_superadmin_actions_for_admin(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $super = User::factory()->superadmin()->create();
+
+        $adminActions = $this->actingAs($admin)->get('/activity')->assertOk()->viewData('actions');
+        $this->assertSame(['created', 'updated', 'deleted', 'restored', 'restored_from_log', 'merged', 'login', 'logout', 'password_changed', 'password_reset'], array_keys($adminActions));
+
+        $superActions = $this->actingAs($super)->get('/activity')->viewData('actions');
+        $this->assertArrayHasKey('force_deleted', $superActions);
+        $this->assertArrayNotHasKey('force_delete_approved', $superActions); // хуучин, бичигддэггүй үйлдэл
+    }
+
     public function test_admin_is_limited_to_own_branch(): void
     {
         $admin = User::factory()->admin()->create();

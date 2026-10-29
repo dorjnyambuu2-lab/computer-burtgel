@@ -18,12 +18,12 @@ use Illuminate\Support\Facades\DB;
 
 class Computer extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, SoftDeletes, LogsActivity, Concerns\SyncsDepartment;
 
     protected $fillable = [
         'inventory_number', 'name', 'type', 'brand', 'model', 'serial_number',
         'cpu', 'ram_gb', 'storage', 'os', 'ip_address', 'mac_address', 'specs',
-        'category', 'department', 'unit', 'position', 'location', 'assigned_to', 'assigned_user_id', 'holder_surname', 'holder_name', 'status',
+        'category', 'department', 'department_id', 'unit', 'position', 'location', 'assigned_to', 'assigned_user_id', 'holder_surname', 'holder_name', 'status',
         'purchase_date', 'purchase_price', 'warranty_until', 'notes',
         'kit_parent_id', 'kit_index', 'branch_id',
     ];
@@ -274,6 +274,40 @@ class Computer extends Model
                 $computer->sequence_number = static::nextSequenceNumber($computer->branch_id);
             }
         });
+        // Иж бүрдлийн хэрэгслүүд үндсэн компьютерийнхээ төлөв, хариуцагчийг дагана (засах форм, олгох, буцаах,
+        // шилжүүлэг аль замаар ч). «Засварт» нь зөвхөн тухайн төхөөрөмжид; засварт, актласан хэрэгсэл хөдлөхгүй.
+        static::updated(function (Computer $computer) {
+            if ($computer->kit_parent_id) {
+                return;
+            }
+            $syncStatus = $computer->wasChanged('status') && $computer->status !== ComputerStatus::InRepair;
+            $syncHolder = $computer->wasChanged('assigned_user_id');
+            if (! $syncStatus && ! $syncHolder) {
+                return;
+            }
+
+            $previous = static::$transferring;
+            static::$transferring = true; // иж бүрдлийн нэг хэсэг: Супер админы «шууд солих» хоригийг алгасна
+            try {
+                $computer->kitItems()
+                    ->whereNotIn('status', [ComputerStatus::InRepair, ComputerStatus::Decommissioned])
+                    ->get()->each(function (Computer $item) use ($computer, $syncStatus, $syncHolder) {
+                        if ($syncStatus) {
+                            $item->status = $computer->status;
+                        }
+                        if ($syncHolder) {
+                            $item->assigned_user_id = $computer->assigned_user_id;
+                            if (! $computer->assigned_user_id) {
+                                $item->assigned_to = null;
+                            }
+                        }
+                        $item->save();
+                    });
+            } finally {
+                static::$transferring = $previous;
+            }
+        });
+
         // Салбар солигдвол иж бүрдлийн дагалдах хэрэгслүүд хамт шилжинэ (иж бүрдэл хоёр салбарт хуваагдахгүй)
         static::updated(function (Computer $computer) {
             if ($computer->wasChanged('branch_id') && ! $computer->kit_parent_id) {
@@ -333,6 +367,9 @@ class Computer extends Model
                 }
             }
         });
+
+        // Алба хэлтэс: «department» текстийг салбарын хэлтэстэй тааруулна (бусад hook, салбар оноолтын дараа)
+        static::registerDepartmentSync();
     }
 
     /**
@@ -706,12 +743,6 @@ class Computer extends Model
     }
 
     /**
-     * Зардлын тооцоо: худалдан авсан үнэ, засварын нийт зардал (засварын түүхэнд оруулсан дүнгийн нийлбэр),
-     * засвар хэдэн удаа хийгдсэн, нийт өртөг (үнэ + засвар).
-     *
-     * @return array{price: ?float, repair_cost: float, repair_count: int, total: float}
-     */
-    /**
      * Дэлгэрэнгүй мэдээллийн хэсгүүд [гарчиг => [шошго => утга]] — төхөөрөмжийн хуудас, хэвлэх (PDF) хуудас хоёулаа.
      * Ангилалд хамааралгүй, хоосон техникийн талбарыг алгасна (жишээ нь mouse-ийн CPU, RAM).
      */
@@ -774,11 +805,39 @@ class Computer extends Model
         ];
     }
 
+    /** Засварын үйл явдлын төрлүүд (зардал нь засварын нийт зардалд орно) */
+    private const REPAIR_EVENTS = ['repair', 'repair_update', 'repaired'];
+
+    /**
+     * Зардлын тооцоо: худалдан авсан үнэ, засварын нийт зардал (засварын түүхэнд оруулсан дүнгийн нийлбэр),
+     * засвар хэдэн удаа хийгдсэн, нийт (үнэ + засвар). Үнэ ч, засвар ч мэдэгдэхгүй бол нийт null («0₮» биш «—»).
+     * Иж бүрдэлд (2+ төхөөрөмж) «kit»: бүх гишүүний үнэ, засвар, нийт, үнэ оруулаагүй төхөөрөмжийн тоо.
+     *
+     * @return array{price: ?float, repair_cost: float, repair_count: int, total: ?float,
+     *               kit: ?array{count: int, price: float, repair_cost: float, total: float, missing: int}}
+     */
     public function costSummary(): array
     {
-        $repairs = $this->events()->reorder()->whereIn('type', ['repair', 'repair_update', 'repaired']);
-        $repairCost = (float) (clone $repairs)->sum('cost');
+        $repairCost = (float) $this->events()->reorder()->whereIn('type', self::REPAIR_EVENTS)->sum('cost');
         $price = $this->purchase_price !== null ? (float) $this->purchase_price : null;
+
+        // Иж бүрдэл: үндсэн компьютер + дагалдах хэрэгслүүд (устгаагүй)
+        $mainId = $this->kit_parent_id ?: $this->id;
+        $members = static::query()->where(fn ($q) => $q->whereKey($mainId)->orWhere('kit_parent_id', $mainId))
+            ->get(['id', 'purchase_price']);
+        $kit = null;
+        if ($members->count() > 1) {
+            $kitPrice = (float) $members->sum('purchase_price');
+            $kitRepair = (float) ComputerEvent::query()->whereIn('computer_id', $members->pluck('id'))
+                ->whereIn('type', self::REPAIR_EVENTS)->sum('cost');
+            $kit = [
+                'count' => $members->count(),
+                'price' => $kitPrice,
+                'repair_cost' => $kitRepair,
+                'total' => $kitPrice + $kitRepair,
+                'missing' => $members->whereNull('purchase_price')->count(),
+            ];
+        }
 
         return [
             'price' => $price,
@@ -788,7 +847,8 @@ class Computer extends Model
                 ->whereIn('action', ['created', 'updated'])
                 ->where('changes->status->new', ComputerStatus::InRepair->value)
                 ->count(),
-            'total' => ($price ?? 0) + $repairCost,
+            'total' => $price === null && $repairCost == 0.0 ? null : ($price ?? 0) + $repairCost,
+            'kit' => $kit,
         ];
     }
 

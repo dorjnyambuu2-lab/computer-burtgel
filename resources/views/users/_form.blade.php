@@ -284,16 +284,54 @@
             @foreach ($jobFields as $field => [$label, $placeholder])
                 <div>
                     <label for="{{ $field }}" class="{{ $lb }}">{{ $label }}</label>
-                    <input id="{{ $field }}" name="{{ $field }}" type="text" value="{{ old($field, $user->$field) }}" maxlength="255"
-                           list="{{ $field }}-options" class="{{ $in }}" placeholder="{{ $placeholder }}" autocomplete="off">
-                    <datalist id="{{ $field }}-options">
-                        @foreach ($jobSuggest($field) as $option)
-                            <option value="{{ $option }}"></option>
-                        @endforeach
-                    </datalist>
+                    @if ($field === 'department')
+                        {{-- Алба: «Алба хэлтэс» хүснэгтээс (сонгосон салбарынх, доорх скрипт) --}}
+                        @php
+                            $deptValue = (string) old('department', $user->department);
+                            $deptList = \App\Models\Department::query()
+                                ->when(auth()->user()->isBranchScoped(), fn ($q) => $q->where('branch_id', auth()->user()->branch_id))
+                                ->orderBy('name')->get(['id', 'branch_id', 'name']);
+                        @endphp
+                        <select id="department" name="department" data-department-select class="{{ $in }}">
+                            <option value="">— Алба сонгох —</option>
+                            @foreach ($deptList as $d)
+                                <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @selected($deptValue === $d->name)>{{ $d->name }}</option>
+                            @endforeach
+                            @if ($deptValue !== '' && ! $deptList->contains('name', $deptValue))
+                                <option value="{{ $deptValue }}" selected>{{ $deptValue }}</option>
+                            @endif
+                        </select>
+                    @else
+                        <input id="{{ $field }}" name="{{ $field }}" type="text" value="{{ old($field, $user->$field) }}" maxlength="255"
+                               list="{{ $field }}-options" class="{{ $in }}" placeholder="{{ $placeholder }}" autocomplete="off">
+                        <datalist id="{{ $field }}-options">
+                            @foreach ($jobSuggest($field) as $option)
+                                <option value="{{ $option }}"></option>
+                            @endforeach
+                        </datalist>
+                    @endif
                     @error($field)<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                 </div>
             @endforeach
+            <script>
+            // Алба: сонгосон салбарын (radio) хэлтсүүд л; өөр салбарынх сонгогдсон бол арилгана
+            (function () {
+                const select = document.querySelector('[data-department-select]');
+                const radios = Array.from(document.querySelectorAll('input[name="branch_id"]'));
+                if (!select || !radios.length) return;
+                function filter() {
+                    const picked = radios.find(function (r) { return r.checked; });
+                    const branch = picked && picked.value !== 'new' ? picked.value : '';
+                    Array.from(select.options).forEach(function (o) {
+                        if (!o.dataset.branch) return;
+                        o.hidden = o.disabled = !!picked && o.dataset.branch !== branch;
+                    });
+                    if (select.selectedOptions[0] && select.selectedOptions[0].disabled) select.value = '';
+                }
+                radios.forEach(function (r) { r.addEventListener('change', filter); });
+                filter();
+            })();
+            </script>
         </div>
     </section>
 

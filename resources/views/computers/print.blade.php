@@ -120,7 +120,10 @@
             <table>
                 <tr><td>Худалдан авсан үнэ</td><td class="num">{{ $money($cost['price']) }}</td></tr>
                 <tr><td>Засварын зардал ({{ $cost['repair_count'] }} удаа засварт орсон)</td><td class="num">{{ $money($cost['repair_cost']) }}</td></tr>
-                <tr class="total"><td>Нийт өртөг (үнэ + засвар)</td><td class="num">{{ $money($cost['total']) }}</td></tr>
+                <tr class="total"><td>Нийт (үнэ + засвар)</td><td class="num">{{ $money($cost['total']) }}</td></tr>
+                @if ($cost['kit'])
+                    <tr class="total"><td>Иж бүрдлийн нийт ({{ $cost['kit']['count'] }} төхөөрөмж){{ $cost['kit']['missing'] ? ' — '.$cost['kit']['missing'].' төхөөрөмжийн үнэ оруулаагүй' : '' }}</td><td class="num">{{ $money($cost['kit']['total']) }}</td></tr>
+                @endif
             </table>
         </section>
 

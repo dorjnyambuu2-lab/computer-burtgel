@@ -10,18 +10,16 @@
     $n = fn (ComputerStatus $s) => (int) ($byStatus[$s->value] ?? 0);
     $total = Computer::query()->counted()->count(); // mouse, keyboard тоолохгүй
 
-    // Алба хэлтсээр: хоосон ба NULL нэг бүлэг («Хэлтэс оруулаагүй»), эхний 5-аас бусдыг «Бусад» болгож
-    // нийлбэр нь нийт төхөөрөмжтэй үргэлж тэнцүү байна
+    // Алба хэлтсээр: хоосон ба NULL нэг бүлэг («Хэлтэс оруулаагүй»). Диаграмд хамгийн олон төхөөрөмжтэй 5 алба хэлтэс
+    // («Хэлтэс оруулаагүй» биш); томруулсан цонхонд бүгд
     $deptRows = Computer::query()->counted()->selectRaw("NULLIF(TRIM(department), '') as k, count(*) as c")->groupBy('k')
         ->orderByDesc('c')->orderBy('k')->get();
-    $byDept = $deptRows->take(5)->mapWithKeys(fn ($r) => [$r->k ?? 'Хэлтэс оруулаагүй' => (int) $r->c])->all();
-    if ($deptRows->count() > 5) {
-        $byDept['Бусад ('.($deptRows->count() - 5).' хэлтэс)'] = (int) $deptRows->slice(5)->sum('c');
-    }
+    $byDept = $deptRows->whereNotNull('k')->take(5)->mapWithKeys(fn ($r) => [$r->k => (int) $r->c])->all();
     $maxDept = max(1, ...array_values($byDept ?: [1]));
     // Сүүлд бүртгэгдсэн: «Бүх төхөөрөмж» жагсаалттай ижил (иж бүрдлийн хэрэгсэл, mouse, keyboard биш)
     $recent = Computer::query()->whereNull('kit_parent_id')->counted()->latest()->limit(6)->get();
-    try { $expiring = Computer::warrantyExpiringWithin(60)->limit(5)->get(); } catch (\Throwable $e) { $expiring = collect(); }
+    // Баталгаа дуусах: бусад тоо, жагсаалттай ижил (mouse, keyboard биш)
+    try { $expiring = Computer::query()->counted()->warrantyExpiringWithin(60)->limit(5)->get(); } catch (\Throwable $e) { $expiring = collect(); }
 
     $slices = [
         ['Шинэ', $n(ComputerStatus::New), '#6250d6', 'bg-violet-600'],
@@ -110,7 +108,7 @@
              onclick="document.getElementById('dlg-dept').showModal()"
              onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }">
         <div class="flex items-start justify-between gap-3">
-            <div><h2 class="font-bold">Алба хэлтсээр</h2><p class="text-xs text-slate-500">Төхөөрөмжийн тоо алба хэлтэс бүрээр (нийт {{ $total }})</p></div>
+            <div><h2 class="font-bold">Алба хэлтсээр</h2><p class="text-xs text-slate-500">Хамгийн олон төхөөрөмжтэй 5 алба хэлтэс</p></div>
             <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition group-hover:bg-blue-50 group-hover:text-blue-600">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
             </span>
@@ -125,7 +123,7 @@
                 @endforeach
             </div>
             <div class="mt-2 flex justify-around gap-3 text-center text-[11px] text-slate-500">
-                @foreach ($byDept as $k => $c)<span class="w-full max-w-20 truncate {{ $k === 'Хэлтэс оруулаагүй' ? 'italic text-slate-400' : '' }}" title="{{ $k }}">{{ $k }}</span>@endforeach
+                @foreach ($byDept as $k => $c)<span class="w-full max-w-20 truncate" title="{{ $k }}">{{ $k }}</span>@endforeach
             </div>
         @else
             <p class="mt-8 text-sm text-slate-400">Мэдээлэл алга.</p>

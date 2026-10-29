@@ -68,20 +68,24 @@ class AssetRequestController extends Controller
         $term = trim((string) $request->query('q'));
         $number = \App\Support\RowNumber::parse($term);
 
-        $query = AssetRequest::with(['user', 'computer'])
+        // Шүүлтүүр (төлөвөөс бусад): төлөвийн табуудын тоонд ч ашиглана
+        $filtered = fn () => AssetRequest::query()
             ->visibleTo($request->user())
-            ->when(array_key_exists((string) $request->status, self::STATUSES), fn ($q) => $q->where('status', $request->status))
             ->when(in_array($request->type, ['issue', 'request'], true), fn ($q) => $q->where('type', $request->type))
             ->when($term !== '' && $number === null, fn ($q) => $q->where(fn ($w) => $w
                 ->where('subject', 'like', "%$term%")->orWhere('description', 'like', "%$term%")
                 ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%$term%"))
-                ->orWhereHas('computer', fn ($c) => $c->where('name', 'like', "%$term%")->orWhere('inventory_number', 'like', "%$term%"))))
+                ->orWhereHas('computer', fn ($c) => $c->where('name', 'like', "%$term%")->orWhere('inventory_number', 'like', "%$term%"))));
+
+        $query = $filtered()->with(['user', 'computer', 'handler:id,name'])
+            ->when(array_key_exists((string) $request->status, self::STATUSES), fn ($q) => $q->where('status', $request->status))
             ->orderByRaw("status = 'pending' desc")
             ->latest()->orderByDesc('id');
 
         $requests = \App\Support\RowNumber::paginate($query, $request, 15, $number);
+        $statusCounts = $filtered()->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->all();
 
-        return view('requests.index', compact('requests'));
+        return view('requests.index', compact('requests', 'statusCounts'));
     }
 
     /** Хүсэлтийн төлөв өөрчилж, ажилтанд хариу бичих (PATCH /requests/{id}) */

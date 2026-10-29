@@ -55,11 +55,11 @@
         'Байршил ба хариуцагч' => [
             ['branch_id', 'Салбар', 'branch', ['required' => true]],
             ['unit', 'Нэгж', 'text', ['placeholder' => 'Жишээ: Захиргааны нэгж']],
-            ['department', 'Алба', 'text', ['placeholder' => 'Жишээ: Мэдээллийн технологийн алба']],
+            ['department', 'Алба', 'department', []],
             ['position', 'Албан тушаал', 'text', ['placeholder' => 'Жишээ: Ахлах мэргэжилтэн']],
             ['location', 'Байршил', 'text', ['placeholder' => 'Байр, давхар, өрөө']],
             ['holder_surname', 'Овог', 'text', ['placeholder' => 'Хариуцагчийн овог']],
-            ['holder_name', 'Нэр', 'text', ['placeholder' => 'Хариуцагчийн нэр', 'hint' => 'Салбарын ажилтны нэртэй таарвал төхөөрөмж тэр ажилтанд автоматаар олгогдоно.']],
+            ['holder_name', 'Нэр', 'text', ['placeholder' => 'Хариуцагчийн нэр']],
         ],
         'Үндсэн мэдээлэл' => [
             // Шинээр бүртгэхэд хоосон орхивол автоматаар үүснэ (засахад заавал)
@@ -334,6 +334,25 @@
                                     </div>
                                 @endforeach
                             </div>
+                        @elseif ($kind === 'department')
+                            {{-- Алба: «Алба хэлтэс» хүснэгтээс сонгоно (Супер админд сонгосон салбарынх л харагдана) --}}
+                            @php
+                                $deptValue = (string) $val('department');
+                                $deptList = \App\Models\Department::query()
+                                    ->when(auth()->user()->isBranchScoped(), fn ($q) => $q->where('branch_id', auth()->user()->branch_id))
+                                    ->orderBy('name')->get(['id', 'branch_id', 'name']);
+                            @endphp
+                            <select id="department" name="department" data-department-select class="{{ $in }} @error($name) border-rose-400 @enderror">
+                                <option value="">— Алба сонгох —</option>
+                                @foreach ($deptList as $d)
+                                    <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @selected($deptValue === $d->name)>{{ $d->name }}</option>
+                                @endforeach
+                                {{-- Жагсаалтад байхгүй хуучин утга алга болохгүй --}}
+                                @if ($deptValue !== '' && ! $deptList->contains('name', $deptValue))
+                                    <option value="{{ $deptValue }}" selected>{{ $deptValue }}</option>
+                                @endif
+                            </select>
+                            <p class="mt-1 text-xs text-slate-400">Жагсаалтад байхгүй бол <a href="{{ route('departments.index') }}" target="_blank" class="!text-blue-600 hover:underline">Алба хэлтэс</a> хуудсанд нэмнэ.</p>
                         @elseif ($kind === 'ram')
                             {{-- RAM: модуль бүрийг тусад нь бичиж «+» дарж нэмнэ; хадгалахад «8GB + 4GB» нэг мөр болно (доорх скрипт) --}}
                             <input type="hidden" id="ram_gb" name="ram_gb" value="{{ $val('ram_gb') }}">
@@ -463,6 +482,24 @@
 </script>
 
 @include('computers._warranty_script', ['purchaseId' => 'purchase_date', 'monthsId' => 'warranty_months', 'untilId' => 'warranty_until'])
+
+<script>
+// Алба: сонгосон салбарын хэлтсүүд л (Супер админ салбар солиход); өөр салбарынх сонгогдсон бол арилгана
+(function () {
+    const select = document.querySelector('[data-department-select]');
+    const branch = document.getElementById('branch_id');
+    if (!select || !branch) return;
+    function filter() {
+        Array.from(select.options).forEach(function (o) {
+            if (!o.dataset.branch) return; // «— Алба сонгох —», хуучин утга
+            o.hidden = o.disabled = !!branch.value && o.dataset.branch !== branch.value;
+        });
+        if (select.selectedOptions[0] && select.selectedOptions[0].disabled) select.value = '';
+    }
+    branch.addEventListener('change', filter);
+    filter();
+})();
+</script>
 
 <script>
 // Хариуцагч, алба хэлтсийн үсгийн алдаа: бичих явцад «ажилтан олдлоо / шинэ ажилтан үүснэ» гэж харуулж, ойролцоо
