@@ -166,6 +166,48 @@ class ComputerRegistryTest extends TestCase
         $this->actingAs($admin)->post('/computers', $base + ['name' => 'PC-7', 'items' => [['category' => 'processor'], ['category' => 'other', 'name' => 'Веб камер']]])
             ->assertSessionHasNoErrors();
         $this->assertTrue(Computer::where('name', 'PC-7 · Веб камер')->exists());
+
+        // Сүлжээний төхөөрөмж ч мөн адил
+        $this->actingAs($admin)->post('/computers', ['type' => 'desktop', 'status' => 'new', 'categories' => ['processor', 'network'],
+            'items' => [['category' => 'processor'], ['category' => 'network', 'name' => 'Router']]])->assertSessionHasNoErrors();
+        $this->assertTrue(Computer::where('name', 'Router')->where('category', 'network')->exists());
+
+        // Бичсэн нэр дараагийн удаа жагсаалтад гарна; «PC-7 · » угтвар, автомат нэр орохгүй
+        $this->actingAs($admin)->post('/computers/multi', ['type' => 'desktop', 'status' => 'new', 'name' => 'PC-9',
+            'items' => [['category' => 'processor'], ['category' => 'other', 'name' => 'Проектор']]])->assertSessionHasNoErrors();
+        $page = $this->actingAs($admin)->get('/computers/create')->assertOk();
+        $page->assertSee('<datalist id="sg-name-other">', false)->assertSee('<option value="Проектор">', false)
+            ->assertDontSee('<option value="PC-9 · Проектор">', false)->assertDontSee('<option value="Дагалдах хэрэгсэл 2">', false)
+            ->assertSee('<option value="Router">', false);
+    }
+
+    public function test_multi_registration_edge_cases(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $base = ['type' => 'desktop', 'status' => 'new'];
+
+        // «＋ Шинэ алба нэмэх…» сонгоод нэр бичээгүй: алба хоосон («__new__» хадгалагдахгүй)
+        $this->actingAs($admin)->post('/computers/multi', $base + ['department' => '__new__', 'items' => [['category' => 'processor'], ['category' => 'monitor']]])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(0, Computer::where('department', '__new__')->count());
+        Computer::query()->forceDelete();
+
+        // 2 процессор + 2 дэлгэц: 2-р процессор дагалдах хэрэгсэл биш
+        $this->actingAs($admin)->post('/computers/multi', $base + ['items' => [['category' => 'processor'], ['category' => 'processor'], ['category' => 'monitor'], ['category' => 'monitor']]])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(0, Computer::where('category', 'processor')->whereNotNull('kit_parent_id')->count());
+        $this->assertSame(2, Computer::where('category', 'monitor')->whereNotNull('kit_parent_id')->count());
+
+        // Алдааны мессеж монголоор
+        $this->actingAs($admin)->post('/computers/multi', $base + ['items' => [['category' => 'zzz'], ['category' => 'monitor']]])
+            ->assertSessionHasErrors(['items.0.category' => 'Ангилал буруу байна.']);
+        $this->actingAs(User::factory()->superadmin()->create())->post('/computers/multi', $base + ['items' => [['category' => 'monitor'], ['category' => 'printer']]])
+            ->assertSessionHasErrors(['branch_id' => 'Салбар сонгоно уу.']);
+
+        // Ганцаар + mouse: үндсэн компьютерийн автомат нэр шинэ дугаартайгаа таарна (-1)
+        $this->actingAs($admin)->post('/computers', $base + ['categories' => ['processor'], 'with_accessories' => ['mouse']])->assertSessionHasNoErrors();
+        $main = Computer::where('category', 'processor')->latest('id')->first();
+        $this->assertSame('Процессор '.$main->inventory_number, $main->name);
     }
 
     public function test_new_holder_is_added_as_employee(): void

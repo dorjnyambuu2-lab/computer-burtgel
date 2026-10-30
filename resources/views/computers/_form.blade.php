@@ -1040,8 +1040,8 @@ window.ramModules = (function () {
 
         const grid = document.createElement('div');
         grid.className = 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3';
-        // «Дагалдах хэрэгсэл»: юу болохыг нэрээр нь бичнэ (Веб камер, Чихэвч ...)
-        if (cat === 'other') {
+        // «Дагалдах хэрэгсэл», «Сүлжээний төхөөрөмж»: юу болохыг нэрээр нь бичнэ (Веб камер, Router ...)
+        if (cat === 'other' || cat === 'network') {
             const wrap = document.createElement('label');
             wrap.className = 'block text-xs font-medium text-slate-600 sm:col-span-2';
             wrap.textContent = 'Нэр';
@@ -1051,7 +1051,8 @@ window.ramModules = (function () {
             input.dataset.itemName = '';
             input.autocomplete = 'off';
             input.className = inputClass;
-            input.placeholder = 'Жишээ: Веб камер';
+            input.placeholder = cat === 'network' ? 'Жишээ: Router, Switch' : 'Жишээ: Веб камер';
+            input.setAttribute('list', 'sg-name-' + cat); // өмнө бичсэн нэрс
             if (values && values.name) input.value = values.name;
             wrap.appendChild(input);
             grid.appendChild(wrap);

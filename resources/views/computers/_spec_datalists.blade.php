@@ -19,6 +19,9 @@
     <datalist id="sg-model-{{ $cat }}">@foreach (\App\Support\SpecSuggestions::itemModels($cat) as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
     <datalist id="sg-specs-{{ $cat }}">@foreach (\App\Support\SpecSuggestions::itemSpecs($cat) as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
 @endforeach
+@foreach (array_keys(\App\Support\SpecSuggestions::ITEM_NAMES) as $cat)
+    <datalist id="sg-name-{{ $cat }}">@foreach (\App\Support\SpecSuggestions::itemNames($cat) as $o)<option value="{{ $o }}"></option>@endforeach</datalist>
+@endforeach
 
 <script>
 // Жагсаалтад байхгүй утга бичихэд: тухайн жагсаалтад шууд нэмж (бусад мөрөнд сонгож болно),

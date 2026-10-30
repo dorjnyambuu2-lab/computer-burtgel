@@ -33,6 +33,11 @@ class ComputerBulkController extends Controller
         if (! $request->filled('warranty_until')) {
             $request->merge(['warranty_until' => Warranty::until($request->input('purchase_date'), $request->input('warranty_months'))]);
         }
+        // «＋ Шинэ алба нэмэх…» сонгоод нэр бичээгүй бол алба хоосон
+        if ($request->input('department') === '__new__') {
+            $request->merge(['department' => null]);
+        }
+        $form = new \App\Http\Requests\ComputerRequest;
 
         $data = $request->validate([
             'categories' => ['required_without:items', 'array', 'max:20'],
@@ -64,15 +69,19 @@ class ComputerBulkController extends Controller
             'warranty_until' => ['nullable', 'date', 'after_or_equal:purchase_date'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'kit_parent_id' => ['nullable', 'integer', Rule::exists('computers', 'id')->whereNull('deleted_at')->whereNull('kit_parent_id')],
-        ], [
+        ], $form->messages() + [
             'categories.required_without' => 'Ангилал сонгоно уу.',
+            'categories.*.enum' => 'Ангилал буруу байна.',
+            'items.*.category.enum' => 'Ангилал буруу байна.',
+            'items.*.category.required' => 'Ангилал сонгоно уу.',
+            'branch_id.required' => 'Салбар сонгоно уу.',
             'items.*.ip_address.ip' => 'IP хаяг буруу байна.',
             'items.*.ip_address.distinct' => 'Ижил IP хаяг хоёр төхөөрөмжид бичигдсэн байна.',
             'items.*.mac_address.distinct' => 'Ижил MAC хаяг хоёр төхөөрөмжид бичигдсэн байна.',
             'items.*.mac_address.regex' => 'MAC хаяг AA:BB:CC:DD:EE:FF хэлбэртэй байх ёстой.',
             'assigned_user_id.exists' => 'Сонгосон хэрэглэгч идэвхгүй эсвэл олдсонгүй.',
             'warranty_until.after_or_equal' => 'Баталгаа дуусах огноо худалдан авсан огнооноос хойш байх ёстой.',
-        ]);
+        ], $form->attributes());
 
         // Төхөөрөмж бүрийн мөр: items ирсэн бол түүгээр, үгүй бол ангилал бүрт хоосон мөр
         $items = array_values(array_map(
@@ -116,7 +125,7 @@ class ComputerBulkController extends Controller
                 if ($perCategory[$category->value] > 1) {
                     $label .= ' '.$seen[$category->value];
                 }
-                // «Дагалдах хэрэгсэл»-д бичсэн нэр (Веб камер) ангиллын нэрийг орлоно
+                // «Дагалдах хэрэгсэл», «Сүлжээний төхөөрөмж»-д бичсэн нэр (Веб камер, Router) ангиллын нэрийг орлоно
                 if ($value('name')) {
                     $label = $value('name');
                 }
@@ -153,7 +162,8 @@ class ComputerBulkController extends Controller
                     'purchase_date' => $data['purchase_date'] ?? null,
                     'warranty_until' => $data['warranty_until'] ?? null,
                     'notes' => $data['notes'] ?? null,
-                    'kit_parent_id' => $main?->id,
+                    // Хоёр дахь процессор, нөүтбүк нь дагалдах хэрэгсэл биш: тусдаа төхөөрөмж
+                    'kit_parent_id' => $this->isKitMain($item) ? null : $main?->id,
                 ]);
                 $computer->save();
 
@@ -183,9 +193,9 @@ class ComputerBulkController extends Controller
         $names = collect($created)->map(fn ($c) => $c->inventory_number.' '.($c->category?->label() ?? ''))->implode(', ');
         $message = count($created).' төхөөрөмж бүртгэгдлээ ('.$names.')'.($user ? ' ба '.$user->name.'-д олголоо.' : '.');
 
-        return $user
-            ? redirect()->route('computers.bulk-assign', ['user_id' => $user->id])->with('success', $message)
-            : redirect()->route('computers.index')->with('success', $message);
+        return ($user
+            ? redirect()->route('computers.bulk-assign', ['user_id' => $user->id])
+            : redirect()->route('computers.index'))->with('success', $message)->with('success_autohide', 3000);
     }
 
     // ───────────────────────── туслах функцүүд ─────────────────────────

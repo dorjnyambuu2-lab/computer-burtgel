@@ -315,6 +315,35 @@ class SpecSuggestions
         return self::$byCategory['specs'][$category] ??= self::merge(self::ITEM_SPECS[$category] ?? [], self::learned('specs', [$category]));
     }
 
+    /** «Дагалдах хэрэгсэл», «Сүлжээний төхөөрөмж»-ийн нэр: үндсэн жагсаалт */
+    public const ITEM_NAMES = [
+        'other' => ['Веб камер', 'Чихэвч', 'Чанга яригч', 'Микрофон', 'USB hub', 'Гадаад диск'],
+        'network' => ['Router', 'Switch', 'Access point', 'Modem'],
+    ];
+
+    /**
+     * Картын «Нэр» талбарын жагсаалт: үндсэн + өмнө бичсэн нэрс (Веб камер, Router).
+     * «PC-7 · Веб камер» → «Веб камер»; автомат нэр («Дагалдах хэрэгсэл 2», «... A1-20261030-001-3») орохгүй.
+     */
+    public static function itemNames(string $category): array
+    {
+        if (isset(self::$byCategory['name'][$category])) {
+            return self::$byCategory['name'][$category];
+        }
+
+        $label = \App\Enums\EquipmentCategory::tryFrom($category)?->label();
+        $learned = [];
+        foreach (self::learned('name', [$category]) as $name) {
+            $name = trim(\Illuminate\Support\Str::afterLast($name, ' · '));
+            if ($name === '' || ($label && preg_match('/^'.preg_quote($label, '/').'( \S+)?$/u', $name))) {
+                continue;
+            }
+            $learned[] = $name;
+        }
+
+        return self::$byCategory['name'][$category] = self::merge(self::ITEM_NAMES[$category] ?? [], $learned);
+    }
+
     /**
      * Хадгалахын өмнө: илүү зайг арилгаж, жагсаалтад байгаа утгатай үсгийн том жижгээрээ л ялгаатай бол
      * жагсаалтын хэлбэрийг авна («dell» → «Dell»). Ингэснээр жагсаалтад давхардал үүсэхгүй.

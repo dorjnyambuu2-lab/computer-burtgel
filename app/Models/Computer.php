@@ -669,6 +669,11 @@ class Computer extends Model
         $this->kit_index = 1;
         $numbered = $this->inventory_number.'-1';
         if (! static::global()->where('inventory_number', $numbered)->exists()) {
+            // Автоматаар өгсөн нэр («Процессор PC-...-001») дугаартайгаа хамт шинэчлэгдэнэ
+            $label = $this->category?->label() ?? $this->type?->label() ?? 'Төхөөрөмж';
+            if ($this->name === $label.' '.$this->inventory_number) {
+                $this->name = $label.' '.$numbered;
+            }
             $this->inventory_number = $numbered;
         }
         $this->save();
