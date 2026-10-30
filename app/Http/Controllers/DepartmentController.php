@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\Computer;
 use App\Models\Department;
+use App\Models\Unit;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,112 +15,127 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
- * Алба хэлтсийн бүртгэл: Супер админ бүх салбарын, Админ өөрийн салбарын хэлтсийг нэмж, нэр солих, нэгтгэх,
- * устгах (төхөөрөмж, хэрэглэгчгүй бол). Нэр солиход холбогдсон төхөөрөмж, хэрэглэгч дээр шууд солигдоно.
+ * Алба хэлтэс, нэгжийн бүртгэл (UnitController нь энэ классыг өвлөнө): Супер админ бүх салбарын, Админ өөрийн
+ * салбарынхыг нэмж, нэр солих, нэгтгэх, устгах (төхөөрөмж, хэрэглэгчгүй бол). Нэр солиход холбогдсон төхөөрөмж,
+ * хэрэглэгч дээр шууд солигдоно.
  */
 class DepartmentController extends Controller
 {
+    /** @var class-string<Department|Unit> */
+    protected const MODEL = Department::class;
+
+    /** Мессежийн үгс: [нэр, -д, -аа, -ны] */
+    protected const WORDS = ['алба', 'албанд', 'албаа', 'албаны'];
+
     public function index(Request $request): View
     {
         $me = $request->user();
-
-        $departments = Department::query()
+        $list = fn (string $class) => $class::query()
             ->with('branch:id,name')
             ->when($me->isBranchScoped(), fn ($q) => $q->where('branch_id', $me->branch_id))
-            ->when($request->filled('branch') && $me->isSuperadmin(), fn ($q) => $q->where('branch_id', (int) $request->query('branch')))
-            ->withCount(['computers' => fn ($q) => $q->withoutGlobalScopes()->whereNull('deleted_at')->counted(), 'users'])
-            ->orderBy('branch_id')->orderBy('name')->get();
+            ->when($request->filled('branch') && $me->isSuperadmin(), fn ($q) => $q->where('branch_id', (int) $request->query('branch')));
 
         return view('departments.index', [
-            'departments' => $departments,
+            'departments' => $list(static::MODEL)
+                ->withCount(['computers' => fn ($q) => $q->withoutGlobalScopes()->whereNull('deleted_at')->counted(), 'users'])
+                ->orderBy('branch_id')->orderBy('name')->get(),
             'branches' => $me->isSuperadmin() ? Branch::query()->orderBy('name')->pluck('name', 'id') : collect(),
+            // Табууд: «Алба», «Нэгж» тус бүрийн тоо
+            'kind' => static::MODEL::COLUMN,
+            'counts' => ['department' => $list(Department::class)->count(), 'unit' => $list(Unit::class)->count()],
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         [$branchId, $name] = $this->validated($request);
-        $department = Department::create(['branch_id' => $branchId, 'name' => $name]);
+        $record = static::MODEL::create(['branch_id' => $branchId, 'name' => $name]);
 
-        return back()->with('success', '«'.$department->name.'» алба нэмэгдлээ.')->with('success_autohide', 3000);
+        return back()->with('success', '«'.$record->name.'» '.static::WORDS[0].' нэмэгдлээ.')->with('success_autohide', 3000);
     }
 
-    public function update(Request $request, Department $department): RedirectResponse
+    public function update(Request $request, string $id): RedirectResponse
     {
-        $this->authorizeDepartment($request, $department);
-        [, $name] = $this->validated($request, $department);
-        $department->update(['name' => $name]); // төхөөрөмж, хэрэглэгч дээрх нэр хамт солигдоно (Department::booted)
+        $record = $this->find($request, $id);
+        [, $name] = $this->validated($request, $record);
+        $record->update(['name' => $name]); // төхөөрөмж, хэрэглэгч дээрх нэр хамт солигдоно (BranchList)
 
-        return back()->with('success', 'Алба «'.$department->name.'» болж солигдлоо.')->with('success_autohide', 3000);
+        return back()->with('success', mb_convert_case(static::WORDS[0], MB_CASE_TITLE).' «'.$record->name.'» болж солигдлоо.')->with('success_autohide', 3000);
     }
 
-    /** Нэгтгэх: энэ хэлтсийн төхөөрөмж, хэрэглэгчийг өөр хэлтэс рүү шилжүүлж, энэ хэлтсийг устгана (үсгийн алдаатай давхардал) */
-    public function merge(Request $request, Department $department): RedirectResponse
+    /** Нэгтгэх: энэ бичлэгийн төхөөрөмж, хэрэглэгчийг өөр рүү шилжүүлж, энэ бичлэгийг устгана (үсгийн алдаатай давхардал) */
+    public function merge(Request $request, string $id): RedirectResponse
     {
-        $this->authorizeDepartment($request, $department);
-        $target = Department::query()->whereKey((int) $request->input('target_id'))
-            ->where('branch_id', $department->branch_id)->whereKeyNot($department->id)->first();
+        $record = $this->find($request, $id);
+        $target = static::MODEL::query()->whereKey((int) $request->input('target_id'))
+            ->where('branch_id', $record->branch_id)->whereKeyNot($record->id)->first();
         if (! $target) {
-            throw ValidationException::withMessages(['target_id' => 'Нэгтгэх албаа (ижил салбарын) сонгоно уу.']);
+            throw ValidationException::withMessages(['target_id' => 'Нэгтгэх '.static::WORDS[2].' (ижил салбарын) сонгоно уу.']);
         }
 
-        DB::transaction(function () use ($department, $target) {
+        $column = static::MODEL::COLUMN;
+        DB::transaction(function () use ($record, $target, $column) {
             $moved = [];
             foreach (['computers', 'users'] as $table) {
-                $moved[$table] = DB::table($table)->where('department_id', $department->id)
-                    ->update(['department_id' => $target->id, 'department' => $target->name]);
+                $moved[$table] = DB::table($table)->where($column.'_id', $record->id)
+                    ->update([$column.'_id' => $target->id, $column => $target->name]);
             }
             // Түүхэнд «Нэгтгэсэн» (хаашаа, хэдэн төхөөрөмж, ажилтан); тусдаа «Устгасан» бичихгүй
-            $department->recordActivity('merged', [
+            $record->recordActivity('merged', [
                 'merged_into' => ['new' => $target->name],
                 'moved_devices' => ['new' => $moved['computers']],
                 'moved_users' => ['new' => $moved['users']],
             ]);
-            $department->deleteQuietly();
+            $record->deleteQuietly();
         });
 
-        return back()->with('success', '«'.$department->name.'» → «'.$target->name.'» руу нэгтгэгдлээ.')->with('success_autohide', 3000);
+        return back()->with('success', '«'.$record->name.'» → «'.$target->name.'» руу нэгтгэгдлээ.')->with('success_autohide', 3000);
     }
 
-    public function destroy(Request $request, Department $department): RedirectResponse
+    public function destroy(Request $request, string $id): RedirectResponse
     {
-        $this->authorizeDepartment($request, $department);
-        $devices = Computer::withoutGlobalScopes()->where('department_id', $department->id)->count();
-        $users = User::query()->where('department_id', $department->id)->count();
+        $record = $this->find($request, $id);
+        $column = static::MODEL::COLUMN.'_id';
+        $devices = Computer::withoutGlobalScopes()->where($column, $record->id)->count();
+        $users = User::query()->where($column, $record->id)->count();
         if ($devices || $users) {
-            return back()->withErrors(['department' => '«'.$department->name.'» албанд '.$devices.' төхөөрөмж, '.$users.' хэрэглэгч байгаа тул устгах боломжгүй. Өөр алба руу нэгтгэнэ үү.']);
+            return back()->withErrors([static::MODEL::COLUMN => '«'.$record->name.'» '.static::WORDS[1].' '.$devices.' төхөөрөмж, '.$users
+                .' хэрэглэгч байгаа тул устгах боломжгүй. Өөр '.static::WORDS[0].' руу нэгтгэнэ үү.']);
         }
 
-        $department->delete();
+        $record->delete();
 
-        return back()->with('success', '«'.$department->name.'» алба устгагдлаа.')->with('success_autohide', 3000);
+        return back()->with('success', '«'.$record->name.'» '.static::WORDS[0].' устгагдлаа.')->with('success_autohide', 3000);
     }
 
-    /** Админ зөвхөн өөрийн салбарын хэлтэс */
-    private function authorizeDepartment(Request $request, Department $department): void
+    /** Админ зөвхөн өөрийн салбарынхыг */
+    private function find(Request $request, string $id): Model
     {
+        $record = static::MODEL::query()->findOrFail((int) $id);
         $me = $request->user();
-        abort_if($me->isBranchScoped() && (int) $department->branch_id !== (int) $me->branch_id, 403);
+        abort_if($me->isBranchScoped() && (int) $record->branch_id !== (int) $me->branch_id, 403);
+
+        return $record;
     }
 
     /** @return array{0: ?int, 1: string} [салбар, цэвэрлэсэн нэр]; салбар дотор нэр давтагдахгүй (том/жижиг үсэг ялгахгүй) */
-    private function validated(Request $request, ?Department $department = null): array
+    private function validated(Request $request, ?Model $record = null): array
     {
         $me = $request->user();
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'branch_id' => [$department || $me->isBranchScoped() ? 'nullable' : 'required', 'integer', 'exists:branches,id'],
+            'branch_id' => [$record || $me->isBranchScoped() ? 'nullable' : 'required', 'integer', 'exists:branches,id'],
         ], [
-            'name.required' => 'Албаны нэрийг оруулна уу.',
+            'name.required' => mb_convert_case(static::WORDS[3], MB_CASE_TITLE).' нэрийг оруулна уу.',
             'branch_id.required' => 'Салбараа сонгоно уу.',
         ]);
 
-        $branchId = $department?->branch_id ?? ($me->isBranchScoped() ? $me->branch_id : (int) $data['branch_id']);
-        $name = Department::cleanName($data['name']);
-        $taken = Department::query()->where('branch_id', $branchId)->when($department, fn ($q) => $q->whereKeyNot($department->id))
+        $branchId = $record?->branch_id ?? ($me->isBranchScoped() ? $me->branch_id : (int) $data['branch_id']);
+        $name = static::MODEL::cleanName($data['name']);
+        $taken = static::MODEL::query()->where('branch_id', $branchId)->when($record, fn ($q) => $q->whereKeyNot($record->id))
             ->get()->contains(fn ($d) => mb_strtolower($d->name) === mb_strtolower($name));
         if ($taken) {
-            throw ValidationException::withMessages(['name' => 'Энэ салбарт «'.$name.'» алба бүртгэлтэй байна.']);
+            throw ValidationException::withMessages(['name' => 'Энэ салбарт «'.$name.'» '.static::WORDS[0].' бүртгэлтэй байна.']);
         }
 
         return [$branchId, $name];

@@ -115,9 +115,11 @@ class ComputerRequest extends FormRequest
             $data->put('warranty_until', $until);
         }
 
-        // «＋ Шинэ алба нэмэх…» сонгоод нэр бичээгүй бол алба хоосон
-        if ($data->get('department') === '__new__') {
-            $data->put('department', null);
+        // «＋ Шинэ алба/нэгж нэмэх…» сонгоод нэр бичээгүй бол хоосон
+        foreach (['department', 'unit'] as $field) {
+            if ($data->get($field) === '__new__') {
+                $data->put($field, null);
+            }
         }
 
         // Диск: SSD, HDD, M.2 тусдаа талбараас «512GB SSD + 1TB HDD + 256GB M.2» болгоно

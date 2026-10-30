@@ -23,7 +23,7 @@ class Computer extends Model
     protected $fillable = [
         'inventory_number', 'name', 'type', 'brand', 'model', 'serial_number',
         'cpu', 'ram_gb', 'storage', 'os', 'ip_address', 'mac_address', 'specs',
-        'category', 'department', 'department_id', 'unit', 'position', 'location', 'assigned_to', 'assigned_user_id', 'holder_surname', 'holder_name', 'status',
+        'category', 'department', 'department_id', 'unit', 'unit_id', 'position', 'location', 'assigned_to', 'assigned_user_id', 'holder_surname', 'holder_name', 'status',
         'purchase_date', 'purchase_price', 'warranty_until', 'notes',
         'kit_parent_id', 'kit_index', 'branch_id',
     ];

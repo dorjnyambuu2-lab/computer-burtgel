@@ -77,7 +77,7 @@
             ['location', 'Байршил', 'text', ['placeholder' => 'Байр, давхар, өрөө']],
             ['holder_surname', 'Хариуцагчийн овог', 'text', ['placeholder' => 'Овог']],
             ['holder_name', 'Хариуцагчийн нэр', 'text', ['placeholder' => 'Нэр']],
-            ['unit', 'Нэгж', 'text', ['placeholder' => 'Жишээ: Захиргааны нэгж']],
+            ['unit', 'Нэгж', 'unit', []],
             ['department', 'Алба', 'department', []],
             ['position', 'Албан тушаал', 'text', ['placeholder' => 'Жишээ: Ахлах мэргэжилтэн']],
         ],
@@ -341,29 +341,31 @@
                                     @endforeach
                                 </div>
                             </div>
-                        @elseif ($kind === 'department')
-                            {{-- Алба: «Алба хэлтэс» хүснэгтээс сонгоно (Супер админд сонгосон салбарынх л харагдана) --}}
+                        @elseif (in_array($kind, ['department', 'unit'], true))
+                            {{-- Алба, нэгж: «Алба хэлтэс» хуудасны жагсаалтаас сонгоно (Супер админд сонгосон салбарынх л харагдана) --}}
                             @php
-                                $deptValue = (string) $val('department');
-                                $deptList = \App\Models\Department::query()
+                                $orgValue = (string) $val($name);
+                                $orgWord = $kind === 'unit' ? 'нэгж' : 'алба';
+                                $orgList = ($kind === 'unit' ? \App\Models\Unit::query() : \App\Models\Department::query())
                                     ->when(auth()->user()->isBranchScoped(), fn ($q) => $q->where('branch_id', auth()->user()->branch_id))
                                     ->orderBy('name')->get(['id', 'branch_id', 'name']);
                             @endphp
-                            <select id="department" name="department" data-department-select class="{{ $in }} @error($name) border-rose-400 @enderror">
-                                <option value="">— Алба сонгох —</option>
-                                @foreach ($deptList as $d)
-                                    <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @selected($deptValue === $d->name)>{{ $d->name }}</option>
+                            <select id="{{ $name }}" name="{{ $name }}" data-org-select class="{{ $in }} @error($name) border-rose-400 @enderror">
+                                <option value="">— {{ $text }} сонгох —</option>
+                                @foreach ($orgList as $d)
+                                    <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @selected($orgValue === $d->name)>{{ $d->name }}</option>
                                 @endforeach
                                 {{-- Жагсаалтад байхгүй хуучин утга алга болохгүй --}}
-                                @if ($deptValue !== '' && ! $deptList->contains('name', $deptValue))
-                                    <option value="{{ $deptValue }}" selected>{{ $deptValue }}</option>
+                                @if ($orgValue !== '' && ! $orgList->contains('name', $orgValue))
+                                    <option value="{{ $orgValue }}" selected>{{ $orgValue }}</option>
                                 @endif
-                                <option value="__new__">＋ Шинэ алба нэмэх…</option>
+                                <option value="__new__">＋ Шинэ {{ $orgWord }} нэмэх…</option>
                             </select>
-                            {{-- Жагсаалтад байхгүй бол нэрийг бичнэ: хадгалахад сонгосон салбарт алба үүснэ --}}
-                            <div data-department-new hidden class="mt-1 flex gap-2">
-                                <input type="text" id="department-new" name="department" maxlength="255" disabled class="{{ $in }} !mt-0 min-w-0 flex-1" placeholder="Шинэ албаны нэр" autocomplete="off">
-                                <button type="button" data-department-cancel title="Жагсаалтаас сонгох" aria-label="Жагсаалтаас сонгох"
+                            {{-- Жагсаалтад байхгүй бол нэрийг бичнэ: хадгалахад сонгосон салбарт үүснэ --}}
+                            <div data-org-new hidden class="mt-1 flex gap-2">
+                                <input type="text" id="{{ $name }}-new" name="{{ $name }}" maxlength="255" disabled class="{{ $in }} !mt-0 min-w-0 flex-1"
+                                       placeholder="{{ $kind === 'unit' ? 'Шинэ нэгжийн нэр' : 'Шинэ албаны нэр' }}" autocomplete="off">
+                                <button type="button" data-org-cancel title="Жагсаалтаас сонгох" aria-label="Жагсаалтаас сонгох"
                                         class="flex !min-h-0 shrink-0 items-center !rounded-xl !border !border-slate-300 !bg-white !px-3 !py-0 !text-slate-500 hover:!bg-slate-50">✕</button>
                             </div>
                         @elseif ($kind === 'ram')
@@ -497,14 +499,12 @@
 @include('computers._warranty_script', ['purchaseId' => 'purchase_date', 'monthsId' => 'warranty_months', 'untilId' => 'warranty_until'])
 
 <script>
-// Алба: сонгосон салбарын хэлтсүүд л (Супер админ салбар солиход); өөр салбарынх сонгогдсон бол арилгана
-(function () {
-    const select = document.querySelector('[data-department-select]');
+// Алба, нэгж: сонгосон салбарынх л (Супер админ салбар солиход); өөр салбарынх сонгогдсон бол арилгана
+document.querySelectorAll('[data-org-select]').forEach(function (select) {
     const branch = document.getElementById('branch_id');
-    if (!select) return;
 
-    // «＋ Шинэ алба нэмэх…»: жагсаалтын оронд бичих талбар (зөвхөн аль нэг нь илгээгдэнэ)
-    const box = document.querySelector('[data-department-new]');
+    // «＋ Шинэ … нэмэх…»: жагсаалтын оронд бичих талбар (зөвхөн аль нэг нь илгээгдэнэ)
+    const box = select.parentElement.querySelector('[data-org-new]');
     const input = box.querySelector('input');
     function typing(on) {
         select.hidden = select.disabled = on;
@@ -514,19 +514,19 @@
         input.dispatchEvent(new Event('change', { bubbles: true }));
     }
     select.addEventListener('change', function () { if (select.value === '__new__') typing(true); });
-    box.querySelector('[data-department-cancel]').addEventListener('click', function () { typing(false); });
+    box.querySelector('[data-org-cancel]').addEventListener('click', function () { typing(false); });
 
     if (!branch) return;
     function filter() {
         Array.from(select.options).forEach(function (o) {
-            if (!o.dataset.branch) return; // «— Алба сонгох —», хуучин утга
+            if (!o.dataset.branch) return; // «— … сонгох —», хуучин утга
             o.hidden = o.disabled = !!branch.value && o.dataset.branch !== branch.value;
         });
         if (select.selectedOptions[0] && select.selectedOptions[0].disabled) select.value = '';
     }
     branch.addEventListener('change', filter);
     filter();
-})();
+});
 </script>
 
 <script>

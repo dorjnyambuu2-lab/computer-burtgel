@@ -297,28 +297,29 @@
             @foreach ($jobFields as $field => [$label, $placeholder])
                 <div>
                     <label for="{{ $field }}" class="{{ $lb }}">{{ $label }}</label>
-                    @if ($field === 'department')
-                        {{-- Алба: «Алба хэлтэс» хүснэгтээс (сонгосон салбарынх, доорх скрипт) --}}
+                    @if (in_array($field, ['department', 'unit'], true))
+                        {{-- Алба, нэгж: «Алба хэлтэс» хуудасны жагсаалтаас (сонгосон салбарынх, доорх скрипт) --}}
                         @php
-                            $deptValue = (string) old('department', $user->department);
-                            $deptList = \App\Models\Department::query()
+                            $orgValue = (string) old($field, $user->$field);
+                            $orgList = ($field === 'unit' ? \App\Models\Unit::query() : \App\Models\Department::query())
                                 ->when(auth()->user()->isBranchScoped(), fn ($q) => $q->where('branch_id', auth()->user()->branch_id))
                                 ->orderBy('name')->get(['id', 'branch_id', 'name']);
                         @endphp
-                        <select id="department" name="department" data-department-select class="{{ $in }}">
-                            <option value="">— Алба сонгох —</option>
-                            @foreach ($deptList as $d)
-                                <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @selected($deptValue === $d->name)>{{ $d->name }}</option>
+                        <select id="{{ $field }}" name="{{ $field }}" data-org-select class="{{ $in }}">
+                            <option value="">— {{ $label }} сонгох —</option>
+                            @foreach ($orgList as $d)
+                                <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @selected($orgValue === $d->name)>{{ $d->name }}</option>
                             @endforeach
-                            @if ($deptValue !== '' && ! $deptList->contains('name', $deptValue))
-                                <option value="{{ $deptValue }}" selected>{{ $deptValue }}</option>
+                            @if ($orgValue !== '' && ! $orgList->contains('name', $orgValue))
+                                <option value="{{ $orgValue }}" selected>{{ $orgValue }}</option>
                             @endif
-                            <option value="__new__">＋ Шинэ алба нэмэх…</option>
+                            <option value="__new__">＋ Шинэ {{ $field === 'unit' ? 'нэгж' : 'алба' }} нэмэх…</option>
                         </select>
-                        {{-- Жагсаалтад байхгүй (шинэ салбар г.м.): нэрийг бичнэ, хадгалахад сонгосон салбарт алба үүснэ --}}
-                        <div data-department-new hidden class="mt-2 flex gap-2">
-                            <input type="text" name="department" maxlength="255" disabled class="{{ $in }} !mt-0 min-w-0 flex-1" placeholder="Шинэ албаны нэр" autocomplete="off">
-                            <button type="button" data-department-cancel title="Жагсаалтаас сонгох" aria-label="Жагсаалтаас сонгох"
+                        {{-- Жагсаалтад байхгүй (шинэ салбар г.м.): нэрийг бичнэ, хадгалахад сонгосон салбарт үүснэ --}}
+                        <div data-org-new hidden class="mt-2 flex gap-2">
+                            <input type="text" name="{{ $field }}" maxlength="255" disabled class="{{ $in }} !mt-0 min-w-0 flex-1"
+                                   placeholder="{{ $field === 'unit' ? 'Шинэ нэгжийн нэр' : 'Шинэ албаны нэр' }}" autocomplete="off">
+                            <button type="button" data-org-cancel title="Жагсаалтаас сонгох" aria-label="Жагсаалтаас сонгох"
                                     class="flex !h-auto !min-h-0 shrink-0 items-center !rounded-xl !border !border-slate-300 !bg-white !px-3 !py-0 !text-slate-500 hover:!bg-slate-50">✕</button>
                         </div>
                     @else
@@ -334,15 +335,13 @@
                 </div>
             @endforeach
             <script>
-            // Алба: сонгосон салбарын (radio) хэлтсүүд л; өөр салбарынх сонгогдсон бол арилгана
-            (function () {
-                const select = document.querySelector('[data-department-select]');
-                const box = document.querySelector('[data-department-new]');
-                const input = box ? box.querySelector('input') : null;
+            // Алба, нэгж: сонгосон салбарын (radio) жагсаалт л; өөр салбарынх сонгогдсон бол арилгана
+            document.querySelectorAll('[data-org-select]').forEach(function (select) {
+                const box = select.parentElement.querySelector('[data-org-new]');
+                const input = box.querySelector('input');
                 const radios = Array.from(document.querySelectorAll('input[name="branch_id"]'));
-                if (!select) return;
 
-                // «＋ Шинэ алба»: жагсаалтын оронд бичих талбар (зөвхөн аль нэг нь илгээгдэнэ)
+                // «＋ Шинэ …»: жагсаалтын оронд бичих талбар (зөвхөн аль нэг нь илгээгдэнэ)
                 function typing(on) {
                     select.hidden = select.disabled = on;
                     box.hidden = !on;
@@ -350,7 +349,7 @@
                     if (on) input.focus(); else { input.value = ''; select.value = ''; }
                 }
                 select.addEventListener('change', function () { if (select.value === '__new__') typing(true); });
-                box.querySelector('[data-department-cancel]').addEventListener('click', function () { typing(false); });
+                box.querySelector('[data-org-cancel]').addEventListener('click', function () { typing(false); });
 
                 function filter() {
                     const picked = radios.find(function (r) { return r.checked; });
@@ -363,7 +362,7 @@
                 }
                 radios.forEach(function (r) { r.addEventListener('change', filter); });
                 filter();
-            })();
+            });
             </script>
         </div>
     </section>

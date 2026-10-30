@@ -25,7 +25,9 @@ class ActivityLogController extends Controller
                 ->orWhere(fn ($s) => $s->where('subject_type', (new User)->getMorphClass())
                     ->whereIn('subject_id', User::query()->where('branch_id', $me->branch_id)->select('id')))
                 ->orWhere(fn ($s) => $s->where('subject_type', (new \App\Models\Department)->getMorphClass())
-                    ->whereIn('subject_id', \App\Models\Department::query()->where('branch_id', $me->branch_id)->select('id')))))
+                    ->whereIn('subject_id', \App\Models\Department::query()->where('branch_id', $me->branch_id)->select('id')))
+                ->orWhere(fn ($s) => $s->where('subject_type', (new \App\Models\Unit)->getMorphClass())
+                    ->whereIn('subject_id', \App\Models\Unit::query()->where('branch_id', $me->branch_id)->select('id')))))
             // Админ: зөвхөн өөрийн салбарын хүмүүсийн (өөрийн, салбарын ажилтан, админ) хийсэн үйлдэл — Супер админыхыг харуулахгүй.
             // «Систем» (хэрэглэгчгүй, жишээ нь скрипт) үйлдэл харагдана
             ->when($me->isBranchScoped(), fn ($q) => $q->where(fn ($w) => $w->whereNull('user_id')

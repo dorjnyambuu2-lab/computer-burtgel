@@ -37,7 +37,7 @@
                 $u->isSuperadmin()
                     ? ['/branches', 'Салбар', 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01', fn() => request()->is('branches*')]
                     : null,
-                ['/departments', 'Алба хэлтэс', 'M4 21V5h10v16M14 9h6v12M7 9h4M7 13h4M7 17h4M17 13h.01M17 17h.01', fn() => request()->is('departments*')],
+                ['/departments', 'Алба хэлтэс', 'M4 21V5h10v16M14 9h6v12M7 9h4M7 13h4M7 17h4M17 13h.01M17 17h.01', fn() => request()->is('departments*', 'units*')],
                 ['/activity', 'Үйлдлийн түүх', 'M12 8v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z', fn() => request()->is('activity*')],
                 ['/computers/trash', 'Устгасан', 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13', fn() => request()->is('computers/trash')],
             ]),

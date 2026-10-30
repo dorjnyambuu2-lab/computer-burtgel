@@ -41,6 +41,7 @@ class ActivityLog extends Model
         User::class => 'Хэрэглэгч',
         Branch::class => 'Салбар',
         Department::class => 'Алба хэлтэс',
+        Unit::class => 'Нэгж',
     ];
 
     /** Нэвтрэх, гарах: хэрэглэгч өөрөө (Auth-аас үл хамааран, гарах үед ч) */
@@ -138,16 +139,16 @@ class ActivityLog extends Model
         'code' => 'Код',
         // Салбар
         'address' => 'Хаяг',
-        // Алба хэлтэс (нэгтгэх)
-        'merged_into' => 'Нэгтгэсэн алба',
+        // Алба хэлтэс, нэгж (нэгтгэх)
+        'merged_into' => 'Нэгтгэсэн',
         'moved_devices' => 'Шилжсэн төхөөрөмж',
         'moved_users' => 'Шилжсэн ажилтан',
     ];
 
     /** Түүхэнд харуулахгүй талбар (давхардсан эсвэл техникийн: хариуцагчийн нэр «Хариуцагч»-д байна) */
     // deleted_by: үйлдэл («Устгасан», «Сэргээсэн») болон «Хэн» баганаас аль хэдийн харагдана
-    // department_id: «Алба» (department) текстээс аль хэдийн харагдана
-    public const HIDDEN_FIELDS = ['assigned_user_id', 'ram_modules', 'updated_at', 'created_at', 'id', 'deleted_by', 'department_id'];
+    // department_id, unit_id: «Алба», «Нэгж» текстээс аль хэдийн харагдана
+    public const HIDDEN_FIELDS = ['assigned_user_id', 'ram_modules', 'updated_at', 'created_at', 'id', 'deleted_by', 'department_id', 'unit_id'];
 
     /** Дэлгэрэнгүй цонхонд талбаруудыг бүлэглэх (бүлэгт ороогүй нь «Бусад») */
     public const FIELD_GROUPS = [

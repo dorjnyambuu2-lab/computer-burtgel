@@ -75,8 +75,8 @@ class DepartmentTest extends TestCase
         $this->assertSame($admin->branch_id, Department::where('name', 'Шинэ алба')->value('branch_id'));
 
         // Бүртгэх, хэрэглэгчийн форм: жагсаалтаас сонгох
-        $this->actingAs($admin)->get('/computers/create')->assertOk()->assertSee('data-department-select', false)->assertSee('Миний алба');
-        $this->actingAs($admin)->get('/users/create')->assertOk()->assertSee('data-department-select', false);
+        $this->actingAs($admin)->get('/computers/create')->assertOk()->assertSee('id="department" name="department" data-org-select', false)->assertSee('Миний алба');
+        $this->actingAs($admin)->get('/users/create')->assertOk()->assertSee('id="department" name="department" data-org-select', false);
         // Ажилтан хэрэглэх эрхгүй
         $this->actingAs(User::factory()->employee()->create())->get('/departments')->assertRedirect('/');
         $this->assertNotNull($mine);

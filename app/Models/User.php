@@ -39,7 +39,7 @@ class User extends Authenticatable
         'inactive' => 'Идэвхгүй',
     ];
 
-    protected $fillable = ['name', 'surname', 'username', 'email', 'password', 'role', 'branch_id', 'unit', 'department', 'department_id', 'position', 'is_active', 'must_change_password'];
+    protected $fillable = ['name', 'surname', 'username', 'email', 'password', 'role', 'branch_id', 'unit', 'unit_id', 'department', 'department_id', 'position', 'is_active', 'must_change_password'];
 
     /** Ажлын мэдээллийн талбарууд (профайл болон компьютерийн хариуцагчид ашиглана) */
     public const JOB_FIELDS = ['surname', 'unit', 'department', 'position'];

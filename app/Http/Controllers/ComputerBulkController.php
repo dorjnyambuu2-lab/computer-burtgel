@@ -33,9 +33,11 @@ class ComputerBulkController extends Controller
         if (! $request->filled('warranty_until')) {
             $request->merge(['warranty_until' => Warranty::until($request->input('purchase_date'), $request->input('warranty_months'))]);
         }
-        // «＋ Шинэ алба нэмэх…» сонгоод нэр бичээгүй бол алба хоосон
-        if ($request->input('department') === '__new__') {
-            $request->merge(['department' => null]);
+        // «＋ Шинэ алба/нэгж нэмэх…» сонгоод нэр бичээгүй бол хоосон
+        foreach (['department', 'unit'] as $field) {
+            if ($request->input($field) === '__new__') {
+                $request->merge([$field => null]);
+            }
         }
         $form = new \App\Http\Requests\ComputerRequest;
 
