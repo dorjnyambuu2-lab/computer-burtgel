@@ -315,23 +315,31 @@
                             </select>
                             <p id="kit-hint" class="mt-1 text-xs text-slate-400">Компьютерийн дагалдах хэрэгсэл бол сонгоно: дугаар нь компьютерийн дугаар + дэд дугаар болно.</p>
                         @elseif ($kind === 'storage')
-                            {{-- SSD, HDD, M.2-г тусад нь бөглөнө; хадгалахад «512GB SSD + 1TB HDD + 256GB M.2» нэг мөр болно, доор нь нийт GB (доорх скрипт, ComputerRequest) --}}
+                            {{-- SSD, HDD, M.2-г тусад нь бөглөнө; хадгалахад «512GB SSD + 1TB HDD + 256GB M.2» нэг мөр болно (доорх скрипт, ComputerRequest) --}}
                             @php $disk = \App\Support\SpecSuggestions::storageParts($val('storage')); @endphp
                             <input type="hidden" id="storage" name="storage" value="{{ $val('storage') }}">
-                            <div data-storage-parts class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                                @foreach (\App\Support\SpecSuggestions::DISK_KINDS as $part => $partLabel)
-                                    <div>
-                                        <label for="storage_{{ $part }}" class="{{ $lb }}">
-                                            Санах ой — {{ $partLabel }}
-                                            @if ($auto)<span class="ml-1 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">авто</span>@endif
-                                        </label>
-                                        <input id="storage_{{ $part }}" name="storage_{{ $part }}" type="text" data-part="{{ $part }}"
-                                                value="{{ old('storage_'.$part, $disk[$part]) }}" placeholder="{{ ['ssd' => 'Жишээ: 512GB', 'hdd' => 'Жишээ: 1TB', 'm2' => 'Жишээ: 256GB'][$part] }}"
-                                                list="sg-storage-{{ $part }}" autocomplete="off"
-                                                class="{{ $in }} @if ($auto) !border-emerald-400 bg-emerald-50/40 @endif @error($name) border-rose-400 @enderror">
-                                    </div>
-                                @endforeach
-                                <p data-storage-total class="text-sm text-slate-500 md:col-span-3">Нийт: <b class="font-semibold text-slate-800">—</b></p>
+                            {{-- Нэг гарчигтай бүлэг: баруун талд нийт хэмжээ, талбар бүрийн дотор төрлийн шошго (SSD, HDD, M.2) --}}
+                            <div data-storage-parts>
+                                <div class="flex items-center justify-between gap-3">
+                                    <label for="storage_ssd" class="{{ $lb }}">
+                                        Санах ой (диск)
+                                        @if ($auto)<span class="ml-1 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">авто</span>@endif
+                                    </label>
+                                    <span data-storage-total hidden class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">Нийт <b class="font-semibold">—</b></span>
+                                </div>
+                                <div class="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                    @foreach (\App\Support\SpecSuggestions::DISK_KINDS as $part => $partLabel)
+                                        <div class="relative">
+                                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                                <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">{{ $partLabel }}</span>
+                                            </span>
+                                            <input id="storage_{{ $part }}" name="storage_{{ $part }}" type="text" data-part="{{ $part }}" aria-label="Санах ой — {{ $partLabel }}"
+                                                    value="{{ old('storage_'.$part, $disk[$part]) }}" placeholder="{{ ['ssd' => '512GB', 'hdd' => '1TB', 'm2' => '256GB'][$part] }}"
+                                                    list="sg-storage-{{ $part }}" autocomplete="off"
+                                                    class="{{ $in }} !mt-0 !pl-14 @if ($auto) !border-emerald-400 bg-emerald-50/40 @endif @error($name) border-rose-400 @enderror">
+                                        </div>
+                                    @endforeach
+                                </div>
                             </div>
                         @elseif ($kind === 'department')
                             {{-- Алба: «Алба хэлтэс» хүснэгтээс сонгоно (Супер админд сонгосон салбарынх л харагдана) --}}
@@ -724,10 +732,11 @@ window.storageDisk = (function () {
     }
     function part(box, kind) { return box.querySelector('[data-part="' + kind + '"]'); }
     function showTotal(box, value) {
-        const out = box.querySelector('[data-storage-total] b');
-        if (!out) return;
+        const wrap = box.querySelector('[data-storage-total]');
+        if (!wrap) return;
         const t = totalGb(value);
-        out.textContent = t === null ? '—' : t + ' GB';
+        wrap.hidden = t === null;
+        wrap.querySelector('b').textContent = t === null ? '' : t + ' GB';
     }
     function sync(box) {
         const values = {};
@@ -1031,6 +1040,22 @@ window.ramModules = (function () {
 
         const grid = document.createElement('div');
         grid.className = 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3';
+        // «Дагалдах хэрэгсэл»: юу болохыг нэрээр нь бичнэ (Веб камер, Чихэвч ...)
+        if (cat === 'other') {
+            const wrap = document.createElement('label');
+            wrap.className = 'block text-xs font-medium text-slate-600 sm:col-span-2';
+            wrap.textContent = 'Нэр';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'items[' + idx + '][name]';
+            input.dataset.itemName = '';
+            input.autocomplete = 'off';
+            input.className = inputClass;
+            input.placeholder = 'Жишээ: Веб камер';
+            if (values && values.name) input.value = values.name;
+            wrap.appendChild(input);
+            grid.appendChild(wrap);
+        }
         fieldsOf(cat).forEach(function (f) {
             // Диск: SSD, HDD, M.2 тусдаа; нуугдсан items[][storage]-д нэгтгэнэ, ард нь нийт
             if (f === 'storage') {
@@ -1044,22 +1069,28 @@ window.ramModules = (function () {
                 box.className = 'contents';
                 Object.keys(window.storageDisk.kinds).forEach(function (kind) {
                     const wrap = document.createElement('label');
-                    wrap.className = 'block text-xs font-medium text-slate-600';
-                    wrap.textContent = 'Санах ой — ' + window.storageDisk.kinds[kind];
+                    wrap.className = 'relative block text-xs font-medium text-slate-600';
+                    wrap.textContent = kind === 'ssd' ? 'Санах ой (диск)' : '\u00a0'; // гарчиг нэг удаа, бусад нь тэгшлэх
+                    const tag = document.createElement('span');
+                    tag.className = 'pointer-events-none absolute bottom-0 left-0 flex h-[2.6rem] items-center pl-3';
+                    tag.innerHTML = '<span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">' + window.storageDisk.kinds[kind] + '</span>';
+                    wrap.appendChild(tag);
                     const input = document.createElement('input');
                     input.type = 'text';
                     input.dataset.part = kind;
                     input.autocomplete = 'off';
                     input.className = inputClass;
-                    input.placeholder = { ssd: 'Жишээ: 512GB', hdd: 'Жишээ: 1TB', m2: 'Жишээ: 256GB' }[kind];
+                    input.placeholder = { ssd: '512GB', hdd: '1TB', m2: '256GB' }[kind];
+                    input.classList.add('!pl-14');
                     input.setAttribute('list', 'sg-storage-' + kind);
                     wrap.appendChild(input);
                     box.appendChild(wrap);
                 });
                 const total = document.createElement('p');
                 total.dataset.storageTotal = '';
-                total.className = 'self-end pb-2 text-xs text-slate-500';
-                total.innerHTML = 'Нийт: <b class="font-semibold text-slate-800">—</b>';
+                total.hidden = true;
+                total.className = 'self-end justify-self-start rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700';
+                total.innerHTML = 'Нийт <b class="font-semibold"></b>';
                 box.appendChild(total);
                 grid.append(stored, box);
                 window.storageDisk.fill(box);
@@ -1176,7 +1207,8 @@ window.ramModules = (function () {
                 if (i) copy[f] = i.value;
             });
             const same = cardsOf(card.dataset.category);
-            const serial = addCard(card.dataset.category, copy, false, same[same.length - 1]).querySelector('[data-field="serial_number"]');
+            const added = addCard(card.dataset.category, copy, false, same[same.length - 1]);
+            const serial = added.querySelector('[data-field="serial_number"], [data-item-name]');
             if (serial) serial.focus();
         } else if (e.target.closest('[data-remove]')) {
             card.remove();

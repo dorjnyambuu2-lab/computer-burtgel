@@ -17,7 +17,8 @@
     if ($isBranchAdmin) {
         $query->where('role', 'employee')->where('branch_id', $me->branch_id);
     }
-    $roleOptions = $me->isSuperadmin() ? \App\Models\User::ROLES : array_diff_key(\App\Models\User::ROLES, ['superadmin' => 1]);
+    // Эрхийн шүүлтүүр: Админ, Ажилтан (Супер админ нь өөрөө тул жагсаалтад гардаггүй)
+    $roleOptions = array_diff_key(\App\Models\User::ROLES, ['superadmin' => 1]);
     // «#12» бол дэс дугаараар хайна (доор), бусад үед нэр, нэвтрэх нэр, имэйлээр
     $rowNumber = \App\Support\RowNumber::parse($q);
     if ($q !== '' && $rowNumber === null) {

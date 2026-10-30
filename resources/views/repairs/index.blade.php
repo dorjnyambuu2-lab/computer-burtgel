@@ -9,6 +9,8 @@
     foreach ($stages as $k => $l) {
         $tabs[$k] = [$l, (int) ($stageCounts[$k] ?? 0)];
     }
+    // Дууссан засварууд (түүх): дарааллаас гарсан төхөөрөмжүүд
+    $tabs['done'] = ['Дууссан', $finishedCount];
     $filtered = filled(request('q'));
 @endphp
 
@@ -40,6 +42,56 @@
     </div>
 </form>
 
+@if ($finished)
+{{-- Дууссан засварууд: засвар бүр нэг мөр (шинэ нь эхэнд) --}}
+<section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm">
+        <thead class="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <tr>
+                <th class="px-4 py-3">Төхөөрөмж ба эвдрэл</th>
+                <th class="px-4 py-3">Хугацаа</th>
+                <th class="px-4 py-3">Хийсэн ажил</th>
+                <th class="px-4 py-3 text-right">Зардал</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+        @forelse ($finished as $e)
+            @php $c = $e->computer; @endphp
+            <tr class="align-top transition hover:bg-slate-50/60">
+                <td class="px-4 py-3">
+                    <div class="flex flex-wrap items-baseline gap-2">
+                        <a href="{{ route('computers.show', $c) }}" class="font-semibold !text-slate-900 hover:!text-blue-700 hover:underline">{{ $c->name ?: 'Компьютер' }}</a>
+                        <span class="whitespace-nowrap font-mono text-[11px] text-slate-400">{{ $c->inventory_number }}</span>
+                    </div>
+                    @if ($e->reason)<div class="mt-1 max-w-xl text-slate-700">«{{ $e->reason }}»</div>@endif
+                </td>
+                <td class="whitespace-nowrap px-4 py-3">
+                    <div class="text-slate-700">
+                        @if ($e->started_at){{ $e->started_at->format('m-d') }} → @endif{{ $e->created_at->format('m-d') }}
+                    </div>
+                    @if ($e->started_at)
+                        @php $days = (int) $e->started_at->copy()->startOfDay()->diffInDays($e->created_at->copy()->startOfDay()); @endphp
+                        <div class="mt-0.5 text-xs text-slate-400">{{ $days === 0 ? 'Тухайн өдөрт' : $days.' хоног' }}</div>
+                    @endif
+                </td>
+                <td class="px-4 py-3">
+                    <div class="max-w-md {{ $e->note ? 'text-slate-700' : 'text-slate-300' }}">{{ $e->note ?: '—' }}</div>
+                    @if ($e->actor)<div class="mt-0.5 text-xs text-slate-400">{{ $e->actor->name }}</div>@endif
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 text-right {{ $e->total_cost > 0 ? 'font-semibold text-slate-800' : 'text-slate-300' }}">
+                    {{ $e->total_cost > 0 ? \App\Support\Money::format($e->total_cost) : '—' }}
+                </td>
+            </tr>
+        @empty
+            <tr><td colspan="4" class="px-4 py-12 text-center text-slate-400">{{ $filtered ? 'Хайлтад тохирох засвар алга.' : 'Дууссан засвар алга.' }}</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+    </div>
+    @if ($finished->hasPages())<div class="border-t border-slate-100 px-4 py-3">{{ $finished->links() }}</div>@endif
+</section>
+@else
 <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
     <div class="overflow-x-auto">
     <table class="w-full text-left text-sm">
@@ -139,4 +191,5 @@
     </table>
     </div>
 </section>
+@endif
 @endsection

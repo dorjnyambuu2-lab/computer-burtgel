@@ -106,7 +106,11 @@
                         @foreach ($rows as $label => $value)
                             <div class="min-w-0">
                                 <dt class="text-xs text-slate-500">{{ $label }}</dt>
-                                <dd class="mt-0.5 break-words text-sm font-medium {{ filled($value) ? 'text-slate-900' : 'text-slate-300' }}">{{ filled($value) ? $value : '—' }}</dd>
+                                @if (filled($value) && in_array($label, ['RAM', 'Санах ой (диск)'], true))
+                                    <dd class="mt-0.5">@include('computers._capacity', ['field' => $label === 'RAM' ? 'ram' : 'storage'])</dd>
+                                @else
+                                    <dd class="mt-0.5 break-words text-sm font-medium {{ filled($value) ? 'text-slate-900' : 'text-slate-300' }}">{{ filled($value) ? $value : '—' }}</dd>
+                                @endif
                             </div>
                         @endforeach
                     </dl>

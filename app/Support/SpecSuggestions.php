@@ -151,6 +151,24 @@ class SpecSuggestions
         return $found ? $total : null;
     }
 
+    /** Диск бүрийг [төрөл, хэмжээ] болгоно: «512GB SSD + 1TB HDD» → [['SSD', '512GB'], ['HDD', '1TB']] */
+    public static function storageChips(?string $value): array
+    {
+        $chips = [];
+        foreach (preg_split('/\s*\+\s*/', trim((string) $value)) as $part) {
+            if ($part === '') {
+                continue;
+            }
+            if (preg_match('/^(\d+(?:[.,]\d+)?\s*(?:GB|TB))\s*(.*)$/i', $part, $m)) {
+                $chips[] = [trim($m[2]) ?: null, $m[1]];
+            } else {
+                $chips[] = [null, $part];
+            }
+        }
+
+        return $chips;
+    }
+
     /** Харуулах: олон диск бол нийт хэмжээтэй — «512GB SSD + 1TB HDD (нийт 1536 GB)» */
     public static function storageLabel(?string $value): ?string
     {

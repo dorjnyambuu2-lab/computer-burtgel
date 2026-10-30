@@ -6,6 +6,7 @@ use App\Enums\ComputerStatus;
 use App\Enums\RepairStage;
 use App\Models\AssetRequest;
 use App\Models\Computer;
+use App\Models\ComputerEvent;
 use App\Support\Money;
 use App\Support\RepairService;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,13 @@ class RepairController extends Controller
     {
         // Дугаар (#1, #2 ...) нь шүүлтээс үл хамааран бүхэл дараалал дахь байр
         $numbers = Computer::repairQueueNumbers();
+
+        // «Дууссан» таб: дууссан засвар бүр (Админд өөрийн салбарынх — Computer-ийн BranchScope)
+        $finishedQuery = fn () => ComputerEvent::query()->where('type', 'repaired')
+            ->whereHas('computer', fn ($q) => $q->search($request->query('q')));
+        $finished = $request->query('stage') === 'done'
+            ? $this->finishedRepairs($finishedQuery()->with(['computer', 'actor:id,name'])->latest()->latest('id')->paginate(20)->withQueryString())
+            : null;
 
         $computers = Computer::query()
             ->repairQueue()
@@ -50,7 +58,32 @@ class RepairController extends Controller
             'stages' => RepairStage::options(),
             'stageCounts' => $stageCounts,
             'total' => count($numbers),
+            'finished' => $finished,
+            'finishedCount' => ComputerEvent::query()->where('type', 'repaired')->whereHas('computer')->count(),
         ]);
+    }
+
+    /**
+     * Дууссан засвар бүрд: засварт орсон огноо, эвдрэл (тухайн засварын «repair» үйлдэл), нийт зардал
+     * (орсноос дуусах хүртэлх үйлдлүүдийн зардал) нэмнэ.
+     */
+    private function finishedRepairs($page)
+    {
+        $events = ComputerEvent::query()
+            ->whereIn('computer_id', $page->pluck('computer_id')->unique())
+            ->whereIn('type', ['repair', 'repair_update', 'repaired'])
+            ->orderBy('id')->get(['id', 'computer_id', 'type', 'note', 'cost', 'created_at'])
+            ->groupBy('computer_id');
+
+        $page->getCollection()->each(function (ComputerEvent $done) use ($events) {
+            $before = ($events[$done->computer_id] ?? collect())->where('id', '<=', $done->id);
+            $start = $before->where('type', 'repair')->last();
+            $done->started_at = $start?->created_at;
+            $done->reason = $start?->note;
+            $done->total_cost = (float) $before->where('id', '>=', $start?->id ?? 0)->sum('cost');
+        });
+
+        return $page;
     }
 
     /** Засварын явц өөрчлөх эсвэл дуусгах */

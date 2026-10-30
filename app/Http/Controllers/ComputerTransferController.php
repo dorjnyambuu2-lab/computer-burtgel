@@ -153,7 +153,9 @@ class ComputerTransferController extends Controller
             : $computer->activityLabel();
 
         return back()->with('success', $what.': '.$fromLabel.' → '.$toLabel.' руу шилжүүллээ.'
-            .($skipped > 0 ? ' '.$skipped.' нь засварт/актласан эсвэл шийдвэрлэгдээгүй хүсэлттэй тул шилжээгүй.' : ''));
+            .($skipped > 0 ? ' '.$skipped.' нь засварт/актласан эсвэл шийдвэрлэгдээгүй хүсэлттэй тул шилжээгүй.' : ''))
+            // Шилжээгүй төхөөрөмж байвал уншиж амжихаар алга болгохгүй
+            ->with('success_autohide', $skipped > 0 ? null : 3000);
     }
 
     /** Төхөөрөмж одоо хаана байгаа: хариуцагч, агуулах, алба хэлтэс */

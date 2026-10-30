@@ -18,8 +18,14 @@
     $maxDept = max(1, ...array_values($byDept ?: [1]));
     // Сүүлд бүртгэгдсэн: «Бүх төхөөрөмж» жагсаалттай ижил (иж бүрдлийн хэрэгсэл, mouse, keyboard биш)
     $recent = Computer::query()->whereNull('kit_parent_id')->counted()->latest()->limit(6)->get();
-    // Баталгаа дуусах: бусад тоо, жагсаалттай ижил (mouse, keyboard биш)
-    try { $expiring = Computer::query()->counted()->warrantyExpiringWithin(60)->limit(5)->get(); } catch (\Throwable $e) { $expiring = collect(); }
+    // Идэвхтэй ажилтнууд (Админд өөрийн салбарынх — «Ажилтан» жагсаалттай ижил)
+    $employees = \App\Models\User::query()->where('role', 'employee')->where('is_active', true)
+        ->when(auth()->user()?->isBranchScoped(), fn ($q) => $q->where('branch_id', auth()->user()->branch_id))->count();
+    // Сүүлд засварт өгсөн: «Засварт бүртгэсэн» үйлдлүүд (Админд өөрийн салбарынх — Computer-ийн BranchScope)
+    $recentRepairs = \App\Models\ComputerEvent::query()->where('type', 'repair')->whereHas('computer')
+        ->with('computer')->latest()->latest('id')->limit(30)->get()
+        ->unique('computer_id')->take(6); // нэг төхөөрөмж хэд дахин засварт орсон бол сүүлийнх нь л
+    $repairQueue = Computer::repairQueueNumbers();
 
     $slices = [
         ['Шинэ', $n(ComputerStatus::New), '#6250d6', 'bg-violet-600'],
@@ -30,11 +36,11 @@
     ];
     $active = $n(ComputerStatus::Active);
     $cards = [
-        ['Нийт төхөөрөмж', $total, 'Бүртгэлтэй', 'text-blue-600', 'bg-blue-50', route('computers.index')],
-        ['Ашиглаж байгаа', $active, $total ? round($active / $total * 100).'% ашиглалт' : '—', 'text-emerald-600', 'bg-emerald-50', route('computers.index', ['status' => ComputerStatus::Active->value])],
-        ['Засварт байгаа', $n(ComputerStatus::InRepair), 'Засвар', 'text-amber-600', 'bg-amber-50', route('repairs.index')],
-        ['Агуулахад байгаа', $n(ComputerStatus::InStorage), 'Хадгалагдаж буй', 'text-slate-600', 'bg-slate-100', route('computers.index', ['status' => ComputerStatus::InStorage->value])],
-        ['Баталгаа дуусах', $expiring->count(), '60 хоногийн дотор', 'text-rose-600', 'bg-rose-50', route('computers.index', ['warranty' => 'expiring'])],
+        ['Нийт төхөөрөмж', $total, 'Бүртгэлтэй', 'text-blue-600', 'bg-blue-50', route('computers.index'), 'M4 5h16v11H4zM8 20h8M12 16v4'],
+        ['Ашиглаж байгаа', $active, $total ? round($active / $total * 100).'% ашиглалт' : '—', 'text-emerald-600', 'bg-emerald-50', route('computers.index', ['status' => ComputerStatus::Active->value]), 'M20 6L9 17l-5-5'],
+        ['Засварт байгаа', $n(ComputerStatus::InRepair), 'Засвар', 'text-amber-600', 'bg-amber-50', route('repairs.index'), 'M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z'],
+        ['Агуулахад байгаа', $n(ComputerStatus::InStorage), 'Хадгалагдаж буй', 'text-slate-600', 'bg-slate-100', route('computers.index', ['status' => ComputerStatus::InStorage->value]), 'M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10'],
+        ['Нийт ажилтан', $employees, 'Идэвхтэй бүртгэл', 'text-blue-600', 'bg-blue-50', route('users.index', ['role' => 'employee', 'status' => 'active']), 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8'],
     ];
     $canAdd = auth()->user()?->canManageComputers();
     $offset = 0;
@@ -57,11 +63,13 @@
 
 {{-- Stat cards --}}
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-    @foreach ($cards as [$label, $val, $sub, $txt, $bg, $href])
+    @foreach ($cards as [$label, $val, $sub, $txt, $bg, $href, $icon])
         <a href="{{ $href }}" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <div class="flex items-center justify-between">
                 <div class="text-sm font-semibold text-slate-600">{{ $label }}</div>
-                <div class="h-9 w-9 rounded-xl {{ $bg }}"></div>
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl {{ $bg }} {{ $txt }}">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ $icon }}"/></svg>
+                </span>
             </div>
             <div class="mt-4 text-3xl font-bold">{{ $val }}</div>
             <div class="mt-2 text-xs {{ $txt }}">{{ $sub }}</div>
@@ -192,17 +200,33 @@
         </div>
     </section>
 
+    {{-- Засвар: сүүлд засварт өгсөн төхөөрөмжүүд, одоогийн явцтай --}}
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="font-bold">Баталгаа дуусах гэж буй</h2>
-        <p class="text-xs text-slate-500">60 хоногийн дотор</p>
-        <ul class="mt-4 divide-y divide-slate-100 text-sm">
-            @forelse ($expiring as $c)
-                <li class="py-3">
-                    <a href="{{ route('computers.show', $c) }}" class="font-semibold hover:text-blue-600">{{ $c->name ?: $c->inventory_number }}</a>
-                    <div class="text-xs text-rose-600">{{ $c->warranty_until?->format('Y-m-d') }}</div>
+        <div class="flex items-center justify-between gap-3">
+            <h2 class="font-bold">Засвар</h2>
+            <a href="{{ route('repairs.index') }}" class="text-xs font-semibold text-blue-600">Бүгдийг харах</a>
+        </div>
+        <ul class="mt-3 divide-y divide-slate-100 text-sm">
+            @forelse ($recentRepairs as $e)
+                @php $pc = $e->computer; $queue = $repairQueue[$pc->id] ?? null; @endphp
+                <li>
+                    <a href="{{ route('computers.show', $pc) }}" class="-mx-2 block rounded-lg px-2 py-2.5 !text-slate-900 transition hover:bg-slate-50">
+                        <span class="flex items-start justify-between gap-2">
+                            <span class="min-w-0 truncate font-semibold">{{ $pc->name ?: $pc->inventory_number }}</span>
+                            @if ($queue)
+                                <span class="shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">#{{ $queue }} · {{ $pc->repair_stage?->label() ?? 'Дараалалд' }}</span>
+                            @else
+                                <span class="shrink-0 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Засагдсан</span>
+                            @endif
+                        </span>
+                        <span class="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
+                            <span class="shrink-0">{{ $e->created_at->format('m-d') }}</span>
+                            @if ($e->note)<span class="truncate">· {{ $e->note }}</span>@endif
+                        </span>
+                    </a>
                 </li>
             @empty
-                <li class="py-6 text-slate-400">Байхгүй.</li>
+                <li class="py-6 text-slate-400">Засварт өгсөн төхөөрөмж алга.</li>
             @endforelse
         </ul>
     </section>

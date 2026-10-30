@@ -73,7 +73,9 @@ class ComputerRegistryTest extends TestCase
         $computer = Computer::firstOrFail();
         $this->assertSame('512GB SSD + 1TB HDD + 256GB M.2', $computer->storage);
 
-        $this->actingAs($user)->get("/computers/{$computer->id}")->assertOk()->assertSee('512GB SSD + 1TB HDD + 256GB M.2 (нийт 1792 GB)');
+        // Нийт хэмжээ, диск бүр төрлийн шошготой
+        $this->actingAs($user)->get("/computers/{$computer->id}")->assertOk()
+            ->assertSee('1792 GB')->assertSeeInOrder(['SSD', '512GB', 'HDD', '1TB', 'M.2', '256GB']);
         // Засахад M.2 өөрийн талбарт буцаж бөглөгдөнө
         $this->actingAs($user)->get("/computers/{$computer->id}/edit")->assertOk()
             ->assertSee('id="storage_m2" name="storage_m2" type="text" data-part="m2"', false)->assertSee('value="256GB"', false);
@@ -90,6 +92,80 @@ class ComputerRegistryTest extends TestCase
         // Сонгоод нэр бичээгүй бол алба хоосон
         $this->actingAs($user)->post('/computers', $this->valid(['inventory_number' => 'PC-0002', 'name' => 'PC-2', 'ip_address' => null, 'mac_address' => null, 'department' => '__new__']))->assertSessionHasNoErrors();
         $this->assertNull(Computer::where('name', 'PC-2')->value('department'));
+    }
+
+    public function test_new_device_registration_scenarios(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $form = fn (array $o = []) => array_merge(['type' => 'desktop', 'status' => 'new', 'purchase_date' => '2026-01-10', 'warranty_months' => '12'], $o);
+
+        // Процессор + mouse, keyboard: иж бүрдэл (-1, -2, -3), диск, үнэ, баталгааг сараар бодно
+        $this->actingAs($admin)->post('/computers', $form([
+            'categories' => ['processor'], 'with_accessories' => ['mouse', 'keyboard'], 'name' => 'PC-KIT',
+            'storage_ssd' => '512GB', 'storage_hdd' => '', 'storage_m2' => '', 'ram_gb' => 16, 'purchase_price' => '1,250,000₮',
+        ]))->assertSessionHasNoErrors()->assertRedirect();
+        $main = Computer::where('name', 'PC-KIT')->firstOrFail();
+        $kit = Computer::where('kit_parent_id', $main->id)->get();
+        $this->assertSame(['keyboard', 'mouse'], $kit->pluck('category.value')->sort()->values()->all());
+        $this->assertStringEndsWith('-1', $main->inventory_number);
+        $this->assertSame(['512GB SSD', 1250000.0, '2027-01-10', $admin->branch_id], [$main->storage, (float) $main->purchase_price, $main->warranty_until->toDateString(), $main->branch_id]);
+        $this->assertTrue($kit->every(fn ($c) => $c->branch_id === $admin->branch_id));
+
+        // Олон ангилал зэрэг: тус бүр тусдаа бүртгэл
+        $before = Computer::count();
+        $this->actingAs($admin)->post('/computers', $form(['categories' => ['monitor', 'printer']]))->assertSessionHasNoErrors();
+        $this->assertSame($before + 2, Computer::count());
+
+        // Сүлжээний төхөөрөмж, зөөврийн компьютер
+        $this->actingAs($admin)->post('/computers', $form(['categories' => ['network'], 'name' => 'Switch-1', 'type' => 'other']))->assertSessionHasNoErrors();
+        $this->assertSame('network', Computer::where('name', 'Switch-1')->first()->category->value);
+        $this->actingAs($admin)->post('/computers', $form(['categories' => ['laptop'], 'type' => 'laptop', 'name' => 'NB-1']))->assertSessionHasNoErrors();
+
+        // «Бусад» нэргүй бол алдаа; дугаарыг гараар өгсөн ч автоматаар үүснэ
+        $this->actingAs($admin)->post('/computers', $form(['categories' => ['other']]))->assertSessionHasErrors('name');
+        $this->actingAs($admin)->post('/computers', $form(['categories' => ['ups'], 'name' => 'UPS-1', 'inventory_number' => 'MANUAL-1']))->assertSessionHasNoErrors();
+        $this->assertNotSame('MANUAL-1', Computer::where('name', 'UPS-1')->value('inventory_number'));
+
+        // Буруу утгууд
+        $this->actingAs($admin)->post('/computers', $form(['categories' => ['processor'], 'status' => 'xx', 'ram_gb' => 'abc', 'purchase_price' => '-5',
+            'purchase_date' => '2026-01-10', 'warranty_until' => '2025-01-01', 'ip_address' => '999.1.1.1']))
+            ->assertSessionHasErrors(['status', 'ram_gb', 'purchase_price', 'warranty_until', 'ip_address']);
+
+        // «Хадгалаад дараагийнх»: ижил өгөгдлөөр шинэ форм руу
+        $this->actingAs($admin)->post('/computers', $form(['categories' => ['monitor'], 'name' => 'MON-NEXT', 'department' => 'МТ алба', 'save_and_new' => 1]))
+            ->assertRedirect(route('computers.create', ['from' => Computer::where('name', 'MON-NEXT')->value('id')]));
+        $this->actingAs($admin)->get(route('computers.create', ['from' => Computer::where('name', 'MON-NEXT')->value('id')]))->assertOk()->assertSee('МТ алба');
+
+        // Админ өөр салбарт бүртгэж чадахгүй (үргэлж өөрийн салбар)
+        $far = \App\Models\Branch::create(['name' => 'Дархан', 'code' => 'DRH']);
+        $this->actingAs($admin)->post('/computers', $form(['categories' => ['scanner'], 'name' => 'SC-1', 'branch_id' => $far->id]))->assertSessionHasNoErrors();
+        $this->assertSame($admin->branch_id, Computer::where('name', 'SC-1')->value('branch_id'));
+
+        // Супер админ салбар заавал сонгоно
+        $super = User::factory()->superadmin()->create();
+        $this->actingAs($super)->post('/computers', $form(['categories' => ['scanner'], 'name' => 'SC-2']))->assertSessionHasErrors('branch_id');
+        $this->actingAs($super)->post('/computers', $form(['categories' => ['scanner'], 'name' => 'SC-2', 'branch_id' => $far->id]))->assertSessionHasNoErrors();
+        $this->assertSame($far->id, Computer::withoutGlobalScopes()->where('name', 'SC-2')->value('branch_id'));
+
+        // Ажилтан бүртгэх эрхгүй
+        $this->actingAs(User::factory()->employee()->create())->post('/computers', $form(['categories' => ['scanner'], 'name' => 'SC-3']));
+        $this->assertFalse(Computer::withoutGlobalScopes()->where('name', 'SC-3')->exists());
+    }
+
+    public function test_accessory_card_name_is_used(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $base = ['type' => 'desktop', 'status' => 'new', 'categories' => ['processor', 'other']];
+
+        $this->actingAs($admin)->post('/computers', $base + ['items' => [['category' => 'processor'], ['category' => 'other', 'name' => 'Веб камер'], ['category' => 'other', 'name' => '']]])
+            ->assertSessionHasNoErrors();
+        $this->assertTrue(Computer::where('name', 'Веб камер')->where('category', 'other')->exists());
+        $this->assertTrue(Computer::where('name', 'Дагалдах хэрэгсэл 2')->exists()); // нэр бичээгүй бол ангиллын нэр
+
+        // Ерөнхий нэртэй бол «Нэр · Веб камер»
+        $this->actingAs($admin)->post('/computers', $base + ['name' => 'PC-7', 'items' => [['category' => 'processor'], ['category' => 'other', 'name' => 'Веб камер']]])
+            ->assertSessionHasNoErrors();
+        $this->assertTrue(Computer::where('name', 'PC-7 · Веб камер')->exists());
     }
 
     public function test_new_holder_is_added_as_employee(): void

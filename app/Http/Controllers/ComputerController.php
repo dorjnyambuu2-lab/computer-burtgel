@@ -371,7 +371,7 @@ class ComputerController extends Controller
     {
         $computer->update($this->payload($request, $computer->assigned_user_id));
 
-        return redirect()->route('computers.show', $computer)->with('success', 'Мэдээлэл амжилттай шинэчлэгдлээ.');
+        return redirect()->route('computers.show', $computer)->with('success', 'Мэдээлэл амжилттай шинэчлэгдлээ.')->with('success_autohide', 3000);
     }
 
     /** Логик устгалт: бааз дээр «устгагдсан» төлөвтэй архивлагдана, Устгасан хэсгээс сэргээж болно */

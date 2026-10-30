@@ -39,6 +39,7 @@ class ComputerBulkController extends Controller
             'categories.*' => [Rule::enum(EquipmentCategory::class)],
             'items' => ['nullable', 'array', 'max:30'],
             'items.*.category' => ['required', Rule::enum(EquipmentCategory::class)],
+            'items.*.name' => ['nullable', 'string', 'max:255'],
             'items.*.brand' => ['nullable', 'string', 'max:255'],
             'items.*.model' => ['nullable', 'string', 'max:255'],
             'items.*.serial_number' => ['nullable', 'string', 'max:255'],
@@ -114,6 +115,10 @@ class ComputerBulkController extends Controller
                 $seen[$category->value] = ($seen[$category->value] ?? 0) + 1;
                 if ($perCategory[$category->value] > 1) {
                     $label .= ' '.$seen[$category->value];
+                }
+                // «Дагалдах хэрэгсэл»-д бичсэн нэр (Веб камер) ангиллын нэрийг орлоно
+                if ($value('name')) {
+                    $label = $value('name');
                 }
                 $name = filled($data['name'] ?? null)
                     ? $data['name'].' · '.$label

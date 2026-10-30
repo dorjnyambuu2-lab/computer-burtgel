@@ -38,6 +38,38 @@ class RepairFlowTest extends TestCase
         $this->assertSame('decommissioned', $dead->fresh()->status->value);
     }
 
+    public function test_dashboard_shows_recent_repairs_of_own_branch(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $mine = $this->pc(['name' => 'PC-ZASVAR', 'branch_id' => $admin->branch_id]);
+        $other = $this->pc(['name' => 'PC-OTHER', 'branch_id' => Branch::create(['name' => 'Дархан', 'code' => 'DRH'])->id]);
+        $this->actingAs($admin)->post(route('computers.repair', $mine), ['note' => 'Асахгүй байна'])->assertSessionHasNoErrors();
+        ComputerEvent::create(['computer_id' => $other->id, 'type' => 'repair', 'note' => 'Өөр салбар']);
+
+        $this->actingAs($admin)->get('/')->assertOk()
+            ->assertSee('PC-ZASVAR')->assertSee('Асахгүй байна')->assertSee('#1 · Дараалалд')
+            ->assertDontSee('PC-OTHER')->assertDontSee('Баталгаа дуусах гэж буй');
+    }
+
+    public function test_finished_tab_lists_completed_repairs_with_cost(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $pc = $this->pc(['name' => 'PC-DONE', 'branch_id' => $admin->branch_id]);
+        $other = $this->pc(['name' => 'PC-OTHER', 'branch_id' => Branch::create(['name' => 'Дархан', 'code' => 'DRH'])->id]);
+        ComputerEvent::create(['computer_id' => $other->id, 'type' => 'repaired', 'note' => 'Өөр салбар']);
+
+        $this->actingAs($admin)->post(route('computers.repair', $pc), ['note' => 'Асахгүй байна'])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->patch(route('repairs.update', $pc), ['stage' => 'waiting_parts', 'cost' => '50,000'])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->patch(route('repairs.update', $pc), ['stage' => 'done', 'note' => 'Тэжээл сольсон', 'cost' => '100,000'])->assertSessionHasNoErrors();
+
+        // Дараалал хоосон, «Дууссан» табд 1 (өөр салбарынх биш)
+        $this->actingAs($admin)->get('/repairs')->assertOk()->assertSee('Дууссан')->assertSee('Засварт байгаа төхөөрөмж алга.');
+        $this->actingAs($admin)->get('/repairs?stage=done')->assertOk()
+            ->assertSee('PC-DONE')->assertSee('«Асахгүй байна»', false)->assertSee('Тэжээл сольсон')
+            ->assertSee(\App\Support\Money::format(150000))->assertDontSee('PC-OTHER');
+        $this->actingAs($admin)->get('/repairs?stage=done&q=nothing-matches')->assertOk()->assertSee('Хайлтад тохирох засвар алга.');
+    }
+
     public function test_leaving_repair_by_edit_form_closes_requests_and_keeps_numbers_continuous(): void
     {
         $admin = User::factory()->admin()->create();
