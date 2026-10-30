@@ -34,8 +34,15 @@
     @endif
 
     {{-- Шинэ алба / нэгж --}}
-    <form method="POST" action="{{ route($route.'.store') }}"
-          class="grid gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm {{ $isSuper ? 'sm:grid-cols-[2fr_1fr_auto]' : 'sm:grid-cols-[1fr_auto]' }}">
+    @php
+        $cols = match (true) {
+            $isSuper && ! $isUnit => 'sm:grid-cols-[2fr_1fr_1fr_auto]',
+            $isSuper || ! $isUnit => 'sm:grid-cols-[2fr_1fr_auto]',
+            default => 'sm:grid-cols-[1fr_auto]',
+        };
+    @endphp
+    <form method="POST" action="{{ route($route.'.store') }}" data-dept-add
+          class="grid gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm {{ $cols }}">
         @csrf
         <input name="name" value="{{ old('name') }}" required maxlength="255" class="{{ $in }}"
                placeholder="{{ $isUnit ? 'Нэгжийн нэр (жишээ: Захиргааны нэгж)' : 'Албаны нэр (жишээ: Мэдээллийн технологийн алба)' }}">
@@ -45,6 +52,13 @@
                 @foreach ($branches as $id => $name)<option value="{{ $id }}" @selected((string) old('branch_id', request('branch')) === (string) $id)>{{ $name }}</option>@endforeach
             </select>
         @endif
+        @unless ($isUnit)
+            {{-- Харьяалах нэгж (заавал биш): Салбар → Нэгж → Алба --}}
+            <select name="unit_id" class="{{ $in }}" aria-label="Нэгж">
+                <option value="">— Нэгжгүй —</option>
+                @foreach ($units as $u)<option value="{{ $u->id }}" data-branch="{{ $u->branch_id }}" @selected((string) old('unit_id') === (string) $u->id)>{{ $u->name }}</option>@endforeach
+            </select>
+        @endunless
         <button class="h-10 !min-h-0 !rounded-lg !border-blue-600 !bg-blue-600 !px-4 !py-0 text-sm font-semibold !text-white hover:!bg-blue-700">+ {{ $Word }} нэмэх</button>
     </form>
 
@@ -54,13 +68,27 @@
                 <h2 class="!mb-0 border-b border-slate-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $branchName }} <span class="ml-1 font-normal normal-case tracking-normal text-slate-400">· {{ $list->count() }} {{ $word }}</span></h2>
             @endif
             <ul class="divide-y divide-slate-100">
+                {{-- Алба: нэгж бүрээр бүлэглэнэ, нэгжгүй нь сүүлд --}}
+                @php
+                    if (! $isUnit) {
+                        $list = $list->sortBy(fn ($d) => [$d->unit ? 0 : 1, $d->unit?->name, $d->name])->values();
+                    }
+                    $prevUnit = false;
+                @endphp
                 @foreach ($list as $d)
                     @php $siblings = $list->where('id', '!=', $d->id); $used = $d->computers_count || $d->users_count; @endphp
-                    <li class="px-5 py-3">
+                    @if (! $isUnit && $prevUnit !== ($d->unit?->name))
+                        @php $prevUnit = $d->unit?->name; @endphp
+                        <li class="bg-slate-50 px-5 py-1.5 text-xs font-semibold text-slate-500">{{ $d->unit ? 'Нэгж: '.$d->unit->name : 'Нэгжгүй' }}</li>
+                    @endif
+                    <li class="px-5 py-3 {{ $isUnit ? '' : 'sm:pl-8' }}">
                         <div class="flex flex-wrap items-center gap-3">
                             <span class="min-w-0 flex-1 font-semibold text-slate-900">{{ $d->name }}</span>
                             <a href="{{ route('computers.index', array_filter([$isUnit ? 'q' : 'department' => $d->name, 'branch' => $isSuper ? $d->branch_id : null])) }}"
                                class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs !text-slate-600 hover:bg-slate-200">{{ $d->computers_count }} төхөөрөмж</a>
+                            @if ($isUnit)
+                                <span class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-700">{{ $d->departments_count }} алба</span>
+                            @endif
                             <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{{ $d->users_count }} ажилтан</span>
                             <details class="group relative" data-popover>
                                 <summary class="flex h-8 cursor-pointer list-none items-center gap-1 rounded-lg px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 [&::-webkit-details-marker]:hidden">
@@ -74,6 +102,17 @@
                                         <input name="name" value="{{ $d->name }}" required maxlength="255" class="{{ $in }}" aria-label="Шинэ нэр">
                                         <button class="h-10 shrink-0 !min-h-0 !rounded-lg !border-slate-800 !bg-slate-800 !px-3 !py-0 text-xs !text-white">Солих</button>
                                     </form>
+                                    {{-- Алба: харьяалах нэгж (ижил салбарын) --}}
+                                    @unless ($isUnit)
+                                        <form method="POST" action="{{ route($route.'.update', $d) }}" class="flex gap-2">
+                                            @csrf @method('PUT')
+                                            <select name="unit_id" class="{{ $in }}" aria-label="Нэгж">
+                                                <option value="">— Нэгжгүй —</option>
+                                                @foreach ($units->where('branch_id', $d->branch_id) as $u)<option value="{{ $u->id }}" @selected((int) $d->unit_id === (int) $u->id)>{{ $u->name }}</option>@endforeach
+                                            </select>
+                                            <button class="h-10 shrink-0 !min-h-0 !rounded-lg !border-slate-800 !bg-slate-800 !px-3 !py-0 text-xs !text-white">Оноох</button>
+                                        </form>
+                                    @endunless
                                     {{-- Нэгтгэх: үсгийн алдаатай давхардлыг зөв рүү --}}
                                     @if ($siblings->isNotEmpty())
                                         <form method="POST" action="{{ route($route.'.merge', $d) }}" class="flex gap-2"
@@ -102,4 +141,24 @@
         <p class="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center text-sm text-slate-400">{{ $Word }} бүртгэгдээгүй байна.</p>
     @endforelse
 </div>
+
+@if ($isSuper && ! $isUnit)
+<script>
+// Шинэ алба: сонгосон салбарын нэгжүүд л
+(function () {
+    const form = document.querySelector('[data-dept-add]');
+    const branch = form.querySelector('[name="branch_id"]');
+    const unit = form.querySelector('[name="unit_id"]');
+    function filter() {
+        Array.from(unit.options).forEach(function (o) {
+            if (!o.dataset.branch) return;
+            o.hidden = o.disabled = o.dataset.branch !== branch.value;
+        });
+        if (unit.selectedOptions[0] && unit.selectedOptions[0].disabled) unit.value = '';
+    }
+    branch.addEventListener('change', filter);
+    filter();
+})();
+</script>
+@endif
 @endsection

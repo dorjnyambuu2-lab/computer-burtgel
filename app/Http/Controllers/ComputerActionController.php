@@ -235,10 +235,22 @@ class ComputerActionController extends Controller
         $ids = array_values(array_unique(array_map('intval', $data['computer_ids'])));
 
         $given = [];
+        $detached = [];
 
-        DB::transaction(function () use ($ids, $user, $request, $data, &$given) {
+        DB::transaction(function () use ($ids, $user, $request, $data, &$given, &$detached) {
             // Зөвхөн яг одоо чөлөөтэй хэвээр байгаа төхөөрөмжийг олгоно (өөр админ өмнө нь олгосон бол алгасна)
             $computers = $this->availableComputers()->whereIn('id', $ids)->lockForUpdate()->get();
+
+            // Иж бүрдлийг хэсэгчлэн олгоход (процессорыг mouse, keyboard-гүй г.м.): сонгоогүй хэрэгсэл, эсвэл
+            // үндсэн компьютергүйгээр сонгосон хэрэгсэл иж бүрдлээс салж тусдаа төхөөрөмж болно
+            $splits = $this->availableComputers()->whereIn('kit_parent_id', $computers->pluck('id'))->whereNotIn('id', $ids)->get()
+                ->merge($computers->filter(fn ($c) => $c->kit_parent_id && ! in_array((int) $c->kit_parent_id, $ids, true)));
+            foreach ($splits as $item) {
+                $item->kit_parent_id = null;
+                $item->kit_index = null;
+                $item->save();
+                $detached[] = $item;
+            }
 
             foreach ($computers as $computer) {
                 $computer->assigned_user_id = $user->id; // model нь assigned_to-г синк хийж, баталгааг арилгана
@@ -266,6 +278,9 @@ class ComputerActionController extends Controller
 
         if ($skipped > 0) {
             $message .= ' '.$skipped.' нь чөлөөтэй биш байсан тул алгасав.';
+        }
+        if ($detached) {
+            $message .= ' Иж бүрдлээс салгасан: '.collect($detached)->map(fn ($c) => $c->activityLabel())->implode(', ').'.';
         }
 
         return redirect()->route('computers.bulk-assign', ['user_id' => $user->id])->with('success', $message)->with('success_autohide', 3000);

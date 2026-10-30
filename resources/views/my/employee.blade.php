@@ -149,7 +149,7 @@
 
 {{-- Миний хүсэлтүүд --}}
 @php
-    $myReqs = $hasReq ? AssetRequest::where('user_id', $me->id)->with('computer:id,name,brand,model')->latest()->limit(8)->get() : collect();
+    $myReqs = $hasReq ? AssetRequest::where('user_id', $me->id)->with(['computer:id,name,brand,model', 'items'])->latest()->limit(8)->get() : collect();
     $rb = ['pending' => 'bg-amber-100 text-amber-800', 'in_progress' => 'bg-blue-100 text-blue-700', 'done' => 'bg-emerald-100 text-emerald-700', 'rejected' => 'bg-rose-100 text-rose-700'];
 @endphp
 @if ($hasReq)
@@ -162,6 +162,18 @@
                 <div class="min-w-0 flex-1">
                     <div class="font-medium text-slate-900">{{ $r->subject ?: \Illuminate\Support\Str::limit($r->description, 60) }}@if ($r->computer)<span class="font-normal text-slate-500"> · {{ trim($r->computer->brand.' '.$r->computer->model) ?: $r->computer->name }}</span>@endif</div>
                     <div class="text-xs text-slate-400">{{ $r->created_at->format('Y-m-d H:i') }}</div>
+                    {{-- Захиалгын мөр бүрийн төлөв (олон төхөөрөмжтэй бол) --}}
+                    @if ($r->items->count() > 1 || $r->items->contains(fn ($i) => $i->note))
+                        <ul class="mt-2 space-y-1">
+                            @foreach ($r->items as $item)
+                                <li class="flex flex-wrap items-center gap-2 text-sm">
+                                    <span class="text-slate-700">{{ $item->label() }}</span>
+                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {{ \App\Models\AssetRequestItem::BADGES[$item->status] ?? '' }}">{{ $item->statusLabel() }}</span>
+                                    @if ($item->note)<span class="text-xs text-slate-500">— {{ $item->note }}</span>@endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                     @if ($r->admin_note)<div class="mt-1.5 rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600"><span class="font-semibold text-slate-700">Хариу:</span> {{ $r->admin_note }}</div>@endif
                 </div>
                 <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $rb[$r->status] ?? 'bg-slate-100 text-slate-600' }}"><span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ $r->statusLabel() }}</span>
@@ -369,11 +381,10 @@
 <dialog id="dlg-request" class="rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/40" style="margin:auto;width:min(36rem,94vw);border:0;">
     <form method="POST" action="{{ url('/my/requests') }}" class="p-6" id="request-form">@csrf
         <input type="hidden" name="type" value="request">
-        <input type="hidden" name="subject" id="req-subject" value="{{ old('type') === 'request' ? old('subject') : '' }}">
         <h3 class="text-lg font-bold">Шинэ төхөөрөмж захиалах</h3>
 
-        {{-- 1. Төхөөрөмж --}}
-        <div class="mt-4 text-sm font-medium text-slate-700">Ямар төхөөрөмж хэрэгтэй вэ? <span class="text-rose-500">*</span></div>
+        {{-- 1. Төхөөрөмж: олныг сонгож болно, тус бүрт тоо --}}
+        <div class="mt-4 text-sm font-medium text-slate-700">Ямар төхөөрөмж хэрэгтэй вэ? <span class="text-rose-500">*</span> <span class="font-normal text-slate-400">· олныг сонгож болно</span></div>
         <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5" id="req-items">
             @foreach (\App\Enums\EquipmentCategory::cases() as $cat)
                 <button type="button" data-item="{{ $cat->label() }}" data-other="{{ $cat === \App\Enums\EquipmentCategory::Other ? 1 : 0 }}"
@@ -386,17 +397,10 @@
                 </button>
             @endforeach
         </div>
-        <input type="text" id="req-other" maxlength="120" placeholder="Ямар төхөөрөмж вэ? (жишээ: Веб камер, чихэвч)" class="{{ $in }} hidden">
-
-        {{-- 2. Тоо --}}
-        <div class="mt-4 flex items-center gap-3">
-            <span class="text-sm font-medium text-slate-700">Тоо ширхэг</span>
-            <div class="flex overflow-hidden rounded-lg border border-slate-300" id="req-qty">
-                @foreach ([1, 2, 3, 4, 5] as $n)
-                    <button type="button" data-qty="{{ $n }}" class="req-qty !rounded-none !border-0 !border-r !border-slate-300 !bg-white !px-3 !py-1.5 !text-sm !font-medium !text-slate-700 last:!border-r-0">{{ $n }}</button>
-                @endforeach
-            </div>
-        </div>
+        {{-- 2. Сонгосон төхөөрөмж бүр: тоо (− / +), хасах; «Дагалдах хэрэгсэл»-д нэрийг бичнэ --}}
+        <ul id="req-picked" class="mt-3 hidden divide-y divide-slate-100 rounded-xl border border-slate-200"></ul>
+        <div id="req-hidden"></div>
+        @if (old('type') === 'request') @error('items.*.name')<span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>@enderror @endif
 
         {{-- 3. Шалтгаан: сонгоход бөглөгдөнө, засаж болно --}}
         <div class="mt-4 text-sm font-medium text-slate-700">Шалтгаан, тайлбар <span class="text-rose-500">*</span></div>
@@ -419,69 +423,114 @@
 
 
 <script>
-// Шинэ төхөөрөмж захиалах: сонголтоос «Дэлгэц ×2» гэх мэт гарчиг бүрдүүлнэ
+// Шинэ төхөөрөмж захиалах: олон төхөөрөмж сонгож, тус бүрт тоо өгнө → items[][name, quantity]
 (function () {
     const form = document.getElementById('request-form');
     if (!form) return;
-    const subject = document.getElementById('req-subject');
-    const other = document.getElementById('req-other');
     const desc = document.getElementById('req-desc');
     const preview = document.getElementById('req-preview');
     const error = document.getElementById('req-error');
-    const items = Array.from(form.querySelectorAll('.req-item'));
-    const qtys = Array.from(form.querySelectorAll('.req-qty'));
-    let item = null, isOther = false, qty = 1;
+    const list = document.getElementById('req-picked');
+    const hidden = document.getElementById('req-hidden');
+    const buttons = Array.from(form.querySelectorAll('.req-item'));
+    // [{ button, name, other, qty }] — «Дагалдах хэрэгсэл»-д name-ийг ажилтан бичнэ
+    let picked = [];
 
     const on = ['!border-blue-500', '!bg-blue-50', 'ring-2', 'ring-blue-100'];
-    function mark(list, active) { list.forEach(function (b) { on.forEach(function (c) { b.classList.toggle(c, b === active); }); }); }
+    const nameOf = function (p) { return (p.other ? p.input.value : p.name).trim(); };
+    const label = function (p) { return nameOf(p) + (p.qty > 1 ? ' ×' + p.qty : ''); };
 
-    function update() {
-        const name = isOther ? other.value.trim() : item;
-        subject.value = name ? (name + (qty > 1 ? ' ×' + qty : '')) : '';
-        preview.classList.toggle('hidden', !subject.value);
-        preview.textContent = subject.value ? 'Захиалга: ' + subject.value : '';
-        if (subject.value) error.classList.add('hidden');
+    function render() {
+        buttons.forEach(function (b) {
+            const sel = picked.some(function (p) { return p.button === b; });
+            on.forEach(function (c) { b.classList.toggle(c, sel); });
+        });
+        list.innerHTML = '';
+        list.classList.toggle('hidden', picked.length === 0);
+        picked.forEach(function (p) {
+            const li = document.createElement('li');
+            li.className = 'flex items-center gap-2 px-3 py-2';
+            const name = document.createElement('span');
+            name.className = 'min-w-0 flex-1 text-sm font-medium text-slate-800';
+            if (p.other) {
+                name.appendChild(p.input); // бичсэн нэр алга болохгүй (дахин зурахад ижил элемент)
+            } else {
+                name.textContent = p.name;
+            }
+            const step = document.createElement('span');
+            step.className = 'flex shrink-0 items-center overflow-hidden rounded-lg border border-slate-300';
+            step.innerHTML = '<button type="button" data-dec aria-label="Хасах" class="!rounded-none !border-0 !bg-white !px-2.5 !py-1 !text-sm !text-slate-600 hover:!bg-slate-100">−</button>'
+                + '<span class="min-w-8 px-1 text-center text-sm font-semibold text-slate-800">' + p.qty + '</span>'
+                + '<button type="button" data-inc aria-label="Нэмэх" class="!rounded-none !border-0 !bg-white !px-2.5 !py-1 !text-sm !text-slate-600 hover:!bg-slate-100">+</button>';
+            step.querySelector('[data-dec]').addEventListener('click', function () { p.qty = Math.max(1, p.qty - 1); render(); });
+            step.querySelector('[data-inc]').addEventListener('click', function () { p.qty = Math.min(20, p.qty + 1); render(); });
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.setAttribute('aria-label', 'Хасах');
+            remove.className = '!rounded-lg !border-0 !bg-transparent !px-2 !py-1 !text-slate-400 hover:!bg-rose-50 hover:!text-rose-600';
+            remove.textContent = '✕';
+            remove.addEventListener('click', function () { picked = picked.filter(function (x) { return x !== p; }); render(); });
+            li.append(name, step, remove);
+            list.appendChild(li);
+        });
+        update();
     }
 
-    items.forEach(function (b) {
+    function update() {
+        const valid = picked.filter(function (p) { return nameOf(p) !== ''; });
+        preview.classList.toggle('hidden', valid.length === 0);
+        preview.textContent = valid.length ? 'Захиалга: ' + valid.map(label).join(', ') : '';
+        if (valid.length) error.classList.add('hidden');
+    }
+
+    function add(button, qty, otherName) {
+        const p = { button: button, name: button.dataset.item, other: button.dataset.other === '1', qty: qty || 1 };
+        if (p.other) {
+            p.input = document.createElement('input');
+            p.input.type = 'text';
+            p.input.maxLength = 120;
+            p.input.placeholder = 'Ямар төхөөрөмж вэ? (жишээ: Веб камер)';
+            p.input.className = 'w-full !mt-0 rounded-lg border border-slate-300 px-2 py-1 text-sm';
+            p.input.value = otherName || '';
+            p.input.addEventListener('input', update);
+        }
+        picked.push(p);
+        render();
+        if (p.other && !otherName) p.input.focus();
+    }
+
+    buttons.forEach(function (b) {
         b.addEventListener('click', function () {
-            item = b.dataset.item; isOther = b.dataset.other === '1';
-            mark(items, b);
-            other.classList.toggle('hidden', !isOther);
-            if (isOther) other.focus();
-            update();
+            const existing = picked.find(function (p) { return p.button === b; });
+            if (existing) { picked = picked.filter(function (p) { return p !== existing; }); render(); }
+            else add(b);
         });
     });
-    qtys.forEach(function (b) {
-        b.addEventListener('click', function () {
-            qty = parseInt(b.dataset.qty, 10);
-            // Сонгосон тоо: бараан дэвсгэр, цагаан бичиг (!bg-white-ийг хасахгүй бол дэвсгэр цагаан хэвээр үлдэж тоо харагдахгүй)
-            qtys.forEach(function (x) {
-                const sel = x === b;
-                x.classList.toggle('!bg-white', !sel);
-                x.classList.toggle('!text-slate-700', !sel);
-                x.classList.toggle('!bg-slate-800', sel);
-                x.classList.toggle('!text-white', sel);
-            });
-            update();
-        });
-    });
-    other.addEventListener('input', update);
     form.querySelectorAll('.req-reason').forEach(function (b) {
         b.addEventListener('click', function () { desc.value = b.dataset.reason; desc.focus(); });
     });
     form.addEventListener('submit', function (e) {
-        if (!subject.value) { e.preventDefault(); error.classList.remove('hidden'); }
+        const valid = picked.filter(function (p) { return nameOf(p) !== ''; });
+        if (!valid.length) { e.preventDefault(); error.classList.remove('hidden'); return; }
+        hidden.innerHTML = '';
+        valid.forEach(function (p, i) {
+            [['name', nameOf(p)], ['quantity', p.qty]].forEach(function (pair) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'items[' + i + '][' + pair[0] + ']';
+                input.value = pair[1];
+                hidden.appendChild(input);
+            });
+        });
     });
 
-    // Алдаатай буцаж нээгдвэл өмнөх сонголтыг («Дэлгэц ×2») сэргээнэ, үгүй бол анхдагч: 1
-    const prev = subject.value.match(/^(.*?)(?: ×(\d))?$/);
-    const prevItem = prev && prev[1] ? items.find(function (b) { return b.dataset.item === prev[1]; }) : null;
-    if (prev && prev[1]) {
-        if (prevItem) prevItem.click();
-        else { items.find(function (b) { return b.dataset.other === '1'; })?.click(); other.value = prev[1]; }
-    }
-    (qtys.find(function (b) { return prev && b.dataset.qty === prev[2]; }) || qtys[0]).click();
+    // Алдаатай буцаж нээгдвэл өмнөх сонголтыг сэргээнэ
+    const otherButton = buttons.find(function (b) { return b.dataset.other === '1'; });
+    (@json(old('type') === 'request' ? array_values((array) old('items', [])) : [])).forEach(function (it) {
+        const b = buttons.find(function (x) { return x.dataset.item === it.name && x.dataset.other !== '1'; });
+        if (b) add(b, parseInt(it.quantity, 10) || 1);
+        else if (otherButton) add(otherButton, parseInt(it.quantity, 10) || 1, it.name);
+    });
 })();
 </script>
 

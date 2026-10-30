@@ -58,9 +58,9 @@ abstract class BranchList extends Model
 
     /**
      * Салбарын (том/жижиг үсэг ялгахгүй) бичлэг; байхгүй бол үүсгэнэ. Нэр хоосон бол null.
-     * Төхөөрөмж, хэрэглэгч хадгалахад текстээс {COLUMN}_id-г тааруулахад ашиглана.
+     * Төхөөрөмж, хэрэглэгч хадгалахад текстээс {COLUMN}_id-г тааруулахад ашиглана. $attributes нь шинээр үүсгэхэд л.
      */
-    public static function resolve(?int $branchId, ?string $name): ?static
+    public static function resolve(?int $branchId, ?string $name, array $attributes = []): ?static
     {
         if (($name = self::cleanName($name)) === null) {
             return null;
@@ -70,6 +70,6 @@ abstract class BranchList extends Model
         $key = mb_strtolower($name);
 
         return static::query()->where('branch_id', $branchId)->get()->first(fn ($d) => mb_strtolower($d->name) === $key)
-            ?? static::create(['branch_id' => $branchId, 'name' => $name]);
+            ?? static::create(['branch_id' => $branchId, 'name' => $name] + $attributes);
     }
 }

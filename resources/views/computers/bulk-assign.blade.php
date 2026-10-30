@@ -186,6 +186,8 @@
                     <span class="text-sm text-slate-500">
                         Сонгосон: <b id="picked-count" class="text-slate-900">0</b>
                         <button type="button" id="clear-picked" class="ml-2 hidden !min-h-0 !border-0 !bg-transparent !p-0 !text-xs !font-medium !text-slate-500 hover:!text-slate-800 hover:underline">Цэвэрлэх</button>
+                        {{-- Иж бүрдлийг хэсэгчлэн олгоход: сонгоогүй хэрэгсэл иж бүрдлээс салж агуулахад үлдэнэ --}}
+                        <span id="kit-split" class="mt-0.5 hidden text-xs text-amber-700"></span>
                     </span>
                     <button type="submit" id="assign-btn"
                             class="h-10 !min-h-0 !rounded-lg !border-blue-600 !bg-blue-600 !px-6 !py-0 text-sm font-semibold !text-white shadow-sm hover:!bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
@@ -232,11 +234,23 @@
     const clear = document.getElementById('clear-picked');
     if (!counter || !btn) return;
 
+    const splitNote = document.getElementById('kit-split');
     function update() {
         const n = boxes.filter(function (b) { return b.checked; }).length;
         counter.textContent = n;
         btn.disabled = n === 0;
         clear.classList.toggle('hidden', n === 0);
+
+        // Иж бүрдэл хэсэгчлэн: үндсэн нь сонгогдсон ч хэрэгсэл нь үгүй (эсвэл эсрэгээр) бол салгагдана
+        const split = boxes.filter(function (b) {
+            if (!b.checked) return false;
+            const main = b.dataset.kit ? boxes.find(function (x) { return x.dataset.id === b.dataset.kit; }) : null;
+            return (main && !main.checked)
+                || boxes.some(function (x) { return x.dataset.kit === b.dataset.id && !x.checked; });
+        }).length;
+        splitNote.textContent = split ? 'Сонгоогүй иж бүрдлийн хэрэгсэл иж бүрдлээс салж, агуулахад тусдаа үлдэнэ.' : '';
+        splitNote.classList.toggle('hidden', !split);
+        splitNote.classList.toggle('block', !!split);
     }
 
     // Үндсэн компьютерийг сонгох / болиход иж бүрдлийн хэрэгслүүд хамт

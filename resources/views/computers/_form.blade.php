@@ -348,12 +348,12 @@
                                 $orgWord = $kind === 'unit' ? 'нэгж' : 'алба';
                                 $orgList = ($kind === 'unit' ? \App\Models\Unit::query() : \App\Models\Department::query())
                                     ->when(auth()->user()->isBranchScoped(), fn ($q) => $q->where('branch_id', auth()->user()->branch_id))
-                                    ->orderBy('name')->get(['id', 'branch_id', 'name']);
+                                    ->when($kind === 'department', fn ($q) => $q->with('unit:id,name'))->orderBy('name')->get();
                             @endphp
                             <select id="{{ $name }}" name="{{ $name }}" data-org-select class="{{ $in }} @error($name) border-rose-400 @enderror">
                                 <option value="">— {{ $text }} сонгох —</option>
                                 @foreach ($orgList as $d)
-                                    <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @selected($orgValue === $d->name)>{{ $d->name }}</option>
+                                    <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @if ($d->unit_id) data-unit="{{ $d->unit?->name }}" @endif @selected($orgValue === $d->name)>{{ $d->name }}</option>
                                 @endforeach
                                 {{-- Жагсаалтад байхгүй хуучин утга алга болохгүй --}}
                                 @if ($orgValue !== '' && ! $orgList->contains('name', $orgValue))
@@ -500,6 +500,7 @@
 
 <script>
 // Алба, нэгж: сонгосон салбарынх л (Супер админ салбар солиход); өөр салбарынх сонгогдсон бол арилгана
+@include('computers._org_link_script')
 document.querySelectorAll('[data-org-select]').forEach(function (select) {
     const branch = document.getElementById('branch_id');
 
@@ -520,9 +521,9 @@ document.querySelectorAll('[data-org-select]').forEach(function (select) {
     function filter() {
         Array.from(select.options).forEach(function (o) {
             if (!o.dataset.branch) return; // «— … сонгох —», хуучин утга
-            o.hidden = o.disabled = !!branch.value && o.dataset.branch !== branch.value;
+            o.dataset.branchOff = !!branch.value && o.dataset.branch !== branch.value ? '1' : '';
         });
-        if (select.selectedOptions[0] && select.selectedOptions[0].disabled) select.value = '';
+        window.orgApply(select);
     }
     branch.addEventListener('change', filter);
     filter();

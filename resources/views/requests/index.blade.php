@@ -83,7 +83,18 @@
                                 <span class="font-mono text-[11px] text-slate-400">{{ $r->computer->inventory_number }}</span>
                             @endif
                         </div>
-                        @if ($r->subject)<div class="mt-1 font-medium text-slate-800">{{ $r->subject }}</div>@endif
+                        @if ($r->items->isNotEmpty())
+                            {{-- Захиалгын мөр бүр, төлөвтэй --}}
+                            <ul class="mt-1.5 space-y-1">
+                                @foreach ($r->items as $item)
+                                    <li class="flex flex-wrap items-center gap-2">
+                                        <span class="font-medium text-slate-800">{{ $item->label() }}</span>
+                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {{ \App\Models\AssetRequestItem::BADGES[$item->status] ?? '' }}">{{ $item->statusLabel() }}</span>
+                                        @if ($item->note)<span class="text-xs text-slate-500">— {{ $item->note }}</span>@endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @elseif ($r->subject)<div class="mt-1 font-medium text-slate-800">{{ $r->subject }}</div>@endif
                         <div class="mt-0.5 max-w-xl text-slate-600">«{{ $r->description }}»</div>
                         @if ($r->admin_note)
                             <div class="mt-1.5 max-w-xl rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600"><span class="font-semibold text-slate-700">Хариу:</span> {{ $r->admin_note }}</div>
@@ -113,6 +124,35 @@
                                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
                                     {{ $pending ? 'Шийдвэрлэх' : 'Засах' }}
                                 </summary>
+                                @if ($r->items->isNotEmpty())
+                                    {{-- Захиалга: мөр бүрийг тусад нь (зөвшөөрөх, татгалзах, хүлээлгэн өгөх) --}}
+                                    <div data-popover-panel class="absolute right-0 z-10 mt-1 w-[22rem] space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-lg">
+                                        @if ($r->items->contains('status', 'pending'))
+                                            <form method="POST" action="{{ url('/requests/'.$r->id) }}">@csrf @method('PATCH')
+                                                <input type="hidden" name="approve_all" value="1">
+                                                <button class="h-9 w-full !min-h-0 !rounded-lg !border !border-emerald-300 !bg-emerald-50 !px-3 !py-0 text-sm font-semibold !text-emerald-800 hover:!bg-emerald-100">Хүлээгдэж буйг бүгдийг зөвшөөрөх</button>
+                                            </form>
+                                        @endif
+                                        <form method="POST" action="{{ url('/requests/'.$r->id) }}" class="space-y-2">
+                                            @csrf @method('PATCH')
+                                            @foreach ($r->items as $item)
+                                                <div class="rounded-lg border border-slate-100 p-2">
+                                                    <div class="mb-1 text-sm font-semibold text-slate-800">{{ $item->label() }}</div>
+                                                    <div class="flex gap-2">
+                                                        <select name="items[{{ $item->id }}][status]" class="{{ $sel }} w-36 shrink-0" aria-label="{{ $item->label() }} — төлөв">
+                                                            @foreach (\App\Models\AssetRequestItem::STATUSES as $k => $v)<option value="{{ $k }}" @selected($item->status === $k)>{{ $v }}</option>@endforeach
+                                                        </select>
+                                                        <input type="text" name="items[{{ $item->id }}][note]" value="{{ $item->note }}" maxlength="500" placeholder="Хариу (заавал биш)" class="{{ $sel }} min-w-0 flex-1" aria-label="{{ $item->label() }} — хариу">
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                            <label class="block text-xs font-medium text-slate-500">Ерөнхий хариу
+                                                <input type="text" name="admin_note" value="{{ $r->admin_note }}" maxlength="500" placeholder="Заавал биш" class="{{ $sel }} mt-1 block w-full">
+                                            </label>
+                                            <button type="submit" class="h-9 w-full !min-h-0 !rounded-lg !border-blue-600 !bg-blue-600 !px-3 !py-0 text-sm font-semibold !text-white hover:!bg-blue-700">Хадгалах</button>
+                                        </form>
+                                    </div>
+                                @else
                                 <form method="POST" action="{{ url('/requests/'.$r->id) }}" data-popover-panel class="absolute right-0 z-10 mt-1 w-72 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-lg">
                                     @csrf @method('PATCH')
                                     <label class="block text-xs font-medium text-slate-500">Төлөв
@@ -125,6 +165,7 @@
                                     </label>
                                     <button type="submit" class="h-9 w-full !min-h-0 !rounded-lg !border-blue-600 !bg-blue-600 !px-3 !py-0 text-sm font-semibold !text-white hover:!bg-blue-700">Хадгалах</button>
                                 </form>
+                                @endif
                             </details>
                         </div>
                     </td>

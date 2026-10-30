@@ -38,7 +38,10 @@ class DepartmentController extends Controller
         return view('departments.index', [
             'departments' => $list(static::MODEL)
                 ->withCount(['computers' => fn ($q) => $q->withoutGlobalScopes()->whereNull('deleted_at')->counted(), 'users'])
+                ->when(static::MODEL === Department::class, fn ($q) => $q->with('unit:id,name'), fn ($q) => $q->withCount('departments'))
                 ->orderBy('branch_id')->orderBy('name')->get(),
+            // Алба: харьяалах нэгж сонгох жагсаалт (салбар бүрийнх)
+            'units' => static::MODEL === Department::class ? $list(Unit::class)->orderBy('name')->get(['id', 'branch_id', 'name']) : collect(),
             'branches' => $me->isSuperadmin() ? Branch::query()->orderBy('name')->pluck('name', 'id') : collect(),
             // Табууд: «Алба», «Нэгж» тус бүрийн тоо
             'kind' => static::MODEL::COLUMN,
@@ -49,7 +52,7 @@ class DepartmentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         [$branchId, $name] = $this->validated($request);
-        $record = static::MODEL::create(['branch_id' => $branchId, 'name' => $name]);
+        $record = static::MODEL::create(['branch_id' => $branchId, 'name' => $name] + $this->unitData($request, $branchId));
 
         return back()->with('success', '«'.$record->name.'» '.static::WORDS[0].' нэмэгдлээ.')->with('success_autohide', 3000);
     }
@@ -57,6 +60,23 @@ class DepartmentController extends Controller
     public function update(Request $request, string $id): RedirectResponse
     {
         $record = $this->find($request, $id);
+
+        // Албыг нэгжид оноох / нэгжээс гаргах (нэр өөрчлөхгүй)
+        if (! $request->has('name') && $request->has('unit_id') && $record instanceof Department) {
+            $old = $record->unit?->name;
+            $record->fill($this->unitData($request, $record->branch_id));
+            if (! $record->isDirty('unit_id')) {
+                return back();
+            }
+            // Түүхэнд unit_id биш нэгжийн нэрээр: «Нэгж: МЧ → Захиргаа»
+            $record->saveQuietly();
+            $unit = $record->fresh()->unit;
+            $record->recordActivity('updated', ['unit' => ['old' => $old, 'new' => $unit?->name]]);
+
+            return back()->with('success', '«'.$record->name.'» '.($unit ? '«'.$unit->name.'» нэгжид харьяалагдлаа.' : 'нэгжгүй боллоо.'))
+                ->with('success_autohide', 3000);
+        }
+
         [, $name] = $this->validated($request, $record);
         $record->update(['name' => $name]); // төхөөрөмж, хэрэглэгч дээрх нэр хамт солигдоно (BranchList)
 
@@ -79,6 +99,10 @@ class DepartmentController extends Controller
             foreach (['computers', 'users'] as $table) {
                 $moved[$table] = DB::table($table)->where($column.'_id', $record->id)
                     ->update([$column.'_id' => $target->id, $column => $target->name]);
+            }
+            // Нэгж нэгтгэхэд түүний албууд шинэ нэгжид
+            if ($record instanceof Unit) {
+                Department::query()->where('unit_id', $record->id)->update(['unit_id' => $target->id]);
             }
             // Түүхэнд «Нэгтгэсэн» (хаашаа, хэдэн төхөөрөмж, ажилтан); тусдаа «Устгасан» бичихгүй
             $record->recordActivity('merged', [
@@ -106,6 +130,20 @@ class DepartmentController extends Controller
         $record->delete();
 
         return back()->with('success', '«'.$record->name.'» '.static::WORDS[0].' устгагдлаа.')->with('success_autohide', 3000);
+    }
+
+    /** Албын харьяалах нэгж: ижил салбарын нэгж эсвэл хоосон (нэгжгүй). Нэгжид хамааралгүй. */
+    private function unitData(Request $request, ?int $branchId): array
+    {
+        if (static::MODEL !== Department::class || ! $request->has('unit_id')) {
+            return [];
+        }
+        $unitId = $request->filled('unit_id') ? (int) $request->input('unit_id') : null;
+        if ($unitId && ! Unit::query()->whereKey($unitId)->where('branch_id', $branchId)->exists()) {
+            throw ValidationException::withMessages(['unit_id' => 'Нэгжээ (ижил салбарын) сонгоно уу.']);
+        }
+
+        return ['unit_id' => $unitId];
     }
 
     /** Админ зөвхөн өөрийн салбарынхыг */

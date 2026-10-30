@@ -90,6 +90,57 @@ class UnitTest extends TestCase
         $this->actingAs(User::factory()->employee()->create())->get('/units')->assertRedirect('/');
     }
 
+    public function test_departments_belong_to_units(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $far = Branch::create(['name' => 'Дархан', 'code' => 'DRH']);
+        $mch = Unit::create(['branch_id' => $admin->branch_id, 'name' => 'МЧ']);
+        $farUnit = Unit::create(['branch_id' => $far->id, 'name' => 'Дарханы нэгж']);
+
+        // Алба нэмэхдээ нэгж сонгоно; өөр салбарын нэгж болохгүй
+        $this->actingAs($admin)->post(route('departments.store'), ['name' => 'МТ алба', 'unit_id' => $mch->id])->assertSessionHasNoErrors();
+        $it = \App\Models\Department::where('name', 'МТ алба')->firstOrFail();
+        $this->assertSame($mch->id, $it->unit_id);
+        $this->actingAs($admin)->post(route('departments.store'), ['name' => 'Х алба', 'unit_id' => $farUnit->id])->assertSessionHasErrors('unit_id');
+
+        // Нэгжгүй алба, дараа нь нэгжид оноох / гаргах (нэр өөрчлөгдөхгүй), түүхэнд нэгжийн нэрээр
+        $this->actingAs($admin)->post(route('departments.store'), ['name' => 'Захиргааны алба'])->assertSessionHasNoErrors();
+        $adm = \App\Models\Department::where('name', 'Захиргааны алба')->firstOrFail();
+        $this->assertNull($adm->unit_id);
+        $this->actingAs($admin)->put(route('departments.update', $adm), ['unit_id' => $mch->id])->assertSessionHasNoErrors();
+        $this->assertSame([$mch->id, 'Захиргааны алба'], [$adm->fresh()->unit_id, $adm->fresh()->name]);
+        $this->assertTrue(ActivityLog::where('subject_id', $adm->id)->where('action', 'updated')->get()
+            ->contains(fn ($l) => ($l->changes['unit']['new'] ?? null) === 'МЧ'));
+        $this->actingAs($admin)->put(route('departments.update', $adm), ['unit_id' => ''])->assertSessionHasNoErrors();
+        $this->assertNull($adm->fresh()->unit_id);
+
+        // Хуудас: нэгжээр бүлэглэнэ, нэгжид алба тоо
+        $this->actingAs($admin)->get('/departments')->assertOk()->assertSeeInOrder(['Нэгж: МЧ', 'МТ алба', 'Нэгжгүй', 'Захиргааны алба']);
+        $this->actingAs($admin)->get('/units')->assertOk()->assertSee('1 алба');
+
+        // Төхөөрөмж: алба сонгоод нэгж хоосон бол албын нэгж бөглөгдөнө; өөр нэгж сонгосон бол хэвээр
+        $pc = Computer::factory()->create(['department' => 'МТ алба', 'unit' => null, 'branch_id' => $admin->branch_id]);
+        $this->assertSame(['МЧ', $mch->id], [$pc->unit, $pc->unit_id]);
+        $other = Computer::factory()->create(['department' => 'МТ алба', 'unit' => 'Өөр нэгж', 'branch_id' => $admin->branch_id]);
+        $this->assertSame('Өөр нэгж', $other->unit);
+
+        // Формоос шинэ алба: сонгосон нэгжид харьяалагдана
+        $this->actingAs($admin)->post('/computers', ['type' => 'desktop', 'status' => 'new', 'categories' => ['monitor'], 'unit' => 'МЧ', 'department' => 'Санхүүгийн алба'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($mch->id, \App\Models\Department::where('name', 'Санхүүгийн алба')->value('unit_id'));
+
+        // Форм: алба сонголтод нэгжийн нэр (JS шүүлтэд)
+        $this->actingAs($admin)->get('/computers/create')->assertOk()->assertSee('data-unit="МЧ"', false);
+
+        // Нэгж нэгтгэхэд албууд шинэ нэгжид; нэгж устгахад алба нэгжгүй
+        $hq = Unit::create(['branch_id' => $admin->branch_id, 'name' => 'Төв']);
+        $this->actingAs($admin)->post(route('units.merge', $mch), ['target_id' => $hq->id])->assertSessionHasNoErrors();
+        $this->assertSame($hq->id, $it->fresh()->unit_id);
+        Computer::query()->update(['unit_id' => null, 'unit' => null]);
+        $this->actingAs($admin)->delete(route('units.destroy', $hq))->assertSessionHasNoErrors();
+        $this->assertNull($it->fresh()->unit_id);
+    }
+
     public function test_registration_with_new_unit(): void
     {
         $admin = User::factory()->admin()->create();

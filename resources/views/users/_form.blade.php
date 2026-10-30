@@ -303,12 +303,12 @@
                             $orgValue = (string) old($field, $user->$field);
                             $orgList = ($field === 'unit' ? \App\Models\Unit::query() : \App\Models\Department::query())
                                 ->when(auth()->user()->isBranchScoped(), fn ($q) => $q->where('branch_id', auth()->user()->branch_id))
-                                ->orderBy('name')->get(['id', 'branch_id', 'name']);
+                                ->when($field === 'department', fn ($q) => $q->with('unit:id,name'))->orderBy('name')->get();
                         @endphp
                         <select id="{{ $field }}" name="{{ $field }}" data-org-select class="{{ $in }}">
                             <option value="">— {{ $label }} сонгох —</option>
                             @foreach ($orgList as $d)
-                                <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @selected($orgValue === $d->name)>{{ $d->name }}</option>
+                                <option value="{{ $d->name }}" data-branch="{{ $d->branch_id }}" @if ($d->unit_id) data-unit="{{ $d->unit?->name }}" @endif @selected($orgValue === $d->name)>{{ $d->name }}</option>
                             @endforeach
                             @if ($orgValue !== '' && ! $orgList->contains('name', $orgValue))
                                 <option value="{{ $orgValue }}" selected>{{ $orgValue }}</option>
@@ -336,6 +336,7 @@
             @endforeach
             <script>
             // Алба, нэгж: сонгосон салбарын (radio) жагсаалт л; өөр салбарынх сонгогдсон бол арилгана
+            @include('computers._org_link_script')
             document.querySelectorAll('[data-org-select]').forEach(function (select) {
                 const box = select.parentElement.querySelector('[data-org-new]');
                 const input = box.querySelector('input');
@@ -356,9 +357,9 @@
                     const branch = picked && picked.value !== 'new' ? picked.value : '';
                     Array.from(select.options).forEach(function (o) {
                         if (!o.dataset.branch) return;
-                        o.hidden = o.disabled = !!picked && o.dataset.branch !== branch;
+                        o.dataset.branchOff = !!picked && o.dataset.branch !== branch ? '1' : '';
                     });
-                    if (select.selectedOptions[0] && select.selectedOptions[0].disabled) select.value = '';
+                    window.orgApply(select);
                 }
                 radios.forEach(function (r) { r.addEventListener('change', filter); });
                 filter();

@@ -17,8 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 trait SyncsDepartment
 {
-    /** [текст багана => жагсаалтын model] */
-    private const BRANCH_LISTS = ['department' => Department::class, 'unit' => Unit::class];
+    /** [текст багана => жагсаалтын model]; нэгж эхэлж (шинэ алба сонгосон нэгжид харьяалагдана) */
+    private const BRANCH_LISTS = ['unit' => Unit::class, 'department' => Department::class];
 
     protected static function registerDepartmentSync(): void
     {
@@ -26,16 +26,22 @@ trait SyncsDepartment
             foreach (self::BRANCH_LISTS as $column => $class) {
                 $idColumn = $column.'_id';
                 if ($model->isDirty($idColumn) && ! $model->isDirty($column)) {
-                    $model->$column = $class::find($model->$idColumn)?->name;
+                    $record = $class::find($model->$idColumn);
+                    $model->$column = $record?->name;
+                } elseif ($model->exists && ! $model->isDirty([$column, 'branch_id'])) {
+                    continue;
+                } else {
+                    // Шинээр үүсэх алба: сонгосон нэгжид харьяалагдана
+                    $record = $class::resolve($model->branch_id, $model->$column, $column === 'department' ? ['unit_id' => $model->unit_id] : []);
+                    $model->$idColumn = $record?->id;
+                    $model->$column = $record?->name;
+                }
 
-                    continue;
+                // Алба сонгоод нэгж хоосон бол албын нэгжийг авна (Салбар → Нэгж → Алба)
+                if ($column === 'department' && $record?->unit_id && ! $model->unit_id && ($unit = Unit::find($record->unit_id))) {
+                    $model->unit_id = $unit->id;
+                    $model->unit = $unit->name;
                 }
-                if ($model->exists && ! $model->isDirty([$column, 'branch_id'])) {
-                    continue;
-                }
-                $record = $class::resolve($model->branch_id, $model->$column);
-                $model->$idColumn = $record?->id;
-                $model->$column = $record?->name;
             }
         };
 
