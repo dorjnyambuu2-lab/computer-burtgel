@@ -115,4 +115,32 @@ class AuditFixesTest extends TestCase
         $this->actingAs($admin)->patch(route('repairs.update', $pc), ['stage' => 'done'])->assertSessionHasNoErrors();
         $this->assertSame('in_storage', $pc->fresh()->status->value);
     }
+
+    public function test_kit_item_in_repair_follows_main_computer(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $emp = User::factory()->employee()->create();
+        $main = Computer::factory()->create(['category' => 'processor', 'assigned_user_id' => $emp->id, 'status' => 'active']);
+        $mon = Computer::factory()->create(['category' => 'monitor', 'kit_parent_id' => $main->id, 'assigned_user_id' => $emp->id, 'status' => 'active']);
+        $this->actingAs($admin)->post("/computers/{$mon->id}/repair", ['note' => 'Дэлгэц гэмтсэн']);
+
+        // Дэлгэц засварт байхад компьютерийг буцаан авбал: дэлгэц засварт үлдэж, хариуцагчгүй болно
+        $this->actingAs($admin)->post("/computers/{$main->id}/return");
+        $this->assertSame(['in_repair', null], [$mon->fresh()->status->value, $mon->fresh()->assigned_user_id]);
+
+        // Засвар дуусахад үндсэн компьютерийнхоо адил агуулахад
+        $this->actingAs($admin)->patch(route('repairs.update', $mon), ['stage' => 'done'])->assertSessionHasNoErrors();
+        $this->assertSame(['in_storage', null], [$mon->fresh()->status->value, $mon->fresh()->assigned_user_id]);
+    }
+
+    public function test_employee_without_email_can_save_profile(): void
+    {
+        $emp = User::factory()->employee()->create(['email' => null]);
+        $this->actingAs($emp)->put('/profile', ['name' => 'Сараа', 'surname' => 'Дорж', 'email' => ''])->assertSessionHasNoErrors();
+        $this->assertSame(['Сараа', null], [$emp->fresh()->name, $emp->fresh()->email]);
+
+        // Супер админд имэйл заавал (нууц үг сэргээх холбоос)
+        $super = User::factory()->superadmin()->create(['branch_id' => null]);
+        $this->actingAs($super)->put('/profile', ['name' => 'Супер', 'email' => ''])->assertSessionHasErrors('email');
+    }
 }

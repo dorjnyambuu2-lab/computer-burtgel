@@ -19,7 +19,8 @@ class ProfileController extends Controller
         $data = $request->validate([
             'surname' => ['nullable', 'string', 'max:255'],
             'name'  => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            // Имэйл заавал биш (ажилтан нэвтрэх нэрээр нэвтэрнэ); Супер админд нууц үг сэргээх холбоос имэйлээр очдог тул заавал
+            'email' => [$user->isSuperadmin() ? 'required' : 'nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
         ], [
             'name.required'  => 'Нэрээ оруулна уу.',
             'email.required' => 'Имэйлээ оруулна уу.',
@@ -29,7 +30,7 @@ class ProfileController extends Controller
 
         $user->surname = filled($data['surname'] ?? null) ? trim($data['surname']) : null;
         $user->name = $data['name'];
-        $user->email = $data['email'];
+        $user->email = filled($data['email'] ?? null) ? trim($data['email']) : null;
         $user->save();
 
         return redirect()->route('profile.edit')->with('success', 'Профайл амжилттай хадгалагдлаа.');

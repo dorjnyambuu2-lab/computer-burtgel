@@ -309,10 +309,12 @@ class Computer extends Model
             $previous = static::$transferring;
             static::$transferring = true; // иж бүрдлийн нэг хэсэг: Супер админы «шууд солих» хоригийг алгасна
             try {
+                // Засварт байгаа хэрэгсэл: төлөв нь хэвээр (засварт), харин хариуцагч нь дагана —
+                // засвар дуусахад үндсэн компьютерийнхоо хариуцагчид буцна
                 $computer->kitItems()
-                    ->whereNotIn('status', [ComputerStatus::InRepair, ComputerStatus::Decommissioned])
+                    ->where('status', '!=', ComputerStatus::Decommissioned)
                     ->get()->each(function (Computer $item) use ($computer, $syncStatus, $syncHolder) {
-                        if ($syncStatus) {
+                        if ($syncStatus && $item->status !== ComputerStatus::InRepair) {
                             $item->status = $computer->status;
                         }
                         if ($syncHolder) {

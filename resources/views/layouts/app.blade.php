@@ -5,7 +5,7 @@
         ? $model::where('status', 'pending')->when(method_exists($model, 'scopeVisibleTo'), fn ($q) => $q->visibleTo($u))->count() : 0;
 
     // Цэс бүлгээр: [гарчиг => [[href, нэр, icon, идэвхтэй эсэх, тоо], ...]]
-    // (QR уншуулах, Миний профайл нь дээд мөрөнд байгаа тул админы цэсэнд давтахгүй)
+    // (QR уншуулах, Профайл нь дээд мөрөнд байгаа тул админы цэсэнд давтахгүй)
     $home = ['/', 'Хянах самбар', 'M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10', fn() => request()->is('/')];
 
     if ($u && $u->canManageComputers()) {
@@ -47,7 +47,7 @@
         $navGroups = ['' => [
             $home,
             ['/my/computers', 'Миний төхөөрөмж', 'M4 5h16v11H4zM8 20h8M12 16v4', fn() => request()->is('my/computers*')],
-            ['/profile', 'Миний профайл', 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 0116 0', fn() => request()->is('profile*')],
+            ['/profile', 'Профайл', 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 0116 0', fn() => request()->is('profile*')],
         ]];
     }
 
@@ -145,7 +145,7 @@
                     @endif
                 </a>
 
-                <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-1.5 transition hover:border-blue-300 hover:bg-blue-50" title="Миний профайл">
+                <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-1.5 transition hover:border-blue-300 hover:bg-blue-50" title="Профайл">
                     <div class="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
                         {{ mb_strtoupper(mb_substr($u->name ?? 'U', 0, 2)) }}
                     </div>

@@ -25,7 +25,11 @@ class PasswordResetRequestController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('password-requests.index', compact('requests'));
+        // Төлвийн табуудын тоо
+        $statusCounts = PasswordResetRequest::visibleTo($request->user())
+            ->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->all();
+
+        return view('password-requests.index', compact('requests', 'statusCounts'));
     }
 
     /** Түр нууц үг олгоно. Хэрэглэгч түүгээр нэвтэрмэгц шинэ нууц үг солих шаардлагатай. */
@@ -61,7 +65,7 @@ class PasswordResetRequestController extends Controller
 
         $passwordRequest->update(['status' => 'rejected', 'resolved_by' => $request->user()->id, 'resolved_at' => now()]);
 
-        return back()->with('success', 'Хүсэлтийг татгалзлаа.');
+        return back()->with('success', 'Хүсэлтийг татгалзлаа.')->with('success_autohide', 3000);
     }
 
     /** Админ зөвхөн өөрийн салбарын ажилтны хүсэлтийг шийдвэрлэнэ */

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Миний профайл')
+@section('title', 'Профайл')
 
 @php
     $in = 'w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
@@ -63,7 +63,7 @@
 
         <div>
             <label for="email" class="mb-1 block text-sm text-slate-600">Имэйл</label>
-            <input id="email" type="email" name="email" value="{{ old('email', $user->email) }}" required class="{{ $in }}">
+            <input id="email" type="email" name="email" value="{{ old('email', $user->email) }}" @if ($user->isSuperadmin()) required @endif class="{{ $in }}">
             @error('email') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
         </div>
 

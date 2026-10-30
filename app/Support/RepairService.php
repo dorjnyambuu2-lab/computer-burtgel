@@ -50,6 +50,12 @@ class RepairService
     {
         DB::transaction(function () use ($computer, $actor, $note, $cost) {
             $computer->status = $computer->assigned_user_id ? ComputerStatus::Active : ComputerStatus::InStorage;
+            // Иж бүрдлийн хэрэгсэл: үндсэн компьютерийнхоо хариуцагч, төлөвт буцна (агуулахад, алба хэлтэст г.м.)
+            $parent = $computer->kit_parent_id ? Computer::query()->find($computer->kit_parent_id) : null;
+            if ($parent && ! in_array($parent->status, [ComputerStatus::InRepair, ComputerStatus::Decommissioned], true)) {
+                $computer->assigned_user_id = $parent->assigned_user_id;
+                $computer->status = $parent->status;
+            }
             $computer->save(); // model нь дарааллаас гаргана
 
             $this->log($computer, $actor, 'repaired', $note, $cost);

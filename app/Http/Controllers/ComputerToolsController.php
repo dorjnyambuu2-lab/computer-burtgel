@@ -17,13 +17,19 @@ class ComputerToolsController extends Controller
         // «#12» бол дэс дугаараар, бусад үед нэр, дугаар, серийнээр
         $number = \App\Support\RowNumber::parse($request->query('q'));
 
+        // Үндсэн компьютертэйгээ хамт архивлагдсан иж бүрдлийн хэрэгслийг тусдаа мөр болгохгүй (дугаар, тоонд ч)
         $query = Computer::onlyTrashed()
             ->with('deleter:id,name')
+            ->whereNotExists(fn ($q) => $q->from('computers as p')->whereColumn('p.id', 'computers.kit_parent_id')->whereNotNull('p.deleted_at'))
             ->when($number === null, fn ($q) => $q->search($request->query('q')))
             ->latest('deleted_at')->orderByDesc('id');
 
+        $computers = \App\Support\RowNumber::paginate($query, $request, 15, $number);
+
         return view('computers.trash', [
-            'computers' => \App\Support\RowNumber::paginate($query, $request, 15, $number),
+            'computers' => $computers,
+            // Хуудсан дахь үндсэн компьютер бүрийн архивлагдсан хэрэгслүүд (сэргээх, устгахад хамт)
+            'kitItems' => Computer::onlyTrashed()->whereIn('kit_parent_id', $computers->pluck('id'))->orderBy('kit_index')->get()->groupBy('kit_parent_id'),
         ]);
     }
 
