@@ -148,9 +148,6 @@
                             </li>
                         @endforeach
                     </ul>
-                    @if ($kitItems->count() === 1)
-                        <p class="px-5 pb-4 text-xs text-slate-400">Дэлгэц, mouse, keyboard зэргийг энэ компьютерийн иж бүрдэлд нэмбэл {{ $kitMain->kitBase() }}-2, -3 ... дугаар авна (компьютер өөрөө {{ $kitMain->kitBase() }}-1).</p>
-                    @endif
                 </div>
             @endif
 

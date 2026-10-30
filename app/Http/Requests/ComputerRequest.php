@@ -80,7 +80,7 @@ class ComputerRequest extends FormRequest
             'holder_name' => 'Нэр',
             'assigned_to' => 'Хариуцагч',
             'status' => 'Төлөв',
-            'purchase_date' => 'Худалдан авсан огноо',
+            'purchase_date' => 'Авсан огноо',
             'purchase_price' => 'Үнэ',
             'warranty_until' => 'Баталгаат хугацаа',
             'notes' => 'Тэмдэглэл',
@@ -101,7 +101,7 @@ class ComputerRequest extends FormRequest
             'date' => ':attribute буруу огноо байна.',
             'enum' => ':attribute буруу утгатай байна.',
             'mac_address.regex' => 'MAC хаяг AA:BB:CC:DD:EE:FF хэлбэртэй байх ёстой.',
-            'warranty_until.after_or_equal' => 'Баталгаат хугацаа худалдан авсан огнооноос өмнө байж болохгүй.',
+            'warranty_until.after_or_equal' => 'Баталгаат хугацаа авсан огнооноос өмнө байж болохгүй.',
         ];
     }
 

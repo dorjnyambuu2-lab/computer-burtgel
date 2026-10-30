@@ -199,7 +199,7 @@ class ComputerTransferController extends Controller
                 ->orWhereHas('fromUser', fn ($u) => $u->where('name', 'like', "%$term%"))
                 ->orWhereHas('toUser', fn ($u) => $u->where('name', 'like', "%$term%"))
                 ->orWhere('to_department', 'like', "%$term%")))
-            ->orderByRaw("FIELD(status, 'pending', 'received') = 0") // нээлттэй нь эхэнд
+            ->orderByRaw("CASE WHEN status IN ('pending', 'received') THEN 0 ELSE 1 END") // нээлттэй нь эхэнд (MySQL, SQLite аль алинд)
             ->latest()->orderByDesc('id');
 
         $transfers = \App\Support\RowNumber::paginate($query, $request, 20, $number);
@@ -277,6 +277,14 @@ class ComputerTransferController extends Controller
         abort_unless($computer && ! $computer->trashed(), 422);
         $next = User::findOrFail($data['user_id']);
 
+        // Засварт, актласан бол олгохгүй; дараагийн ажилтан төхөөрөмжийн салбарынх байна
+        if (in_array($computer->status, [ComputerStatus::InRepair, ComputerStatus::Decommissioned], true)) {
+            return back()->withErrors(['user_id' => $computer->activityLabel().' «'.$computer->status->label().'» төлөвтэй тул олгох боломжгүй.']);
+        }
+        if ($computer->branch_id && $next->branch_id && (int) $computer->branch_id !== (int) $next->branch_id) {
+            return back()->withErrors(['user_id' => $next->name.' нь төхөөрөмжийн салбарт ('.($computer->branch?->name ?? '—').') харьяалагдахгүй байна.']);
+        }
+
         DB::transaction(function () use ($transfer, $computer, $next, $request, $data) {
             $computer->assigned_user_id = $next->id; // model нь assigned_to-г синк хийж, баталгааг арилгана
             $computer->status = ComputerStatus::Active;
@@ -293,7 +301,7 @@ class ComputerTransferController extends Controller
             ]);
         });
 
-        return back()->with('success', $computer->activityLabel().' → '.$next->name.'-д олголоо.');
+        return back()->with('success', $computer->activityLabel().' → '.$next->name.'-д олголоо.')->with('success_autohide', 3000);
     }
 
     public function reject(Request $request, ComputerTransfer $transfer): RedirectResponse

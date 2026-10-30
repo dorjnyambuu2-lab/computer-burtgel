@@ -115,7 +115,7 @@ class UnitTest extends TestCase
         $this->assertNull($adm->fresh()->unit_id);
 
         // Хуудас: нэгжээр бүлэглэнэ, нэгжид алба тоо
-        $this->actingAs($admin)->get('/departments')->assertOk()->assertSeeInOrder(['Нэгж: МЧ', 'МТ алба', 'Нэгжгүй', 'Захиргааны алба']);
+        $this->actingAs($admin)->get('/departments')->assertOk()->assertSeeInOrder(['МЧ', 'МТ алба', 'Нэгжгүй', 'Захиргааны алба']);
         $this->actingAs($admin)->get('/units')->assertOk()->assertSee('1 алба');
 
         // Төхөөрөмж: алба сонгоод нэгж хоосон бол албын нэгж бөглөгдөнө; өөр нэгж сонгосон бол хэвээр
@@ -139,6 +139,52 @@ class UnitTest extends TestCase
         Computer::query()->update(['unit_id' => null, 'unit' => null]);
         $this->actingAs($admin)->delete(route('units.destroy', $hq))->assertSessionHasNoErrors();
         $this->assertNull($it->fresh()->unit_id);
+    }
+
+    public function test_department_learns_unit_from_registrations(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $dept = \App\Models\Department::create(['branch_id' => $admin->branch_id, 'name' => 'Санхүү']);
+
+        // Нэгжгүй албыг «МЧ» нэгжтэй хамт бүртгэхэд алба «МЧ»-д харьяалагдана
+        Computer::factory()->create(['department' => 'Санхүү', 'unit' => 'МЧ', 'branch_id' => $admin->branch_id]);
+        $this->assertSame('МЧ', $dept->fresh()->unit?->name);
+        // Дараагийнх нь өөр нэгжтэй байсан ч өөрчлөгдөхгүй
+        Computer::factory()->create(['department' => 'Санхүү', 'unit' => 'Өөр', 'branch_id' => $admin->branch_id]);
+        $this->assertSame('МЧ', $dept->fresh()->unit?->name);
+
+        // Шилжилт: хуучин бүртгэлээс олонхын нэгжийг онооно, тэнцүү бол үгүй
+        $it = \App\Models\Department::create(['branch_id' => $admin->branch_id, 'name' => 'МТ']);
+        $tie = \App\Models\Department::create(['branch_id' => $admin->branch_id, 'name' => 'Тэнцүү']);
+        $a = Unit::create(['branch_id' => $admin->branch_id, 'name' => 'А']);
+        $b = Unit::create(['branch_id' => $admin->branch_id, 'name' => 'Б']);
+        foreach ([[$it, $a], [$it, $a], [$it, $b], [$tie, $a], [$tie, $b]] as [$d, $u]) {
+            \Illuminate\Support\Facades\DB::table('computers')->insert(['name' => 'x', 'type' => 'other', 'status' => 'active', 'inventory_number' => uniqid('X', true),
+                'branch_id' => $admin->branch_id, 'department' => $d->name, 'department_id' => $d->id, 'unit' => $u->name, 'unit_id' => $u->id, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        (require database_path('migrations/2026_11_10_000100_link_departments_to_units_from_data.php'))->up();
+        $this->assertSame([$a->id, null], [$it->fresh()->unit_id, $tie->fresh()->unit_id]);
+    }
+
+    public function test_departments_page_filters_by_unit_branch_and_name(): void
+    {
+        $super = User::factory()->superadmin()->create(['branch_id' => null]);
+        $admin = User::factory()->admin()->create();
+        $far = Branch::create(['name' => 'Дархан', 'code' => 'DRH']);
+        $mch = Unit::create(['branch_id' => $admin->branch_id, 'name' => 'МЧ']);
+        \App\Models\Department::create(['branch_id' => $admin->branch_id, 'unit_id' => $mch->id, 'name' => 'Санхүү']);
+        \App\Models\Department::create(['branch_id' => $admin->branch_id, 'name' => 'Захиргаа']);
+        \App\Models\Department::create(['branch_id' => $far->id, 'name' => 'Дарханы алба']);
+
+        $this->actingAs($super)->get('/departments')->assertOk()->assertSee('+ Алба нэмэх')->assertSee('Албаны нэрээр хайх')
+            ->assertSee('Санхүү')->assertSee('Захиргаа')->assertSee('Дарханы алба');
+        $this->actingAs($super)->get('/departments?unit='.$mch->id)->assertOk()->assertSee('Санхүү')->assertDontSee('>Захиргаа<', false)->assertDontSee('Дарханы алба');
+        $this->actingAs($super)->get('/departments?unit=none')->assertOk()->assertSee('Захиргаа')->assertDontSee('>Санхүү<', false);
+        $this->actingAs($super)->get('/departments?branch='.$far->id)->assertOk()->assertSee('Дарханы алба')->assertDontSee('>Санхүү<', false);
+        $this->actingAs($super)->get('/departments?q=Захир')->assertOk()->assertSee('Захиргаа')->assertDontSee('>Санхүү<', false);
+        $this->actingAs($super)->get('/departments?q=байхгүй')->assertOk()->assertSee('Шүүлтэд тохирох алба алга.');
+        // Админ: салбарын шүүлтүүргүй, өөр салбарынх харагдахгүй
+        $this->actingAs($admin)->get('/departments?branch='.$far->id)->assertOk()->assertDontSee('Дарханы алба')->assertDontSee('Бүх салбар');
     }
 
     public function test_registration_with_new_unit(): void

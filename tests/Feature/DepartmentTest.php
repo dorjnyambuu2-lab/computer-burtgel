@@ -60,6 +60,25 @@ class DepartmentTest extends TestCase
         $this->assertNull($empty->fresh());
     }
 
+    public function test_broken_link_is_repaired_and_users_counted(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $emp = User::factory()->employee()->create(['department' => 'Санхүү', 'branch_id' => $admin->branch_id]);
+        $dept = $emp->departmentRecord;
+        // Холбоос тасарсан (апп-аас гадуур): текст байгаа, department_id хоосон
+        \Illuminate\Support\Facades\DB::table('users')->where('id', $emp->id)->update(['department_id' => null]);
+
+        // Шилжилт дахин холбоно
+        (require database_path('migrations/2026_11_09_000100_relink_orphan_departments_and_units.php'))->up();
+        $this->assertSame($dept->id, $emp->fresh()->department_id);
+        $this->actingAs($admin)->get('/departments')->assertOk()->assertSee('1 ажилтан');
+
+        // Хадгалах бүрд ч өөрөө засагдана
+        \Illuminate\Support\Facades\DB::table('users')->where('id', $emp->id)->update(['department_id' => null]);
+        $emp->fresh()->update(['position' => 'Нягтлан']);
+        $this->assertSame($dept->id, $emp->fresh()->department_id);
+    }
+
     public function test_admin_scope_and_pages(): void
     {
         $admin = User::factory()->admin()->create();

@@ -47,8 +47,8 @@
             'Алба хэлтэс' => $computer->department,
             'Байршил' => $computer->location,
         ],
-        'Худалдан авалт ба баталгаа' => [
-            'Худалдан авсан огноо' => $computer->purchase_date?->format('Y-m-d'),
+        'Төхөөрөмж хүлээн авсан ба баталгаат хугацаа' => [
+            'Авсан огноо' => $computer->purchase_date?->format('Y-m-d'),
             'Баталгаа дуусах огноо' => $computer->warranty_until?->format('Y-m-d'),
         ],
     ];

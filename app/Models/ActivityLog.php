@@ -109,7 +109,7 @@ class ActivityLog extends Model
         'holder_surname' => 'Овог',
         'holder_name' => 'Нэр',
         'status' => 'Төлөв',
-        'purchase_date' => 'Худалдан авсан огноо',
+        'purchase_date' => 'Авсан огноо',
         'purchase_price' => 'Үнэ (₮)',
         'warranty_until' => 'Баталгаа дуусах',
         'notes' => 'Тэмдэглэл',
@@ -155,7 +155,7 @@ class ActivityLog extends Model
         'Үндсэн мэдээлэл' => ['inventory_number', 'name', 'category', 'type', 'status', 'sequence_number', 'qr_code', 'kit_parent_id', 'kit_index'],
         'Байршил ба хариуцагч' => ['branch_id', 'unit', 'department', 'position', 'location', 'holder_surname', 'holder_name', 'assigned_to', 'acknowledged_at'],
         'Техникийн үзүүлэлт' => ['brand', 'model', 'serial_number', 'cpu', 'ram_gb', 'storage', 'os', 'specs', 'ip_address', 'mac_address', 'network_updated_at'],
-        'Худалдан авалт ба баталгаа' => ['purchase_date', 'purchase_price', 'warranty_until'],
+        'Төхөөрөмж хүлээн авсан ба баталгаат хугацаа' => ['purchase_date', 'purchase_price', 'warranty_until'],
         'Засвар' => ['repair_stage', 'repair_position', 'repair_queued_at'],
     ];
 

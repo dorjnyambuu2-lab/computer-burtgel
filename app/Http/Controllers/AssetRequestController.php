@@ -154,7 +154,7 @@ class AssetRequestController extends Controller
         $data = $request->validate([
             'status'     => ['required', 'in:' . implode(',', array_keys(self::STATUSES))],
             'admin_note' => ['nullable', 'string', 'max:500'],
-        ]);
+        ], ['status.required' => 'Төлвөө сонгоно уу.', 'status.in' => 'Төлөв буруу байна.']);
 
         $assetRequest->status = $data['status'];
         $assetRequest->admin_note = $data['admin_note'] ?? null;

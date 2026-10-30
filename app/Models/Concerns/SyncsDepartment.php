@@ -28,7 +28,9 @@ trait SyncsDepartment
                 if ($model->isDirty($idColumn) && ! $model->isDirty($column)) {
                     $record = $class::find($model->$idColumn);
                     $model->$column = $record?->name;
-                } elseif ($model->exists && ! $model->isDirty([$column, 'branch_id'])) {
+                } elseif ($model->exists && ! $model->isDirty([$column, 'branch_id'])
+                    // Тексттэй боловч холбоос нь тасарсан бол хадгалахад дахин холбоно
+                    && ! ($model->$idColumn === null && filled($model->$column))) {
                     continue;
                 } else {
                     // Шинээр үүсэх алба: сонгосон нэгжид харьяалагдана
@@ -41,6 +43,10 @@ trait SyncsDepartment
                 if ($column === 'department' && $record?->unit_id && ! $model->unit_id && ($unit = Unit::find($record->unit_id))) {
                     $model->unit_id = $unit->id;
                     $model->unit = $unit->name;
+                }
+                // Нэгжгүй албыг нэгжтэй хамт сонговол алба тэр нэгжид харьяалагдана (дараагийн бүртгэлд шүүлт ажиллана)
+                if ($column === 'department' && $record && ! $record->unit_id && $model->unit_id) {
+                    $record->forceFill(['unit_id' => $model->unit_id])->saveQuietly();
                 }
             }
         };

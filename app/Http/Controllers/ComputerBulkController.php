@@ -82,7 +82,7 @@ class ComputerBulkController extends Controller
             'items.*.mac_address.distinct' => 'Ижил MAC хаяг хоёр төхөөрөмжид бичигдсэн байна.',
             'items.*.mac_address.regex' => 'MAC хаяг AA:BB:CC:DD:EE:FF хэлбэртэй байх ёстой.',
             'assigned_user_id.exists' => 'Сонгосон хэрэглэгч идэвхгүй эсвэл олдсонгүй.',
-            'warranty_until.after_or_equal' => 'Баталгаа дуусах огноо худалдан авсан огнооноос хойш байх ёстой.',
+            'warranty_until.after_or_equal' => 'Баталгаа дуусах огноо авсан огнооноос хойш байх ёстой.',
         ], $form->attributes());
 
         // Төхөөрөмж бүрийн мөр: items ирсэн бол түүгээр, үгүй бол ангилал бүрт хоосон мөр
@@ -100,6 +100,11 @@ class ComputerBulkController extends Controller
         }
 
         $user = filled($data['assigned_user_id'] ?? null) ? User::findOrFail($data['assigned_user_id']) : null;
+        // Хариуцагч төхөөрөмжийн салбарынх байна (Супер админ өөр салбар сонгосон үед)
+        $branchId = $request->user()->isBranchScoped() ? $request->user()->branch_id : ($data['branch_id'] ?? null);
+        if ($user?->branch_id && $branchId && (int) $user->branch_id !== (int) $branchId) {
+            return back()->withInput()->withErrors(['assigned_user_id' => $user->name.' нь сонгосон салбарт харьяалагдахгүй.']);
+        }
 
         $status = filled($data['status'] ?? null)
             ? ComputerStatus::from($data['status'])

@@ -60,57 +60,67 @@
             <thead class="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
                     <th class="w-12 px-4 py-3">№</th>
-                    <th class="px-4 py-3">Огноо</th>
-                    <th class="px-4 py-3">Ажилтан</th>
+                    <th class="w-44 px-4 py-3">Ажилтан</th>
                     <th class="px-4 py-3">Хүсэлт</th>
-                    <th class="px-4 py-3">Төлөв</th>
-                    <th class="px-4 py-3"><span class="sr-only">Үйлдэл</span></th>
+                    <th class="w-52 px-4 py-3">Төлөв</th>
+                    <th class="w-32 px-4 py-3"><span class="sr-only">Үйлдэл</span></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
             @forelse ($requests as $r)
                 @php $pending = $r->status === 'pending'; @endphp
                 <tr class="align-top {{ $pending ? 'bg-amber-50/40' : '' }}">
-                    <td class="px-4 py-3 font-mono text-xs text-slate-400">#{{ $requests->firstItem() + $loop->index }}</td>
-                    <td class="whitespace-nowrap px-4 py-3 text-xs text-slate-500">{{ $r->created_at->format('Y-m-d') }}<div>{{ $r->created_at->format('H:i') }}</div></td>
-                    <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-900">{{ $r->user->name ?? '—' }}</td>
-                    <td class="px-4 py-3">
-                        {{-- Төрөл, төхөөрөмж (холбоос), гарчиг, тайлбар --}}
+                    <td class="px-4 py-4 font-mono text-xs text-slate-400">#{{ $requests->firstItem() + $loop->index }}</td>
+                    {{-- Ажилтан, илгээсэн огноо --}}
+                    <td class="px-4 py-4">
+                        <div class="font-semibold text-slate-900">{{ $r->user->name ?? '—' }}</div>
+                        <div class="mt-0.5 text-xs text-slate-400">{{ $r->created_at->format($r->created_at->isCurrentYear() ? 'm-d H:i' : 'Y-m-d') }}</div>
+                    </td>
+                    <td class="px-4 py-4">
+                        {{-- Төрөл ба гарчиг: эвдрэлд төхөөрөмж (холбоос), захиалгад төхөөрөмжийн тоо --}}
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {{ $r->type === 'issue' ? 'bg-rose-50 text-rose-700' : 'bg-indigo-50 text-indigo-700' }}">{{ $r->type === 'issue' ? 'Эвдрэл' : 'Захиалга' }}</span>
+                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $r->type === 'issue' ? 'bg-rose-50 text-rose-700' : 'bg-indigo-50 text-indigo-700' }}">{{ $r->type === 'issue' ? 'Эвдрэл' : 'Захиалга' }}</span>
                             @if ($r->computer)
                                 <a href="{{ route('computers.show', $r->computer) }}" class="font-semibold !text-slate-900 hover:!text-blue-700 hover:underline">{{ trim($r->computer->brand.' '.$r->computer->model) ?: $r->computer->name }}</a>
                                 <span class="font-mono text-[11px] text-slate-400">{{ $r->computer->inventory_number }}</span>
+                            @elseif ($r->items->isNotEmpty())
+                                <span class="text-xs text-slate-500">{{ $r->items->count() }} төрөл · {{ $r->items->sum('quantity') }} ширхэг</span>
                             @endif
                         </div>
+
                         @if ($r->items->isNotEmpty())
-                            {{-- Захиалгын мөр бүр, төлөвтэй --}}
-                            <ul class="mt-1.5 space-y-1">
+                            {{-- Захиалгын мөрүүд: нэр зүүн, төлөв баруун (тэгш) --}}
+                            <ul class="mt-2 max-w-md divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
                                 @foreach ($r->items as $item)
-                                    <li class="flex flex-wrap items-center gap-2">
-                                        <span class="font-medium text-slate-800">{{ $item->label() }}</span>
-                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {{ \App\Models\AssetRequestItem::BADGES[$item->status] ?? '' }}">{{ $item->statusLabel() }}</span>
-                                        @if ($item->note)<span class="text-xs text-slate-500">— {{ $item->note }}</span>@endif
+                                    <li class="px-3 py-1.5">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <span class="font-medium text-slate-800">{{ $item->name }}@if ($item->quantity > 1)<span class="ml-1 text-xs font-normal text-slate-400">×{{ $item->quantity }}</span>@endif</span>
+                                            <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium {{ \App\Models\AssetRequestItem::BADGES[$item->status] ?? '' }}">{{ $item->statusLabel() }}</span>
+                                        </div>
+                                        @if ($item->note)<div class="mt-0.5 text-xs text-slate-500">{{ $item->note }}</div>@endif
                                     </li>
                                 @endforeach
                             </ul>
-                        @elseif ($r->subject)<div class="mt-1 font-medium text-slate-800">{{ $r->subject }}</div>@endif
-                        <div class="mt-0.5 max-w-xl text-slate-600">«{{ $r->description }}»</div>
+                        @elseif ($r->subject)
+                            <div class="mt-1.5 font-medium text-slate-800">{{ $r->subject }}</div>
+                        @endif
+
+                        <p class="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">{{ $r->description }}</p>
                         @if ($r->admin_note)
-                            <div class="mt-1.5 max-w-xl rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600"><span class="font-semibold text-slate-700">Хариу:</span> {{ $r->admin_note }}</div>
+                            <div class="mt-2 max-w-xl rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600"><span class="font-semibold text-slate-700">Хариу:</span> {{ $r->admin_note }}</div>
                         @endif
                     </td>
-                    <td class="whitespace-nowrap px-4 py-3">
-                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $badge[$r->status] ?? 'bg-slate-100 text-slate-600' }}"><span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ $r->statusLabel() }}</span>
+                    <td class="px-4 py-4">
+                        <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium {{ $badge[$r->status] ?? 'bg-slate-100 text-slate-600' }}"><span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ $r->statusLabel() }}</span>
                         {{-- Засварт байгаа бол явц --}}
                         @if ($r->type === 'issue' && $r->computer?->status === \App\Enums\ComputerStatus::InRepair)
-                            <a href="{{ route('repairs.index') }}" class="mt-1 block text-xs font-medium !text-amber-700 hover:underline">Засварт #{{ $queueNumbers[$r->computer->id] ?? '' }} · {{ $r->computer->repair_stage?->label() ?? 'Дараалалд' }}</a>
+                            <a href="{{ route('repairs.index') }}" class="mt-1.5 block text-xs font-medium !text-amber-700 hover:underline">Засварт #{{ $queueNumbers[$r->computer->id] ?? '' }} · {{ $r->computer->repair_stage?->label() ?? 'Дараалалд' }}</a>
                         @endif
                         @if ($r->handler)
-                            <div class="mt-1 text-[11px] text-slate-400">{{ $r->handler->name }} · {{ $r->updated_at->format('m-d H:i') }}</div>
+                            <div class="mt-1.5 text-[11px] text-slate-400">{{ $r->handler->name }} · {{ $r->updated_at->format('m-d H:i') }}</div>
                         @endif
                     </td>
-                    <td class="whitespace-nowrap px-4 py-3 text-right">
+                    <td class="whitespace-nowrap px-4 py-4 text-right">
                         <div class="flex items-start justify-end gap-2">
                             {{-- Эвдрэл: засварын дараалалд оруулах (засварт ороогүй, шийдвэрлэгдээгүй бол) --}}
                             @if ($r->type === 'issue' && $r->computer && in_array($r->status, ['pending', 'in_progress'], true) && $r->computer->status !== \App\Enums\ComputerStatus::InRepair)
@@ -171,7 +181,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="px-4 py-12 text-center text-slate-400">Хүсэлт байхгүй байна.</td></tr>
+                <tr><td colspan="5" class="px-4 py-12 text-center text-slate-400">Хүсэлт байхгүй байна.</td></tr>
             @endforelse
             </tbody>
         </table>

@@ -59,7 +59,17 @@ class ComputerActionController extends Controller
             return $this->pendingTransferError();
         }
 
+        // Засварт, актласан төхөөрөмжийг олгохгүй (засварын дарааллаас чимээгүй гарахаас сэргийлнэ)
+        if (in_array($computer->status, [ComputerStatus::InRepair, ComputerStatus::Decommissioned], true)) {
+            return back()->withErrors(['user_id' => $computer->activityLabel().' «'.$computer->status->label().'» төлөвтэй тул олгох боломжгүй.']);
+        }
+
         $user = User::findOrFail($data['user_id']);
+
+        // Төхөөрөмж ба ажилтан нэг салбарынх байна (Супер админ өөр салбарын ажилтанд олгохгүй)
+        if ($computer->branch_id && $user->branch_id && (int) $computer->branch_id !== (int) $user->branch_id) {
+            return back()->withErrors(['user_id' => $user->name.' нь төхөөрөмжийн салбарт ('.($computer->branch?->name ?? '—').') харьяалагдахгүй байна.']);
+        }
 
         if ((int) $computer->assigned_user_id === $user->id) {
             return back()->withErrors(['user_id' => 'Энэ компьютер аль хэдийн '.$user->name.'-д оноогдсон байна.']);
@@ -121,7 +131,10 @@ class ComputerActionController extends Controller
         DB::transaction(function () use ($computer, $request, $previousUserId, $note) {
             $computer->assigned_user_id = null;
             $computer->assigned_to = null;
-            $computer->status = $this->status('Агуулахад');
+            // Засварт байгаа бол засварын дараалалд үлдэнэ (засвар дуусахад хариуцагчгүй тул агуулахад орно)
+            if ($computer->status !== ComputerStatus::InRepair) {
+                $computer->status = $this->status('Агуулахад');
+            }
             $computer->save();
             $this->log($computer, $request, 'returned', $previousUserId, $note);
 
@@ -136,7 +149,9 @@ class ComputerActionController extends Controller
             }
         });
 
-        return back()->with('success', $computer->activityLabel().' буцаан авч, агуулахад бүртгэлээ.')->with('success_autohide', 3000);
+        return back()->with('success', $computer->activityLabel().($computer->status === ComputerStatus::InRepair
+            ? ' буцаан авлаа. Засварын дараалалд үлдэнэ, засвар дуусахад агуулахад орно.'
+            : ' буцаан авч, агуулахад бүртгэлээ.'))->with('success_autohide', 3000);
     }
 
     /**
@@ -204,7 +219,8 @@ class ComputerActionController extends Controller
             : null;
 
         // Ангиллаар бүлэглэнэ ("Ангилаагүй" нь 'none')
-        $free = $this->availableComputers()->get();
+        // Сонгосон ажилтны салбарын чөлөөтэй төхөөрөмж (Супер админд ч өөр салбарынх харагдахгүй)
+        $free = $this->availableComputers()->when($selected?->branch_id, fn ($q) => $q->where('branch_id', $selected->branch_id))->get();
         $available = $free->groupBy(fn ($c) => $c->category?->value ?? 'none');
         // Иж бүрдэл: үндсэн компьютерийг сонгоход түүний чөлөөтэй хэрэгслүүд хамт сонгогдоно [үндсэн id => хэрэгслийн тоо]
         $kitSizes = $free->whereNotNull('kit_parent_id')->countBy('kit_parent_id')->all();
@@ -239,7 +255,9 @@ class ComputerActionController extends Controller
 
         DB::transaction(function () use ($ids, $user, $request, $data, &$given, &$detached) {
             // Зөвхөн яг одоо чөлөөтэй хэвээр байгаа төхөөрөмжийг олгоно (өөр админ өмнө нь олгосон бол алгасна)
-            $computers = $this->availableComputers()->whereIn('id', $ids)->lockForUpdate()->get();
+            // Ажилтны салбарын төхөөрөмж л (Супер админ өөр салбарынхыг олгохгүй)
+            $computers = $this->availableComputers()->whereIn('id', $ids)
+                ->when($user->branch_id, fn ($q) => $q->where('branch_id', $user->branch_id))->lockForUpdate()->get();
 
             // Иж бүрдлийг хэсэгчлэн олгоход (процессорыг mouse, keyboard-гүй г.м.): сонгоогүй хэрэгсэл, эсвэл
             // үндсэн компьютергүйгээр сонгосон хэрэгсэл иж бүрдлээс салж тусдаа төхөөрөмж болно

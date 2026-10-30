@@ -210,6 +210,14 @@ class Computer extends Model
         // Дэс дугаар завсаргүй байна: устгавал (архивлах, бүрмөсөн) дараагийнх нь нэгээр ухарна,
         // сэргээвэл төгсгөлд нь шинэ дугаар авна
         static::deleted(fn () => static::resequence());
+        // Архивлахад нээлттэй эвдрлийн хүсэлт, шилжүүлэг хаагдана (дуусгах боломжгүй «өлгөөтэй» үлдэхгүй)
+        static::deleted(function (Computer $computer) {
+            AssetRequest::query()->where('computer_id', $computer->id)->where('type', 'issue')
+                ->whereIn('status', ['pending', 'in_progress'])
+                ->update(['status' => 'rejected', 'admin_note' => 'Төхөөрөмж архивлагдсан.', 'handled_by' => Auth::id(), 'updated_at' => now()]);
+            ComputerTransfer::query()->where('computer_id', $computer->id)->open()
+                ->update(['status' => 'rejected', 'decided_by' => Auth::id(), 'decided_at' => now(), 'updated_at' => now()]);
+        });
         static::restored(fn () => static::resequence());
 
         // Хариуцагчаар шинэ ажилтан үүссэн бол Админуудад мэдэгдэнэ (хадгалагдсаны дараа: дугаар нь тэр үед бэлэн)
@@ -350,6 +358,11 @@ class Computer extends Model
 
             // Шинээр бүртгэхэд хариуцагчтай бол «Шинэ» биш «Ашиглагдаж байгаа» (Засварт, Агуулахад гэж сонгосныг өөрчлөхгүй)
             if (! $computer->exists && $computer->assigned_user_id && in_array($computer->status, [null, ComputerStatus::New], true)) {
+                $computer->status = ComputerStatus::Active;
+            }
+            // Засах формоор «Шинэ», «Агуулахад» төхөөрөмжид хариуцагч оноовол (төлвийг өөрөө сольсон биш бол) «Ашиглагдаж байгаа»
+            if ($computer->exists && $computer->assigned_user_id && $computer->isDirty('assigned_user_id') && ! $computer->isDirty('status')
+                && in_array($computer->status, [ComputerStatus::New, ComputerStatus::InStorage], true)) {
                 $computer->status = ComputerStatus::Active;
             }
 
@@ -815,8 +828,8 @@ class Computer extends Model
                 'Овог нэр' => trim($this->holder_surname.' '.$this->holder_name) ?: null,
                 'Хүлээн авсан баталгаа' => $acknowledgement,
             ],
-            'Худалдан авалт ба баталгаа' => [
-                'Худалдан авсан огноо' => $this->purchase_date?->format('Y-m-d'),
+            'Төхөөрөмж хүлээн авсан ба баталгаат хугацаа' => [
+                'Авсан огноо' => $this->purchase_date?->format('Y-m-d'),
                 'Баталгаа дуусах огноо' => $this->warranty_until?->format('Y-m-d'),
             ],
         ];

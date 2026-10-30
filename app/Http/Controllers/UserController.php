@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\Computer;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -157,6 +158,12 @@ class UserController extends Controller
                 if (! $me->isBranchScoped()) {
                     $user->branch_id = $this->branchFor($data);
                 }
+                // Төхөөрөмжтэй ажилтныг өөр салбарт шилжүүлэхгүй (төхөөрөмж хуучин салбарт, хариуцагч шинэд үлдэнэ)
+                if ($user->isDirty('branch_id') && ($held = $this->heldDevices($user))) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'branch_id' => $user->name.'-д '.$held.' төхөөрөмж байна. Салбар солихын өмнө буцаан авах эсвэл шилжүүлнэ үү.',
+                    ]);
+                }
                 $user->is_active = $request->boolean('is_active');
             }
 
@@ -168,6 +175,12 @@ class UserController extends Controller
         });
 
         return redirect()->route('users.index')->with('success', 'Хэрэглэгчийн мэдээлэл шинэчлэгдлээ'.($user->branch_id ? ' · салбар: '.$user->fresh()->branch?->name : '').'.');
+    }
+
+    /** Хэрэглэгчид оноогдсон төхөөрөмжийн тоо (бүх салбарын, архивлагдаагүй) */
+    private function heldDevices(User $user): int
+    {
+        return Computer::withoutGlobalScopes()->whereNull('deleted_at')->where('assigned_user_id', $user->id)->count();
     }
 
     /** Овог, нэгж, алба, албан тушаал — заавал биш */
@@ -186,6 +199,11 @@ class UserController extends Controller
     {
         $me = $this->me();
         abort_unless($me->canDeleteUser($user), 403);
+
+        // Төхөөрөмжтэй хэрэглэгчийг устгахгүй: төхөөрөмж «Ашиглагдаж байгаа» боловч хариуцагчгүй үлдэнэ
+        if ($held = $this->heldDevices($user)) {
+            return back()->with('warning', $user->name.'-д '.$held.' төхөөрөмж байна. Устгахын өмнө буцаан авах эсвэл өөр ажилтанд шилжүүлнэ үү.');
+        }
 
         $user->delete();
 

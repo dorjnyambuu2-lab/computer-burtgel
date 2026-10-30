@@ -140,10 +140,21 @@ class ComputerController extends Controller
             unset($validated['branch_id']);
         }
 
-        return $validated + $request->validate([
+        $data = $validated + $request->validate([
             'assigned_user_id' => ['nullable', 'integer', $holderRule],
             'category' => ['nullable', Rule::enum(EquipmentCategory::class)],
         ], ['assigned_user_id.exists' => 'Сонгосон хариуцагчийг оноох боломжгүй.']);
+
+        // Хариуцагч төхөөрөмжийн салбарынх байна (Супер админ салбар сольсон эсвэл өөр салбарын ажилтан сонгосон үед)
+        $branchId = $data['branch_id'] ?? $request->user()->branch_id;
+        $holder = filled($data['assigned_user_id'] ?? null) ? User::find($data['assigned_user_id']) : null;
+        if ($holder?->branch_id && $branchId && (int) $holder->branch_id !== (int) $branchId) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'assigned_user_id' => $holder->name.' нь сонгосон салбарт харьяалагдахгүй. Эхлээд буцаан авах эсвэл тухайн салбарын ажилтан сонгоно уу.',
+            ]);
+        }
+
+        return $data;
     }
 
     public function index(Request $request): View
@@ -393,7 +404,7 @@ class ComputerController extends Controller
         $query = $this->filtered($request, withKitItems: true)->withSum(['events as repair_cost_sum' => fn ($q) => $q->reorder()], 'cost');
         $numbers = $this->globalNumbers($request);
         $headers = ['Дэс дугаар', 'Бүртгэлийн дугаар', 'Нэр', 'Төрөл', 'Үйлдвэрлэгч', 'Загвар', 'Серийн дугаар', 'Процессор', 'RAM (GB)',
-            'Хадгалах төхөөрөмж', 'ҮС', 'IP', 'MAC', 'Үзүүлэлт', 'Алба хэлтэс', 'Байршил', 'Хариуцагч', 'Төлөв', 'Худалдан авсан',
+            'Хадгалах төхөөрөмж', 'ҮС', 'IP', 'MAC', 'Үзүүлэлт', 'Алба хэлтэс', 'Байршил', 'Хариуцагч', 'Төлөв', 'Авсан огноо',
             'Үнэ (₮)', 'Засварын зардал (₮)', 'Нийт өртөг (₮)', 'Баталгаат дуусах', 'Тэмдэглэл'];
 
         return response()->streamDownload(function () use ($query, $headers, $numbers) {
