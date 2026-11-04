@@ -104,13 +104,30 @@
 </section>
 
 <script>
-// Түр нууц үгийг хуулах
+// Түр нууц үгийг хуулах. navigator.clipboard зөвхөн HTTPS, localhost дээр ажилладаг тул
+// дотоод сүлжээний HTTP-д хуучин аргаар (сонгоод execCommand) хуулна
 document.querySelector('[data-copy-temp]')?.addEventListener('click', function () {
     const btn = this;
-    navigator.clipboard.writeText(document.querySelector('[data-temp-password]').textContent.trim()).then(function () {
-        btn.textContent = 'Хуулсан ✓';
+    const el = document.querySelector('[data-temp-password]');
+    const done = function (copied) {
+        btn.textContent = copied ? 'Хуулсан ✓' : 'Гараар хуулна уу';
         setTimeout(function () { btn.textContent = 'Хуулах'; }, 2000);
-    });
+    };
+    const fallback = function () {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        let copied = false;
+        try { copied = document.execCommand('copy'); } catch (e) { copied = false; }
+        done(copied);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(el.textContent.trim()).then(function () { done(true); }, fallback);
+    } else {
+        fallback();
+    }
 });
 </script>
 @endsection
