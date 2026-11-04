@@ -103,6 +103,32 @@ Artisan::command('repairs:digest {--force : Дараалал хоосон бай
 
 Schedule::command('repairs:digest')->dailyAt(config('security.repair_digest_time'));
 
+// Баталгаа 60 хоногт дуусах төхөөрөмжийг Админ, Супер админд мэдэгдэнэ: төхөөрөмж бүрд нэг удаа (Computer::warranty_notified_at).
+// Windows Task Scheduler өдөр бүр ажиллуулна (scripts/warranty.bat)
+Artisan::command('warranty:digest', function () {
+    $computers = Computer::query()->counted()->warrantyExpiringWithin(60)
+        ->whereNull('warranty_notified_at')
+        ->where('status', '!=', App\Enums\ComputerStatus::Decommissioned)
+        ->orderBy('warranty_until')->get();
+
+    if ($computers->isEmpty()) {
+        $this->info('Шинээр мэдэгдэх төхөөрөмж алга.');
+
+        return;
+    }
+
+    // Супер админ бүх салбарын, Админ зөвхөн өөрийн салбарынхыг авна
+    foreach (User::activeStaff() as $user) {
+        $items = $user->isBranchScoped() ? $computers->where('branch_id', $user->branch_id)->values() : $computers;
+        if ($items->isNotEmpty()) {
+            Notify::send([$user], new App\Notifications\WarrantyExpiringDigest($items));
+        }
+    }
+
+    Computer::query()->whereKey($computers->pluck('id'))->toBase()->update(['warranty_notified_at' => now()]);
+    $this->info($computers->count().' төхөөрөмжийн баталгааны сануулга илгээлээ.');
+})->purpose('Баталгаа удахгүй дуусах төхөөрөмжийг мэдэгдэх');
+
 // Сүүлчийн арга: сервер рүү хандах эрхтэй хүн Супер админы нууц үгийг шинэчилнэ
 Artisan::command('superadmin:reset-password {username? : Супер админы нэвтрэх нэр}', function () {
     $username = $this->argument('username')

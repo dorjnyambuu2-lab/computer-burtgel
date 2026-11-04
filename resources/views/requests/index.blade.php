@@ -147,7 +147,13 @@
                                             @csrf @method('PATCH')
                                             @foreach ($r->items as $item)
                                                 <div class="rounded-lg border border-slate-100 p-2">
-                                                    <div class="mb-1 text-sm font-semibold text-slate-800">{{ $item->label() }}</div>
+                                                    <div class="mb-1 flex items-center justify-between gap-2">
+                                                        <span class="text-sm font-semibold text-slate-800">{{ $item->label() }}@if ($item->delivered_quantity && $item->status !== 'delivered')<span class="ml-1 text-xs font-normal text-slate-500">{{ $item->delivered_quantity }}/{{ $item->quantity }} олгосон</span>@endif</span>
+                                                        {{-- Агуулахаас төхөөрөмж сонгож олгоно: мөр автоматаар «Хүлээлгэн өгсөн» болно --}}
+                                                        @if (in_array($item->status, ['pending', 'approved'], true))
+                                                            <a href="{{ route('computers.bulk-assign', ['user_id' => $r->user_id, 'request_item' => $item->id]) }}" class="shrink-0 text-xs font-medium !text-blue-600 hover:underline">Төхөөрөмж олгох →</a>
+                                                        @endif
+                                                    </div>
                                                     <div class="flex gap-2">
                                                         <select name="items[{{ $item->id }}][status]" class="{{ $sel }} w-36 shrink-0" aria-label="{{ $item->label() }} — төлөв">
                                                             @foreach (\App\Models\AssetRequestItem::STATUSES as $k => $v)<option value="{{ $k }}" @selected($item->status === $k)>{{ $v }}</option>@endforeach

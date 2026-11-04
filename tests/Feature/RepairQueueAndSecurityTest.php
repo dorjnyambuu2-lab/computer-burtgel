@@ -290,7 +290,7 @@ class RepairQueueAndSecurityTest extends TestCase
     {
         Notification::fake();
         $super = User::factory()->superadmin()->create();
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['email' => null]); // имэйлгүй админ
 
         $this->post(route('password.email'), ['login' => $admin->username])->assertSessionHas('status');
         $this->post(route('password.email'), ['login' => $admin->username]); // давхар хүсэлт үүсэхгүй

@@ -51,9 +51,20 @@ class PasswordResetRequestController extends Controller
         PasswordResetRequest::where('user_id', $user->id)->where('status', 'pending')
             ->update(['status' => 'resolved', 'resolved_by' => $request->user()->id, 'resolved_at' => now()]);
 
+        // Хэрэглэгч имэйлтэй бол түр нууц үгийг имэйлээр ч илгээнэ (log mailer-т нууц үг файлд бичигдэхээс сэргийлж алгасна)
+        $emailed = false;
+        if (filled($user->email) && config('mail.default') !== 'log') {
+            try {
+                $user->notify(new \App\Notifications\TemporaryPasswordIssued($temporary));
+                $emailed = true;
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
         return back()
             // Ногоон мэдэгдэл 3 секундэд алга болно; түр нууц үгийн шар хайрцаг хэвээр (хуулж авах)
-            ->with('success', $user->name.'-д түр нууц үг олголоо. Нэвтэрмэгц шинэ нууц үг солино.')
+            ->with('success', $user->name.'-д түр нууц үг олголоо'.($emailed ? ' ('.$user->email.' руу имэйлээр илгээлээ)' : '').'. Нэвтэрмэгц шинэ нууц үг солино.')
             ->with('success_autohide', 3000)
             ->with('temporary_password', ['user' => $user->name.' ('.$user->username.')', 'password' => $temporary]);
     }

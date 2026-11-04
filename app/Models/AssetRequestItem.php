@@ -22,11 +22,11 @@ class AssetRequestItem extends Model
         'rejected' => 'bg-rose-100 text-rose-700',
     ];
 
-    protected $fillable = ['asset_request_id', 'name', 'quantity', 'status', 'note', 'handled_by'];
+    protected $fillable = ['asset_request_id', 'name', 'quantity', 'delivered_quantity', 'status', 'note', 'handled_by'];
 
     protected function casts(): array
     {
-        return ['quantity' => 'integer'];
+        return ['quantity' => 'integer', 'delivered_quantity' => 'integer'];
     }
 
     public function assetRequest(): BelongsTo

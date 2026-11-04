@@ -46,7 +46,7 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        // Супер админы нууц үг сэргээх имэйл (монголоор)
+        // Супер админ, Админы нууц үг сэргээх имэйл (монголоор)
         ResetPassword::toMailUsing(function (User $user, string $token) {
             $minutes = config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 60);
 
@@ -55,7 +55,7 @@ class AppServiceProvider extends ServiceProvider
                 ->greeting('Сайн байна уу, '.$user->name.'!')
                 ->line('Таны бүртгэлийн нууц үгийг сэргээх хүсэлт ирлээ.')
                 ->action('Нууц үг сэргээх', route('password.reset', ['token' => $token, 'email' => $user->email]))
-                ->line('Холбоос '.$minutes.' минутын дараа хүчингүй болно. Сэргээхэд сэргээх түлхүүр шаардлагатай.')
+                ->line('Холбоос '.$minutes.' минутын дараа хүчингүй болно.'.($user->isSuperadmin() ? ' Сэргээхэд сэргээх түлхүүр шаардлагатай.' : ''))
                 ->line('Хэрэв та хүсэлт илгээгээгүй бол энэ имэйлийг үл тоомсорлож, системийн аюулгүй байдлыг шалгана уу.')
                 ->salutation(config('app.name'));
         });

@@ -142,6 +142,12 @@ class Computer extends Model
         // Гараар бичсэн утга: «dell» → жагсаалтын «Dell» болгож хадгална. Шинэ утга дараагийн бүртгэлд
         // сонголтын жагсаалтад автоматаар гарна (App\Support\SpecSuggestions)
         static::saving(fn (Computer $computer) => \App\Support\SpecSuggestions::canonicalize($computer));
+        // Баталгаа дуусах огноо солигдвол сануулга дахин очно
+        static::saving(function (Computer $computer) {
+            if ($computer->exists && $computer->isDirty('warranty_until')) {
+                $computer->warranty_notified_at = null;
+            }
+        });
         static::saved(fn () => \App\Support\SpecSuggestions::flush());
 
         // MAC-г нэг хэлбэрээр хадгална: aa-bb-cc-dd-ee-ff → AA:BB:CC:DD:EE:FF

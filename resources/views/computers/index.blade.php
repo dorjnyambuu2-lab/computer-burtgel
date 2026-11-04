@@ -117,7 +117,7 @@
                 <option value="">Бүртгэсэн: бүх админ</option>
                 @foreach ($admins as $a)<option value="{{ $a->id }}" @selected((string) request('created_by') === (string) $a->id)>{{ $a->name }}</option>@endforeach
             </select>
-            <label class="flex flex-[2_1_18rem] items-center gap-1 text-xs text-slate-500">
+            <label class="flex min-w-0 max-w-full flex-[2_1_18rem] items-center gap-1 text-xs text-slate-500">
                 Бүртгэсэн огноо
                 <input type="date" name="date_from" value="{{ request('date_from') }}" class="{{ $sel }} min-w-0 flex-1" data-auto>
                 <span>–</span>

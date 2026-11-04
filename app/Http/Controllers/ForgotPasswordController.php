@@ -19,7 +19,8 @@ use Throwable;
  * Нууц үг мартсан үед:
  *  - Супер админ: бүртгэлтэй имэйл рүү нь нэг удаагийн холбоос очно. Холбоосоор орж
  *    сэргээх түлхүүрээ (SUPERADMIN_RECOVERY_KEY) оруулсны дараа шинэ нууц үг тохируулна.
- *  - Админ: Супер админ руу хүсэлт очно, Супер админ түр нууц үг олгоно.
+ *  - Админ: имэйлтэй бол сэргээх холбоос имэйлээр очно (түлхүүргүй). Имэйлгүй эсвэл илгээж чадаагүй бол
+ *    Супер админ руу хүсэлт очно, Супер админ түр нууц үг олгоно.
  *  - Ажилтан: өөрийн салбарын Админ болон Супер админ руу хүсэлт очно, аль нэг нь түр нууц үг олгоно.
  */
 class ForgotPasswordController extends Controller
@@ -42,19 +43,31 @@ class ForgotPasswordController extends Controller
             ->first();
 
         if ($user?->isSuperadmin()) {
-            try {
-                Password::broker()->sendResetLink(['email' => $user->email]);
-            } catch (Throwable $e) {
-                report($e);
-            }
+            $this->sendResetLink($user);
         } elseif ($user) {
-            $this->requestReset($user, $request);
+            // Имэйлтэй админ холбоогоор өөрөө сэргээнэ; бусад нь хүсэлтээр түр нууц үг авна
+            $linked = $user->isAdmin() && filled($user->email) && $this->sendResetLink($user);
+            if (! $linked) {
+                $this->requestReset($user, $request);
+            }
         }
 
         // Бүртгэл байгаа эсэх, ямар эрхтэйг илчлэхгүйн тулд ижил хариу өгнө
         return back()->with('status',
-            'Хүсэлт хүлээн авлаа. Супер админ бол бүртгэлтэй имэйл рүү тань сэргээх холбоос очно. '
-            .'Админы хүсэлт Супер админ руу, ажилтны хүсэлт салбарын Админ болон Супер админ руу автоматаар илгээгдсэн тул түр нууц үгийг тэднээс авна уу.');
+            'Хүсэлт хүлээн авлаа. Супер админ болон имэйлтэй админд сэргээх холбоос имэйлээр очно. '
+            .'Бусад тохиолдолд хүсэлт Супер админ эсвэл салбарын Админ руу илгээгдсэн тул түр нууц үгийг тэднээс авна уу.');
+    }
+
+    /** Сэргээх холбоос илгээнэ. Илгээсэн (эсвэл саяхан илгээсэн) бол true, чадаагүй бол false */
+    private function sendResetLink(User $user): bool
+    {
+        try {
+            return in_array(Password::broker()->sendResetLink(['email' => $user->email]), [Password::RESET_LINK_SENT, Password::RESET_THROTTLED], true);
+        } catch (Throwable $e) {
+            report($e);
+
+            return false;
+        }
     }
 
     /**
@@ -92,13 +105,17 @@ class ForgotPasswordController extends Controller
         return view('auth.reset-password', [
             'token' => $token,
             'email' => (string) $request->query('email'),
-            'needsRecoveryKey' => filled(config('security.superadmin_recovery_key')),
+            // Сэргээх түлхүүр зөвхөн Супер админд
+            'needsRecoveryKey' => filled(config('security.superadmin_recovery_key'))
+                && ! User::where('email', (string) $request->query('email'))->first()?->isAdmin(),
         ]);
     }
 
     public function update(Request $request): RedirectResponse
     {
-        $recoveryKey = config('security.superadmin_recovery_key');
+        $user = User::where('email', (string) $request->input('email'))->first();
+        // Сэргээх түлхүүр зөвхөн Супер админд (Админ зөвхөн имэйлийн холбоогоор)
+        $recoveryKey = $user?->isAdmin() ? null : config('security.superadmin_recovery_key');
 
         $request->validate([
             'token' => ['required'],
@@ -111,12 +128,11 @@ class ForgotPasswordController extends Controller
             'recovery_key.required' => 'Сэргээх түлхүүрээ оруулна уу.',
         ]);
 
-        $user = User::where('email', $request->input('email'))->first();
-
-        // Аюулгүй байдлын шалгалт: зөвхөн Супер админ, сэргээх түлхүүр зөв байх
+        // Аюулгүй байдлын шалгалт: зөвхөн Супер админ, идэвхтэй Админ; сэргээх түлхүүр зөв байх
         $keyOk = blank($recoveryKey) || hash_equals((string) $recoveryKey, (string) $request->input('recovery_key'));
+        $allowed = $user?->isSuperadmin() || ($user?->isAdmin() && $user->is_active);
 
-        if (! $user?->isSuperadmin() || ! $keyOk) {
+        if (! $allowed || ! $keyOk) {
             return back()->withInput($request->only('email'))
                 ->withErrors(['email' => 'Сэргээх холбоос эсвэл түлхүүр буруу байна.']);
         }
@@ -138,6 +154,10 @@ class ForgotPasswordController extends Controller
             return back()->withInput($request->only('email'))
                 ->withErrors(['email' => 'Сэргээх холбоос хүчингүй эсвэл хугацаа нь дууссан байна. Дахин хүсэлт илгээнэ үү.']);
         }
+
+        // Хүлээгдэж буй түр нууц үгийн хүсэлт хэрэггүй болно
+        PasswordResetRequest::where('user_id', $user->id)->where('status', 'pending')
+            ->update(['status' => 'resolved', 'resolved_at' => now()]);
 
         return redirect()->route('login')->with('status', 'Нууц үг шинэчлэгдлээ. Шинэ нууц үгээрээ нэвтэрнэ үү.');
     }

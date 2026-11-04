@@ -165,6 +165,12 @@ class UserController extends Controller
                     ]);
                 }
                 $user->is_active = $request->boolean('is_active');
+                // Төхөөрөмжтэй хэрэглэгчийг идэвхгүй болгохгүй (ажлаас гарсан хүнд төхөөрөмж үлдэхээс сэргийлнэ)
+                if ($user->isDirty('is_active') && ! $user->is_active && ($held = $this->heldDevices($user))) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'is_active' => $user->name.'-д '.$held.' төхөөрөмж байна. Идэвхгүй болгохын өмнө буцаан авах эсвэл шилжүүлнэ үү.',
+                    ]);
+                }
             }
 
             if (! empty($data['password'])) {

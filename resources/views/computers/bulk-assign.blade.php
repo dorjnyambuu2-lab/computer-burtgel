@@ -24,6 +24,14 @@
         <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $errors->first() }}</div>
     @endif
 
+    {{-- Захиалгын мөрөөс ирсэн: олгоход мөр автоматаар «Хүлээлгэн өгсөн» болно --}}
+    @if ($orderItem)
+        <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+            <span>Захиалга: <b>{{ $orderItem->label() }}</b>@if ($orderItem->delivered_quantity) · {{ $orderItem->delivered_quantity }}/{{ $orderItem->quantity }} олгосон@endif</span>
+            <a href="{{ route('requests.index', ['type' => 'request']) }}" class="text-xs !text-indigo-700 hover:underline">Хүсэлт рүү буцах</a>
+        </div>
+    @endif
+
     {{-- 1. Ажилтан: хайж сонгоно (сонгосон бол товч мөр, «Солих» дарахад жагсаалт нээгдэнэ) --}}
     <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-3">
@@ -110,6 +118,7 @@
         <form method="POST" action="{{ route('computers.bulk-assign.store') }}" class="space-y-4">
             @csrf
             <input type="hidden" name="user_id" value="{{ $selected->id }}">
+            @if ($orderItem)<input type="hidden" name="request_item" value="{{ $orderItem->id }}">@endif
 
             <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div class="flex flex-wrap items-center gap-3 border-b border-slate-100 px-5 py-3">

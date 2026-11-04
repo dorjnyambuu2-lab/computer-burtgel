@@ -148,7 +148,7 @@ class ActivityLog extends Model
     /** Түүхэнд харуулахгүй талбар (давхардсан эсвэл техникийн: хариуцагчийн нэр «Хариуцагч»-д байна) */
     // deleted_by: үйлдэл («Устгасан», «Сэргээсэн») болон «Хэн» баганаас аль хэдийн харагдана
     // department_id, unit_id: «Алба», «Нэгж» текстээс аль хэдийн харагдана
-    public const HIDDEN_FIELDS = ['assigned_user_id', 'ram_modules', 'updated_at', 'created_at', 'id', 'deleted_by', 'department_id', 'unit_id'];
+    public const HIDDEN_FIELDS = ['assigned_user_id', 'ram_modules', 'updated_at', 'created_at', 'id', 'deleted_by', 'department_id', 'unit_id', 'warranty_notified_at'];
 
     /** Дэлгэрэнгүй цонхонд талбаруудыг бүлэглэх (бүлэгт ороогүй нь «Бусад») */
     public const FIELD_GROUPS = [

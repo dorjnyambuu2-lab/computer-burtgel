@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ComputerStatus;
+use App\Models\AssetRequest;
+use App\Models\AssetRequestItem;
 use App\Models\Computer;
 use App\Models\ComputerEvent;
 use App\Models\ComputerTransfer;
@@ -229,7 +231,12 @@ class ComputerActionController extends Controller
             ? Computer::query()->where('assigned_user_id', $selected->id)->orderBy('name')->get()
             : collect();
 
-        return view('computers.bulk-assign', compact('all', 'employees', 'departments', 'department', 'selected', 'available', 'current', 'kitSizes'));
+        // Захиалгын мөрөөс ирсэн бол (?request_item=): олгоход мөр «Хүлээлгэн өгсөн» болно
+        $orderItem = $selected && $request->filled('request_item')
+            ? $this->openOrderItem((int) $request->query('request_item'), $selected, $request->user())
+            : null;
+
+        return view('computers.bulk-assign', compact('all', 'employees', 'departments', 'department', 'selected', 'available', 'current', 'kitSizes', 'orderItem'));
     }
 
     /** Сонгосон төхөөрөмжүүдийг ажилтанд нэг дор олгоно */
@@ -240,6 +247,7 @@ class ComputerActionController extends Controller
             'computer_ids' => ['required', 'array', 'min:1'],
             'computer_ids.*' => ['integer'],
             'note' => ['nullable', 'string', 'max:1000'],
+            'request_item' => ['nullable', 'integer'],
         ], [
             'user_id.required' => 'Ажилтнаа сонгоно уу.',
             'user_id.exists' => 'Сонгосон хэрэглэгч идэвхгүй эсвэл олдсонгүй.',
@@ -252,8 +260,17 @@ class ComputerActionController extends Controller
 
         $given = [];
         $detached = [];
+        $orderItem = null;
 
-        DB::transaction(function () use ($ids, $user, $request, $data, &$given, &$detached) {
+        DB::transaction(function () use ($ids, $user, $request, $data, &$given, &$detached, &$orderItem) {
+            // Захиалгын мөр энэ ажилтных бөгөөд нээлттэй хэвээр байх ёстой (давхар олгохоос сэргийлж түгжинэ)
+            if (filled($data['request_item'] ?? null)) {
+                $orderItem = $this->openOrderItem((int) $data['request_item'], $user, $request->user(), lock: true);
+                if (! $orderItem) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['computer_ids' => 'Энэ захиалгын мөр аль хэдийн шийдвэрлэгдсэн эсвэл олдсонгүй.']);
+                }
+            }
+
             // Зөвхөн яг одоо чөлөөтэй хэвээр байгаа төхөөрөмжийг олгоно (өөр админ өмнө нь олгосон бол алгасна)
             // Ажилтны салбарын төхөөрөмж л (Супер админ өөр салбарынхыг олгохгүй)
             $computers = $this->availableComputers()->whereIn('id', $ids)
@@ -280,6 +297,10 @@ class ComputerActionController extends Controller
             }
 
             $this->completeReceivedTransfers(array_map(fn ($c) => $c->id, $given), $user, $request);
+
+            if ($orderItem && $given !== []) {
+                $this->deliverOrderItem($orderItem, $given, $request->user());
+            }
         });
 
         if ($given === []) {
@@ -301,10 +322,46 @@ class ComputerActionController extends Controller
             $message .= ' Иж бүрдлээс салгасан: '.collect($detached)->map(fn ($c) => $c->activityLabel())->implode(', ').'.';
         }
 
+        // Захиалгаас олгосон бол ажилтанд мэдэгдэж, хүсэлтийн хуудас руу буцна
+        if ($orderItem) {
+            \App\Support\Notify::send([$user], new \App\Notifications\AssetRequestItemsDecided($orderItem->assetRequest, [$orderItem]));
+
+            return redirect()->route('requests.index', ['type' => 'request'])->with('success', $message)->with('success_autohide', 3000);
+        }
+
         return redirect()->route('computers.bulk-assign', ['user_id' => $user->id])->with('success', $message)->with('success_autohide', 3000);
     }
 
     // ───────────────────────── туслах функцүүд ─────────────────────────
+
+    /** Энэ ажилтны нээлттэй (хүлээгдэж буй, зөвшөөрсөн) захиалгын мөр; харах эрхтэй хүнд л. Үгүй бол null */
+    private function openOrderItem(int $id, User $employee, User $actor, bool $lock = false): ?AssetRequestItem
+    {
+        $item = AssetRequestItem::query()->with('assetRequest')->whereKey($id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->when($lock, fn ($q) => $q->lockForUpdate())->first();
+
+        $order = $item?->assetRequest;
+        $allowed = $order && $order->type === 'request' && (int) $order->user_id === $employee->id
+            && AssetRequest::visibleTo($actor)->whereKey($order->id)->exists();
+
+        return $allowed ? $item : null;
+    }
+
+    /** Олгосон төхөөрөмжийг захиалгын мөрд бичнэ: тоо гүйцвэл «Хүлээлгэн өгсөн», дутуу бол «Зөвшөөрсөн» (иж бүрдлийн хэрэгсэл тоологдохгүй) */
+    private function deliverOrderItem(AssetRequestItem $item, array $given, User $actor): void
+    {
+        $main = collect($given)->whereNull('kit_parent_id');
+        $item->delivered_quantity = min(255, $item->delivered_quantity + $main->count());
+        $item->status = $item->delivered_quantity >= $item->quantity ? 'delivered' : 'approved';
+        $item->note = \Illuminate\Support\Str::limit(trim(($item->note ? $item->note.' · ' : '').'Олгосон: '.$main->map(fn ($c) => $c->inventory_number)->implode(', ')), 490);
+        $item->handled_by = $actor->id;
+        $item->save();
+
+        $order = $item->assetRequest;
+        $order->handled_by = $actor->id;
+        $order->syncStatusFromItems();
+    }
 
     /** Олгож болох төхөөрөмжүүд: хариуцагчгүй, засварт ба актлагдаагүй */
     private function availableComputers()
