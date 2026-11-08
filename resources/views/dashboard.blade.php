@@ -87,7 +87,7 @@
         <div class="mt-6 flex flex-wrap items-center justify-center gap-8">
             <div class="relative h-44 w-44">
                 <svg viewBox="0 0 36 36" class="h-full w-full -rotate-90">
-                    <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#f1f5f9" stroke-width="4"/>
+                    <circle cx="18" cy="18" r="15.9155" fill="none" style="stroke: var(--color-slate-100)" stroke-width="4"/>
                     @foreach ($slices as [$n, $v, $hex])
                         @if ($total && $v)
                             @php $len = $v / $total * 100; @endphp

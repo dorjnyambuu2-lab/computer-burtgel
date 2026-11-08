@@ -1,0 +1,275 @@
+/* Dark горим — gen-dark.cjs-ээр үүсгэсэн.
+   <html class="dark"> үед Tailwind-ийн өнгөний хувьсагчдыг дахин тодорхойлно, тиймээс view-д dark: нэмэх шаардлагагүй.
+   Хувьсагчдыг body дээр солих тул :root дээрх --o-* нь гэрэлтэй (анхны) утгаа хадгална. */
+
+:root {
+    --surface: #fff;
+    --o-slate-50: var(--color-slate-50);
+    --o-slate-100: var(--color-slate-100);
+    --o-slate-200: var(--color-slate-200);
+    --o-slate-300: var(--color-slate-300);
+    --o-slate-400: var(--color-slate-400);
+    --o-slate-500: var(--color-slate-500);
+    --o-slate-600: var(--color-slate-600);
+    --o-slate-700: var(--color-slate-700);
+    --o-slate-800: var(--color-slate-800);
+    --o-slate-900: var(--color-slate-900);
+    --o-slate-950: var(--color-slate-950);
+    --o-blue-50: var(--color-blue-50);
+    --o-blue-100: var(--color-blue-100);
+    --o-blue-200: var(--color-blue-200);
+    --o-blue-300: var(--color-blue-300);
+    --o-blue-700: var(--color-blue-700);
+    --o-blue-800: var(--color-blue-800);
+    --o-blue-900: var(--color-blue-900);
+    --o-rose-50: var(--color-rose-50);
+    --o-rose-100: var(--color-rose-100);
+    --o-rose-200: var(--color-rose-200);
+    --o-rose-300: var(--color-rose-300);
+    --o-rose-700: var(--color-rose-700);
+    --o-rose-800: var(--color-rose-800);
+    --o-rose-900: var(--color-rose-900);
+    --o-amber-50: var(--color-amber-50);
+    --o-amber-100: var(--color-amber-100);
+    --o-amber-200: var(--color-amber-200);
+    --o-amber-300: var(--color-amber-300);
+    --o-amber-700: var(--color-amber-700);
+    --o-amber-800: var(--color-amber-800);
+    --o-amber-900: var(--color-amber-900);
+    --o-emerald-50: var(--color-emerald-50);
+    --o-emerald-100: var(--color-emerald-100);
+    --o-emerald-200: var(--color-emerald-200);
+    --o-emerald-300: var(--color-emerald-300);
+    --o-emerald-700: var(--color-emerald-700);
+    --o-emerald-800: var(--color-emerald-800);
+    --o-emerald-900: var(--color-emerald-900);
+    --o-indigo-50: var(--color-indigo-50);
+    --o-indigo-100: var(--color-indigo-100);
+    --o-indigo-200: var(--color-indigo-200);
+    --o-indigo-300: var(--color-indigo-300);
+    --o-indigo-700: var(--color-indigo-700);
+    --o-indigo-800: var(--color-indigo-800);
+    --o-indigo-900: var(--color-indigo-900);
+    --o-violet-50: var(--color-violet-50);
+    --o-violet-100: var(--color-violet-100);
+    --o-violet-200: var(--color-violet-200);
+    --o-violet-300: var(--color-violet-300);
+    --o-violet-700: var(--color-violet-700);
+    --o-violet-800: var(--color-violet-800);
+    --o-violet-900: var(--color-violet-900);
+    --o-sky-50: var(--color-sky-50);
+    --o-sky-100: var(--color-sky-100);
+    --o-sky-200: var(--color-sky-200);
+    --o-sky-300: var(--color-sky-300);
+    --o-sky-700: var(--color-sky-700);
+    --o-sky-800: var(--color-sky-800);
+    --o-sky-900: var(--color-sky-900);
+    --o-red-50: var(--color-red-50);
+    --o-red-100: var(--color-red-100);
+    --o-red-200: var(--color-red-200);
+    --o-red-300: var(--color-red-300);
+    --o-red-700: var(--color-red-700);
+    --o-red-800: var(--color-red-800);
+    --o-red-900: var(--color-red-900);
+    --o-cyan-50: var(--color-cyan-50);
+    --o-cyan-100: var(--color-cyan-100);
+    --o-cyan-200: var(--color-cyan-200);
+    --o-cyan-300: var(--color-cyan-300);
+    --o-cyan-700: var(--color-cyan-700);
+    --o-cyan-800: var(--color-cyan-800);
+    --o-cyan-900: var(--color-cyan-900);
+}
+
+html.dark { color-scheme: dark; }
+
+html.dark body {
+    --surface: oklch(21% 0.03 265);
+    --color-slate-50: oklch(17% 0.028 265);
+    --color-slate-100: oklch(24% 0.032 264);
+    --color-slate-200: oklch(29.5% 0.035 262);
+    --color-slate-300: oklch(37% 0.038 260);
+    --color-slate-400: oklch(62% 0.035 258);
+    --color-slate-500: oklch(71% 0.03 257);
+    --color-slate-600: oklch(79% 0.024 256);
+    --color-slate-700: oklch(86% 0.017 255);
+    --color-slate-800: oklch(92% 0.01 255);
+    --color-slate-900: oklch(96% 0.006 250);
+    --color-slate-950: oklch(98.5% 0.003 248);
+    --color-blue-50: color-mix(in oklab, oklch(62.3% 0.214 259.815) 12%, oklch(21% 0.03 265));
+    --color-blue-100: color-mix(in oklab, oklch(62.3% 0.214 259.815) 20%, oklch(21% 0.03 265));
+    --color-blue-200: color-mix(in oklab, oklch(62.3% 0.214 259.815) 32%, oklch(21% 0.03 265));
+    --color-blue-300: color-mix(in oklab, oklch(62.3% 0.214 259.815) 55%, oklch(21% 0.03 265));
+    --color-blue-700: color-mix(in oklab, oklch(62.3% 0.214 259.815) 58%, white);
+    --color-blue-800: color-mix(in oklab, oklch(62.3% 0.214 259.815) 42%, white);
+    --color-blue-900: color-mix(in oklab, oklch(62.3% 0.214 259.815) 30%, white);
+    --color-rose-50: color-mix(in oklab, oklch(64.5% 0.246 16.439) 12%, oklch(21% 0.03 265));
+    --color-rose-100: color-mix(in oklab, oklch(64.5% 0.246 16.439) 20%, oklch(21% 0.03 265));
+    --color-rose-200: color-mix(in oklab, oklch(64.5% 0.246 16.439) 32%, oklch(21% 0.03 265));
+    --color-rose-300: color-mix(in oklab, oklch(64.5% 0.246 16.439) 55%, oklch(21% 0.03 265));
+    --color-rose-700: color-mix(in oklab, oklch(64.5% 0.246 16.439) 58%, white);
+    --color-rose-800: color-mix(in oklab, oklch(64.5% 0.246 16.439) 42%, white);
+    --color-rose-900: color-mix(in oklab, oklch(64.5% 0.246 16.439) 30%, white);
+    --color-amber-50: color-mix(in oklab, oklch(76.9% 0.188 70.08) 12%, oklch(21% 0.03 265));
+    --color-amber-100: color-mix(in oklab, oklch(76.9% 0.188 70.08) 20%, oklch(21% 0.03 265));
+    --color-amber-200: color-mix(in oklab, oklch(76.9% 0.188 70.08) 32%, oklch(21% 0.03 265));
+    --color-amber-300: color-mix(in oklab, oklch(76.9% 0.188 70.08) 55%, oklch(21% 0.03 265));
+    --color-amber-700: color-mix(in oklab, oklch(76.9% 0.188 70.08) 58%, white);
+    --color-amber-800: color-mix(in oklab, oklch(76.9% 0.188 70.08) 42%, white);
+    --color-amber-900: color-mix(in oklab, oklch(76.9% 0.188 70.08) 30%, white);
+    --color-emerald-50: color-mix(in oklab, oklch(69.6% 0.17 162.48) 12%, oklch(21% 0.03 265));
+    --color-emerald-100: color-mix(in oklab, oklch(69.6% 0.17 162.48) 20%, oklch(21% 0.03 265));
+    --color-emerald-200: color-mix(in oklab, oklch(69.6% 0.17 162.48) 32%, oklch(21% 0.03 265));
+    --color-emerald-300: color-mix(in oklab, oklch(69.6% 0.17 162.48) 55%, oklch(21% 0.03 265));
+    --color-emerald-700: color-mix(in oklab, oklch(69.6% 0.17 162.48) 58%, white);
+    --color-emerald-800: color-mix(in oklab, oklch(69.6% 0.17 162.48) 42%, white);
+    --color-emerald-900: color-mix(in oklab, oklch(69.6% 0.17 162.48) 30%, white);
+    --color-indigo-50: color-mix(in oklab, oklch(58.5% 0.233 277.117) 12%, oklch(21% 0.03 265));
+    --color-indigo-100: color-mix(in oklab, oklch(58.5% 0.233 277.117) 20%, oklch(21% 0.03 265));
+    --color-indigo-200: color-mix(in oklab, oklch(58.5% 0.233 277.117) 32%, oklch(21% 0.03 265));
+    --color-indigo-300: color-mix(in oklab, oklch(58.5% 0.233 277.117) 55%, oklch(21% 0.03 265));
+    --color-indigo-700: color-mix(in oklab, oklch(58.5% 0.233 277.117) 58%, white);
+    --color-indigo-800: color-mix(in oklab, oklch(58.5% 0.233 277.117) 42%, white);
+    --color-indigo-900: color-mix(in oklab, oklch(58.5% 0.233 277.117) 30%, white);
+    --color-violet-50: color-mix(in oklab, oklch(60.6% 0.25 292.717) 12%, oklch(21% 0.03 265));
+    --color-violet-100: color-mix(in oklab, oklch(60.6% 0.25 292.717) 20%, oklch(21% 0.03 265));
+    --color-violet-200: color-mix(in oklab, oklch(60.6% 0.25 292.717) 32%, oklch(21% 0.03 265));
+    --color-violet-300: color-mix(in oklab, oklch(60.6% 0.25 292.717) 55%, oklch(21% 0.03 265));
+    --color-violet-700: color-mix(in oklab, oklch(60.6% 0.25 292.717) 58%, white);
+    --color-violet-800: color-mix(in oklab, oklch(60.6% 0.25 292.717) 42%, white);
+    --color-violet-900: color-mix(in oklab, oklch(60.6% 0.25 292.717) 30%, white);
+    --color-sky-50: color-mix(in oklab, oklch(68.5% 0.169 237.323) 12%, oklch(21% 0.03 265));
+    --color-sky-100: color-mix(in oklab, oklch(68.5% 0.169 237.323) 20%, oklch(21% 0.03 265));
+    --color-sky-200: color-mix(in oklab, oklch(68.5% 0.169 237.323) 32%, oklch(21% 0.03 265));
+    --color-sky-300: color-mix(in oklab, oklch(68.5% 0.169 237.323) 55%, oklch(21% 0.03 265));
+    --color-sky-700: color-mix(in oklab, oklch(68.5% 0.169 237.323) 58%, white);
+    --color-sky-800: color-mix(in oklab, oklch(68.5% 0.169 237.323) 42%, white);
+    --color-sky-900: color-mix(in oklab, oklch(68.5% 0.169 237.323) 30%, white);
+    --color-red-50: color-mix(in oklab, oklch(63.7% 0.237 25.331) 12%, oklch(21% 0.03 265));
+    --color-red-100: color-mix(in oklab, oklch(63.7% 0.237 25.331) 20%, oklch(21% 0.03 265));
+    --color-red-200: color-mix(in oklab, oklch(63.7% 0.237 25.331) 32%, oklch(21% 0.03 265));
+    --color-red-300: color-mix(in oklab, oklch(63.7% 0.237 25.331) 55%, oklch(21% 0.03 265));
+    --color-red-700: color-mix(in oklab, oklch(63.7% 0.237 25.331) 58%, white);
+    --color-red-800: color-mix(in oklab, oklch(63.7% 0.237 25.331) 42%, white);
+    --color-red-900: color-mix(in oklab, oklch(63.7% 0.237 25.331) 30%, white);
+    --color-cyan-50: color-mix(in oklab, oklch(71.5% 0.143 215.221) 12%, oklch(21% 0.03 265));
+    --color-cyan-100: color-mix(in oklab, oklch(71.5% 0.143 215.221) 20%, oklch(21% 0.03 265));
+    --color-cyan-200: color-mix(in oklab, oklch(71.5% 0.143 215.221) 32%, oklch(21% 0.03 265));
+    --color-cyan-300: color-mix(in oklab, oklch(71.5% 0.143 215.221) 55%, oklch(21% 0.03 265));
+    --color-cyan-700: color-mix(in oklab, oklch(71.5% 0.143 215.221) 58%, white);
+    --color-cyan-800: color-mix(in oklab, oklch(71.5% 0.143 215.221) 42%, white);
+    --color-cyan-900: color-mix(in oklab, oklch(71.5% 0.143 215.221) 30%, white);
+}
+
+/* Үргэлж бараан загвартай хэсэг (login-ий зүүн самбар): анхны өнгөө хэвээр хадгална */
+html.dark .keep-light {
+    --color-slate-50: var(--o-slate-50);
+    --color-slate-100: var(--o-slate-100);
+    --color-slate-200: var(--o-slate-200);
+    --color-slate-300: var(--o-slate-300);
+    --color-slate-400: var(--o-slate-400);
+    --color-slate-500: var(--o-slate-500);
+    --color-slate-600: var(--o-slate-600);
+    --color-slate-700: var(--o-slate-700);
+    --color-slate-800: var(--o-slate-800);
+    --color-slate-900: var(--o-slate-900);
+    --color-slate-950: var(--o-slate-950);
+    --color-blue-50: var(--o-blue-50);
+    --color-blue-100: var(--o-blue-100);
+    --color-blue-200: var(--o-blue-200);
+    --color-blue-300: var(--o-blue-300);
+    --color-blue-700: var(--o-blue-700);
+    --color-blue-800: var(--o-blue-800);
+    --color-blue-900: var(--o-blue-900);
+    --color-rose-50: var(--o-rose-50);
+    --color-rose-100: var(--o-rose-100);
+    --color-rose-200: var(--o-rose-200);
+    --color-rose-300: var(--o-rose-300);
+    --color-rose-700: var(--o-rose-700);
+    --color-rose-800: var(--o-rose-800);
+    --color-rose-900: var(--o-rose-900);
+    --color-amber-50: var(--o-amber-50);
+    --color-amber-100: var(--o-amber-100);
+    --color-amber-200: var(--o-amber-200);
+    --color-amber-300: var(--o-amber-300);
+    --color-amber-700: var(--o-amber-700);
+    --color-amber-800: var(--o-amber-800);
+    --color-amber-900: var(--o-amber-900);
+    --color-emerald-50: var(--o-emerald-50);
+    --color-emerald-100: var(--o-emerald-100);
+    --color-emerald-200: var(--o-emerald-200);
+    --color-emerald-300: var(--o-emerald-300);
+    --color-emerald-700: var(--o-emerald-700);
+    --color-emerald-800: var(--o-emerald-800);
+    --color-emerald-900: var(--o-emerald-900);
+    --color-indigo-50: var(--o-indigo-50);
+    --color-indigo-100: var(--o-indigo-100);
+    --color-indigo-200: var(--o-indigo-200);
+    --color-indigo-300: var(--o-indigo-300);
+    --color-indigo-700: var(--o-indigo-700);
+    --color-indigo-800: var(--o-indigo-800);
+    --color-indigo-900: var(--o-indigo-900);
+    --color-violet-50: var(--o-violet-50);
+    --color-violet-100: var(--o-violet-100);
+    --color-violet-200: var(--o-violet-200);
+    --color-violet-300: var(--o-violet-300);
+    --color-violet-700: var(--o-violet-700);
+    --color-violet-800: var(--o-violet-800);
+    --color-violet-900: var(--o-violet-900);
+    --color-sky-50: var(--o-sky-50);
+    --color-sky-100: var(--o-sky-100);
+    --color-sky-200: var(--o-sky-200);
+    --color-sky-300: var(--o-sky-300);
+    --color-sky-700: var(--o-sky-700);
+    --color-sky-800: var(--o-sky-800);
+    --color-sky-900: var(--o-sky-900);
+    --color-red-50: var(--o-red-50);
+    --color-red-100: var(--o-red-100);
+    --color-red-200: var(--o-red-200);
+    --color-red-300: var(--o-red-300);
+    --color-red-700: var(--o-red-700);
+    --color-red-800: var(--o-red-800);
+    --color-red-900: var(--o-red-900);
+    --color-cyan-50: var(--o-cyan-50);
+    --color-cyan-100: var(--o-cyan-100);
+    --color-cyan-200: var(--o-cyan-200);
+    --color-cyan-300: var(--o-cyan-300);
+    --color-cyan-700: var(--o-cyan-700);
+    --color-cyan-800: var(--o-cyan-800);
+    --color-cyan-900: var(--o-cyan-900);
+}
+
+/* Цагаан дэвсгэр → карт өнгө (text-white хэвээр) */
+html.dark .bg-white { background-color: var(--surface); }
+html.dark .bg-white\/80 { background-color: color-mix(in oklab, var(--surface) 80%, transparent); }
+html.dark .bg-white\/85 { background-color: color-mix(in oklab, var(--surface) 85%, transparent); }
+html.dark .bg-white\/90 { background-color: color-mix(in oklab, var(--surface) 90%, transparent); }
+html.dark .bg-white\/95 { background-color: color-mix(in oklab, var(--surface) 95%, transparent); }
+html.dark .hover\:bg-white:hover { background-color: oklch(26% 0.032 264); }
+html.dark .focus\:bg-white:focus, html.dark .focus-within\:bg-white:focus-within { background-color: var(--surface); }
+html.dark .backdrop\:bg-slate-900\/40::backdrop { background-color: rgb(0 0 0 / .6); }
+
+/* Бараан товч, бүрхүүл: урвуу болгосон slate-ээр цайрахаас сэргийлнэ */
+html.dark .bg-slate-900 { background-color: oklch(38% 0.04 260); }
+html.dark .bg-slate-800 { background-color: oklch(34% 0.04 260); }
+html.dark .hover\:bg-slate-700:hover { background-color: oklch(42% 0.04 260); }
+html.dark .bg-slate-900\/40 { background-color: rgb(0 0 0 / .6); }
+
+/* Товчны hover өнгө (700): цагаан текстэй тул бараан хэвээр */
+html.dark .bg-blue-700, html.dark .hover\:bg-blue-700:hover { background-color: oklch(48.8% 0.243 264.376); }
+html.dark .bg-emerald-700, html.dark .hover\:bg-emerald-700:hover { background-color: oklch(50.8% 0.118 165.612); }
+html.dark .bg-rose-700, html.dark .hover\:bg-rose-700:hover { background-color: oklch(51.4% 0.222 16.935); }
+
+/* !important хувилбарууд (шүүлтүүрийн талбар, товч): Tailwind-ийн !important дүрэм layer дотор байдаг тул
+   (layer-тэй !important нь layer-гүйгээс давамгайлна) энд ч utilities layer-т бичнэ */
+@layer utilities {
+html.dark .\!bg-white { background-color: var(--surface) !important; }
+html.dark .\!bg-slate-800 { background-color: oklch(34% 0.04 260) !important; }
+html.dark .\!border-slate-800 { border-color: oklch(40% 0.04 260) !important; }
+html.dark .hover\:\!bg-slate-900:hover { background-color: oklch(40% 0.04 260) !important; }
+html.dark .hover\:\!bg-blue-700:hover { background-color: oklch(48.8% 0.243 264.376) !important; }
+html.dark .hover\:\!bg-emerald-700:hover { background-color: oklch(50.8% 0.118 165.612) !important; }
+html.dark .hover\:\!bg-rose-700:hover { background-color: oklch(51.4% 0.222 16.935) !important; }
+}
+
+/* Сүүдэр бараан дэвсгэр дээр */
+html.dark .shadow-sm, html.dark .shadow { --tw-shadow-color: rgb(0 0 0 / .35); }

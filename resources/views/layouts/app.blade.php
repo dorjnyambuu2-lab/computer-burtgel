@@ -62,24 +62,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Хянах самбар') · {{ config('app.name') }}</title>
+    @include('partials.theme')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
     /* Хуучин хуудсуудын (computers, users, activity, trash) элементүүдийг шинэ загварт тааруулах */
     @layer components {
         main h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; }
-        main .card, main form.filter-bar { background:#fff; border:1px solid #e2e8f0; border-radius:1rem; box-shadow:0 1px 2px rgb(15 23 42/.04); }
+        main .card, main form.filter-bar { background:var(--surface); border:1px solid var(--color-slate-200); border-radius:1rem; box-shadow:0 1px 2px rgb(15 23 42/.04); }
         main .filter-bar { display:flex; flex-wrap:wrap; gap:.75rem; padding:1rem; margin-bottom:1rem; }
         main .filter-bar input, main .filter-bar select { flex:1 1 10rem; }
-        main table { width:100%; border-collapse:collapse; font-size:.875rem; background:#fff; }
-        main thead th { background:#f8fafc; color:#64748b; font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; text-align:left; padding:.75rem 1rem; white-space:nowrap; }
-        main tbody td { padding:.75rem 1rem; border-top:1px solid #f1f5f9; vertical-align:middle; }
-        main tbody tr:hover { background:#f8fafc; }
-        main input:not([type=checkbox]):not([type=radio]), main select, main textarea { border:1px solid #cbd5e1; border-radius:.75rem; padding:.5rem .75rem; background:#fff; font-size:.875rem; }
-        main input:focus, main select:focus, main textarea:focus { border-color:#3b82f6; outline:2px solid #dbeafe; }
-        main button, main a.btn, main .btn { border-radius:.75rem; padding:.5rem 1rem; font-size:.875rem; font-weight:600; border:1px solid #cbd5e1; background:#fff; }
+        main table { width:100%; border-collapse:collapse; font-size:.875rem; background:var(--surface); }
+        main thead th { background:var(--color-slate-50); color:var(--color-slate-500); font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; text-align:left; padding:.75rem 1rem; white-space:nowrap; }
+        main tbody td { padding:.75rem 1rem; border-top:1px solid var(--color-slate-100); vertical-align:middle; }
+        main tbody tr:hover { background:var(--color-slate-50); }
+        main input:not([type=checkbox]):not([type=radio]), main select, main textarea { border:1px solid var(--color-slate-300); border-radius:.75rem; padding:.5rem .75rem; background:var(--surface); color:inherit; font-size:.875rem; }
+        main input:focus, main select:focus, main textarea:focus { border-color:#3b82f6; outline:2px solid var(--color-blue-100); }
+        main button, main a.btn, main .btn { border-radius:.75rem; padding:.5rem 1rem; font-size:.875rem; font-weight:600; border:1px solid var(--color-slate-300); background:var(--surface); }
         main .btn-primary, main button[type=submit]:not(.btn-danger):not(.btn-link) { background:#2563eb; border-color:#2563eb; color:#fff; }
         main .btn-primary:hover, main button[type=submit]:hover { background:#1d4ed8; }
-        main a:not(.btn):not([class*=bg-]) { color:#2563eb; }
+        main a:not(.btn):not([class*=bg-]) { color:var(--link, #2563eb); }
+        html.dark main a:not(.btn):not([class*=bg-]) { --link:#60a5fa; }
         main nav[role=navigation] { margin-top:1rem; }
     }
     </style>
@@ -136,6 +138,8 @@
                         <span class="hidden sm:inline">QR уншуулах</span>
                     </a>
                 @endif
+
+                @include('partials.theme-toggle')
 
                 <a href="{{ route('notifications.index') }}" title="Мэдэгдэл"
                    class="relative rounded-lg border border-slate-200 p-2 hover:bg-slate-100">

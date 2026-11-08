@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+@import './dark.css';
+
+/* dark: хувилбар <html class="dark">-аар ажиллана (системийн тохиргоогоор биш, сонголтоор) */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -69,7 +73,7 @@
     }
 
     table tbody tr:hover {
-        background-color: #f8fafc;
+        background-color: var(--color-slate-50);
     }
 
     /* Нарийн дэлгэц дээр хүснэгт хажуу тийш гүйлгэгдэнэ */
