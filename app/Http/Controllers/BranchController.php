@@ -56,7 +56,9 @@ class BranchController extends Controller
 
     private function validated(Request $request, ?Branch $branch = null): array
     {
-        $request->merge(['code' => filled($request->input('code')) ? mb_strtoupper(trim($request->input('code'))) : null]);
+        // Массив ирвэл хэвээр үлдээж 'string' дүрмээр татгалзуулна (trim(array) → 500 алдаанаас сэргийлнэ)
+        $code = $request->input('code');
+        $request->merge(['code' => is_string($code) && filled($code) ? mb_strtoupper(trim($code)) : (is_array($code) ? $code : null)]);
 
         return $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('branches', 'name')->ignore($branch?->id)],

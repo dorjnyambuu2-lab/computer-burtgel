@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
 
+        // Хайлт, шүүлтүүрийн query параметрт массив ирвэл хасна (?q[]=x → 500 алдаанаас сэргийлнэ)
+        $middleware->prependToGroup('web', \App\Http\Middleware\ScalarQueryParams::class);
+
         // Хэрэглэгч онлайн эсэхийг тодорхойлох «сүүлд харагдсан» цаг (доорх чиглүүлэлтүүдээс өмнө ажиллана)
         $middleware->appendToGroup('web', \App\Http\Middleware\TrackLastSeen::class);
 

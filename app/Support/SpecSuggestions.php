@@ -53,8 +53,11 @@ class SpecSuggestions
      */
     public static function ram(mixed $value): ?array
     {
-        if ($value === null || trim((string) $value) === '') {
+        if ($value === null || (is_scalar($value) && trim((string) $value) === '')) {
             return [null, null];
+        }
+        if (! is_scalar($value)) {
+            return null; // массив гэх мэт буруу төрөл → буруу бичсэнтэй адил
         }
 
         $sizes = [];

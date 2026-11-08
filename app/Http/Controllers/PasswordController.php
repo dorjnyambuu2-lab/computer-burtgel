@@ -16,8 +16,9 @@ class PasswordController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
-            'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', Password::min(8), 'different:current_password',
+            // bail + string: массив ирвэл дараагийн дүрмүүд (string хөрвүүлэлт) 500 алдаа өгөхөөс өмнө зогсоно
+            'current_password' => ['bail', 'required', 'string', 'current_password'],
+            'password' => ['bail', 'required', 'string', 'confirmed', Password::min(8), 'different:current_password',
                 fn ($attr, $value, $fail) => hash_equals((string) config('security.superadmin_default_password'), (string) $value)
                     ? $fail('Анхны үндсэн нууц үгийг дахин ашиглах боломжгүй.') : null],
         ], [

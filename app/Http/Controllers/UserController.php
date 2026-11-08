@@ -25,12 +25,13 @@ class UserController extends Controller
      */
     private function branchRules(Request $request): array
     {
-        $request->merge(['new_branch_code' => filled($request->input('new_branch_code')) ? mb_strtoupper(trim($request->input('new_branch_code'))) : null]);
+        $code = $request->input('new_branch_code');
+        $request->merge(['new_branch_code' => is_string($code) && filled($code) ? mb_strtoupper(trim($code)) : (is_array($code) ? $code : null)]);
         $skip = ['exclude_if:role,superadmin'];
 
         return [
             'branch_id' => [...$skip, 'required', function ($attribute, $value, $fail) {
-                if ($value !== 'new' && ! (ctype_digit((string) $value) && Branch::whereKey($value)->exists())) {
+                if ($value !== 'new' && ! (is_scalar($value) && ctype_digit((string) $value) && Branch::whereKey($value)->exists())) {
                     $fail('Сонгосон салбар олдсонгүй.');
                 }
             }],
