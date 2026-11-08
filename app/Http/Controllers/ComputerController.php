@@ -398,32 +398,103 @@ class ComputerController extends Controller
             .($kitCount ? ' (иж бүрдлийн '.$kitCount.' хэрэгслийн хамт)' : '').'. Устгасан хэсгээс сэргээж болно.');
     }
 
+    /**
+     * Excel (.xlsx) тайлан, хоёр хуудастай:
+     *  1. «Жагсаалт» — тооллогын гол мэдээлэл (дэс дугаар 1..N, иж бүрдлээр нь дараалуулсан, нийт дүнтэй);
+     *  2. «Техникийн үзүүлэлт» — процессор, RAM, диск, ҮС, IP, MAC (зөвхөн үзүүлэлттэй төхөөрөмж).
+     * Одоогийн хайлт, шүүлтүүрийг дагана. Иж бүрдлийн дагалдах хэрэгсэл ч орно (бүрэн тооллого).
+     */
     public function export(Request $request): StreamedResponse
     {
-        // CSV-д иж бүрдлийн дагалдах хэрэгсэл ч орно (бүрэн тооллого)
-        $query = $this->filtered($request, withKitItems: true)->withSum(['events as repair_cost_sum' => fn ($q) => $q->reorder()], 'cost');
+        $X = \App\Support\XlsxWriter::class;
         $numbers = $this->globalNumbers($request);
-        $headers = ['Дэс дугаар', 'Бүртгэлийн дугаар', 'Нэр', 'Төрөл', 'Үйлдвэрлэгч', 'Загвар', 'Серийн дугаар', 'Процессор', 'RAM (GB)',
-            'Хадгалах төхөөрөмж', 'ҮС', 'IP', 'MAC', 'Үзүүлэлт', 'Алба хэлтэс', 'Байршил', 'Хариуцагч', 'Төлөв', 'Авсан огноо',
-            'Үнэ (₮)', 'Засварын зардал (₮)', 'Нийт өртөг (₮)', 'Баталгаат дуусах', 'Тэмдэглэл'];
 
-        return response()->streamDownload(function () use ($query, $headers, $numbers) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF"); // Excel-д кирилл зөв харагдуулах UTF-8 BOM
-            fputcsv($out, $headers);
-            $query->chunkById(200, function ($rows) use ($out, $numbers) {
+        $items = [];
+        $this->filtered($request, withKitItems: true)
+            ->withSum(['events as repair_cost_sum' => fn ($q) => $q->reorder()], 'cost')
+            ->chunkById(200, function ($rows) use (&$items, $numbers) {
                 foreach ($rows as $c) {
-                    fputcsv($out, [
-                        isset($numbers[$c->kit_parent_id ?? $c->id]) ? '#'.$numbers[$c->kit_parent_id ?? $c->id] : $c->sequenceLabel(), $c->inventory_number, $c->name, $c->type->label(), $c->brand, $c->model, $c->serial_number, $c->cpu,
-                        $c->ram_gb, $c->storage, $c->os, $c->ip_address, $c->mac_address, $c->specs, $c->department, $c->location,
-                        $c->assigned_to, $c->status->label(), $c->purchase_date?->format('Y-m-d'),
-                        $c->purchase_price !== null ? (float) $c->purchase_price : '', (float) $c->repair_cost_sum,
-                        (float) $c->purchase_price + (float) $c->repair_cost_sum,
-                        $c->warranty_until?->format('Y-m-d'), $c->notes,
-                    ]);
+                    $group = $c->kit_parent_id ?? $c->id;
+                    $items[] = [$numbers[$group] ?? PHP_INT_MAX, (string) $c->inventory_number, $c];
                 }
             });
-            fclose($out);
-        }, 'computers-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        // Иж бүрдлээр нь (жагсаалтын дугаараар), дотор нь бүртгэлийн дугаараар дараалуулна
+        usort($items, fn ($a, $b) => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
+        $devices = array_column($items, 2);
+
+        // Нэрэнд давхардсан бүртгэлийн дугаар, «· Дагалдах хэрэгсэл» гэх мэт нэмэлтийг хасна
+        $name = fn ($c) => trim(preg_replace('/\s*·\s*Дагалдах хэрэгсэл$/u', '', str_replace((string) $c->inventory_number, '', (string) $c->name)), " \t·-") ?: $c->name;
+        // «Бусад» төрлийнх бол ангиллаар нь (Дэлгэц, Mouse, UPS...) харуулна
+        $kind = fn ($c) => $c->type?->value !== 'other' ? $c->type?->label() : ($c->category?->label() ?? $c->type?->label());
+        $info = config('app.name').' · Татсан: '.now()->format('Y-m-d H:i').' · '.($request->user()->name ?? '');
+
+        // ── 1. Жагсаалт ──
+        $cols = [
+            ['№', 6, $X::STYLE_CENTER], ['Бүртгэлийн дугаар', 22, $X::STYLE_TEXT], ['Нэр', 26, $X::STYLE_TEXT],
+            ['Ангилал', 20, $X::STYLE_TEXT], ['Үйлдвэрлэгч', 15, $X::STYLE_TEXT], ['Загвар', 16, $X::STYLE_TEXT],
+            ['Серийн дугаар', 17, $X::STYLE_TEXT], ['Алба хэлтэс', 26, $X::STYLE_TEXT], ['Хариуцагч', 17, $X::STYLE_TEXT],
+            ['Төлөв', 19, $X::STYLE_CENTER], ['Авсан огноо', 14, $X::STYLE_DATE], ['Үнэ (₮)', 14, $X::STYLE_MONEY],
+            ['Баталгаа дуусах', 16, $X::STYLE_DATE],
+        ];
+        $list = $this->exportSheet('Жагсаалт', 'Төхөөрөмжийн жагсаалт', $info, $cols);
+        $head = $list->rowCount();
+        $total = 0.0;
+        foreach ($devices as $n => $c) {
+            $price = $c->purchase_price !== null ? (float) $c->purchase_price : null;
+            $total += (float) $price;
+            $list->row([
+                $n + 1, $c->inventory_number, $name($c), $kind($c), $c->brand, $c->model, $c->serial_number,
+                $c->department, $c->assigned_to, $c->status->label(), $X::date($c->purchase_date), $price, $X::date($c->warranty_until),
+            ], array_column($cols, 2));
+        }
+        $end = $list->rowCount();
+        $sumRow = array_fill(0, count($cols), ['v' => null, 's' => $X::STYLE_TOTAL_LABEL]);
+        $sumRow[0] = ['v' => 'Нийт: '.count($devices).' төхөөрөмж', 's' => $X::STYLE_TOTAL_LABEL];
+        $sumRow[11] = ['f' => $end > $head ? "SUM(L".($head + 1).":L{$end})" : '0', 'v' => $total, 's' => $X::STYLE_TOTAL_MONEY];
+        $r = $list->row($sumRow);
+        $list->merge("A{$r}:K{$r}");
+        $list->autoFilter("A{$head}:".$X::col(count($cols) - 1).max($head, $end));
+
+        // ── 2. Техникийн үзүүлэлт ──
+        $tcols = [
+            ['№', 6, $X::STYLE_CENTER], ['Бүртгэлийн дугаар', 22, $X::STYLE_TEXT], ['Нэр', 26, $X::STYLE_TEXT],
+            ['Процессор', 22, $X::STYLE_TEXT], ['RAM (GB)', 11, $X::STYLE_INT], ['Хадгалах төхөөрөмж', 34, $X::STYLE_TEXT],
+            ['Үйлдлийн систем', 19, $X::STYLE_TEXT], ['Дэлгэц / бусад', 20, $X::STYLE_TEXT], ['IP хаяг', 16, $X::STYLE_TEXT],
+            ['MAC хаяг', 20, $X::STYLE_TEXT], ['Байршил', 18, $X::STYLE_TEXT], ['Засварын зардал (₮)', 16, $X::STYLE_MONEY],
+            ['Тэмдэглэл', 30, $X::STYLE_TEXT],
+        ];
+        $tech = $this->exportSheet('Техникийн үзүүлэлт', 'Техникийн үзүүлэлт', $info, $tcols);
+        $thead = $tech->rowCount();
+        foreach ($devices as $n => $c) {
+            if (! array_filter([$c->cpu, $c->ram_gb, $c->storage, $c->os, $c->specs, $c->ip_address, $c->mac_address, (float) $c->repair_cost_sum, $c->notes])) {
+                continue; // үзүүлэлтгүй (Mouse, Keyboard...) мөрийг энд давтахгүй
+            }
+            $tech->row([
+                $n + 1, $c->inventory_number, $name($c), $c->cpu, $c->ram_gb !== null ? (int) $c->ram_gb : null, $c->storage, $c->os,
+                $c->specs, $c->ip_address, $c->mac_address, $c->location, (float) $c->repair_cost_sum ?: null, $c->notes,
+            ], array_column($tcols, 2));
+        }
+        $tech->autoFilter("A{$thead}:".$X::col(count($tcols) - 1).max($thead, $tech->rowCount()));
+
+        return response()->streamDownload(fn () => print($X::book([$list, $tech])), 'computers-'.now()->format('Ymd-His').'.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
+
+    /** Тайлангийн хуудасны эхлэл: гарчиг, мэдээллийн мөр, хоосон мөр, толгой мөр (тогтмол, хэвлэхэд давтагдана) */
+    private function exportSheet(string $sheet, string $title, string $info, array $cols): \App\Support\XlsxWriter
+    {
+        $X = \App\Support\XlsxWriter::class;
+        $last = $X::col(count($cols) - 1);
+        $x = (new $X($sheet))->columns(array_column($cols, 1));
+        $x->row([['v' => $title, 's' => $X::STYLE_TITLE]], $X::STYLE_TITLE, 24);
+        $x->merge("A1:{$last}1");
+        $x->row([['v' => $info, 's' => $X::STYLE_SUBTITLE]]);
+        $x->merge("A2:{$last}2");
+        $x->row([]);
+        $head = $x->row(array_column($cols, 0), $X::STYLE_HEADER, 34);
+
+        return $x->freezeBelow($head)->printTitles($head, $head);
+    }
+
 }
