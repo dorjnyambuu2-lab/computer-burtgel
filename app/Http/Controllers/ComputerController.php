@@ -430,11 +430,11 @@ class ComputerController extends Controller
 
         // ── 1. Жагсаалт ──
         $cols = [
-            ['№', 6, $X::STYLE_CENTER], ['Бүртгэлийн дугаар', 22, $X::STYLE_TEXT], ['Нэр', 26, $X::STYLE_TEXT],
-            ['Ангилал', 20, $X::STYLE_TEXT], ['Үйлдвэрлэгч', 15, $X::STYLE_TEXT], ['Загвар', 16, $X::STYLE_TEXT],
-            ['Серийн дугаар', 17, $X::STYLE_TEXT], ['Алба хэлтэс', 26, $X::STYLE_TEXT], ['Хариуцагч', 17, $X::STYLE_TEXT],
-            ['Төлөв', 19, $X::STYLE_CENTER], ['Авсан огноо', 14, $X::STYLE_DATE], ['Үнэ (₮)', 14, $X::STYLE_MONEY],
-            ['Баталгаа дуусах', 16, $X::STYLE_DATE],
+            ['№', 6, $X::STYLE_CENTER], ['Бүртгэлийн дугаар', 24, $X::STYLE_TEXT], ['Нэр', 26, $X::STYLE_TEXT],
+            ['Ангилал', 20, $X::STYLE_TEXT], ['Үйлдвэрлэгч', 17, $X::STYLE_TEXT], ['Загвар', 16, $X::STYLE_TEXT],
+            ['Серийн дугаар', 19, $X::STYLE_TEXT], ['Алба хэлтэс', 24, $X::STYLE_TEXT], ['Хариуцагч', 17, $X::STYLE_TEXT],
+            ['Төлөв', 19, $X::STYLE_CENTER], ['Авсан огноо', 17, $X::STYLE_DATE], ['Үнэ (₮)', 14, $X::STYLE_MONEY],
+            ['Баталгаа дуусах', 21, $X::STYLE_DATE],
         ];
         $list = $this->exportSheet('Жагсаалт', 'Төхөөрөмжийн жагсаалт', $info, $cols);
         $head = $list->rowCount();
@@ -457,9 +457,9 @@ class ComputerController extends Controller
 
         // ── 2. Техникийн үзүүлэлт ──
         $tcols = [
-            ['№', 6, $X::STYLE_CENTER], ['Бүртгэлийн дугаар', 22, $X::STYLE_TEXT], ['Нэр', 26, $X::STYLE_TEXT],
+            ['№', 6, $X::STYLE_CENTER], ['Бүртгэлийн дугаар', 24, $X::STYLE_TEXT], ['Нэр', 26, $X::STYLE_TEXT],
             ['Процессор', 22, $X::STYLE_TEXT], ['RAM (GB)', 11, $X::STYLE_INT], ['Хадгалах төхөөрөмж', 34, $X::STYLE_TEXT],
-            ['Үйлдлийн систем', 19, $X::STYLE_TEXT], ['Дэлгэц / бусад', 20, $X::STYLE_TEXT], ['IP хаяг', 16, $X::STYLE_TEXT],
+            ['Үйлдлийн систем', 21, $X::STYLE_TEXT], ['Дэлгэц / бусад', 20, $X::STYLE_TEXT], ['IP хаяг', 16, $X::STYLE_TEXT],
             ['MAC хаяг', 20, $X::STYLE_TEXT], ['Байршил', 18, $X::STYLE_TEXT], ['Засварын зардал (₮)', 16, $X::STYLE_MONEY],
             ['Тэмдэглэл', 30, $X::STYLE_TEXT],
         ];
