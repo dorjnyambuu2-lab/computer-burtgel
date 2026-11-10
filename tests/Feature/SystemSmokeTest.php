@@ -265,6 +265,41 @@ class SystemSmokeTest extends TestCase
         $this->actingAs($this->super)->get('/computers/export?q=ҮГҮЙ-ТӨХӨӨРӨМЖ')->assertOk();
     }
 
+    // ─────────────────────────── Гацахгүй байх ───────────────────────────
+
+    public function test_mail_notifications_are_sent_after_the_response_in_web_requests(): void
+    {
+        // Вэб хүсэлт (console биш) байх үеийг дуурайна
+        $prop = new \ReflectionProperty($this->app, 'isRunningInConsole');
+        $prop->setValue($this->app, false);
+
+        $pc = Computer::find($this->params['computer']);
+        $notifications = [
+            new \App\Notifications\RepairStatusChanged($pc, 'started'),
+            new \App\Notifications\PasswordResetRequested(PasswordResetRequest::find($this->params['passwordRequest'])),
+            new \App\Notifications\TemporaryPasswordIssued('Temp12345678'),
+        ];
+        foreach ($notifications as $n) {
+            $this->assertInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class, $n);
+            $this->assertSame(['mail' => 'deferred', 'database' => 'sync'], $n->viaConnections(), $n::class);
+        }
+
+        $prop->setValue($this->app, true);
+        $this->assertSame('sync', $notifications[0]->viaConnections()['mail']); // artisan команд, тестэд шууд
+    }
+
+    public function test_responses_carry_content_length_so_browser_does_not_wait(): void
+    {
+        $res = $this->get('/login')->assertOk();
+        $this->assertSame((string) strlen($res->getContent()), $res->headers->get('Content-Length'));
+
+        $redirect = $this->actingAs($this->super)->post('/logout');
+        $this->assertTrue($redirect->headers->has('Content-Length'));
+
+        // Урсгал хариу (Excel) хэмжээгүй хэвээр
+        $this->assertFalse($this->actingAs($this->super)->get('/computers/export')->headers->has('Content-Length'));
+    }
+
     // ─────────────────────────── Dark / Light горим ───────────────────────────
 
     public function test_theme_script_and_toggle_are_on_app_and_guest_pages(): void

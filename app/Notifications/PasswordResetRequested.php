@@ -3,14 +3,16 @@
 namespace App\Notifications;
 
 use App\Models\PasswordResetRequest;
+use App\Notifications\Concerns\SendsMailAfterResponse;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /** Нууц үгээ мартсан тухай мэдэгдэл: админых Супер админд, ажилтных салбарын Админ болон Супер админд */
-class PasswordResetRequested extends Notification
+class PasswordResetRequested extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsMailAfterResponse;
 
     public function __construct(public PasswordResetRequest $resetRequest) {}
 

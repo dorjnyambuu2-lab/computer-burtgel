@@ -16,6 +16,13 @@ return [
     'default' => env('QUEUE_CONNECTION', 'database'),
 
     /*
+    | Имэйлтэй мэдэгдлийг илгээх connection (App\Notifications\Concerns\SendsMailAfterResponse).
+    | 'deferred' — хэрэглэгчид хариу илгээсний дараа нэг процесс дотроо илгээнэ, worker шаардахгүй.
+    | Анхаар: 'database' болговол түр нууц үгийн имэйлийн агуулга jobs хүснэгтэд хадгалагдана.
+    */
+    'mail_connection' => env('MAIL_QUEUE_CONNECTION', 'deferred'),
+
+    /*
     |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------

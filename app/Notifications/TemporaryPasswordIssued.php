@@ -2,14 +2,16 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\SendsMailAfterResponse;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /** Түр нууц үгийг хэрэглэгчийн имэйл рүү: нэвтэрмэгц шинэ нууц үг солих шаардлагатай. Зөвхөн имэйлээр (өгөгдлийн санд хадгалахгүй) */
-class TemporaryPasswordIssued extends Notification
+class TemporaryPasswordIssued extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsMailAfterResponse;
 
     public function __construct(private string $password) {}
 

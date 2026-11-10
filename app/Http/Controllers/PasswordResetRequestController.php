@@ -64,7 +64,7 @@ class PasswordResetRequestController extends Controller
 
         return back()
             // Ногоон мэдэгдэл 3 секундэд алга болно; түр нууц үгийн шар хайрцаг хэвээр (хуулж авах)
-            ->with('success', $user->name.'-д түр нууц үг олголоо'.($emailed ? ' ('.$user->email.' руу имэйлээр илгээлээ)' : '').'. Нэвтэрмэгц шинэ нууц үг солино.')
+            ->with('success', $user->name.'-д түр нууц үг олголоо'.($emailed ? ' ('.$user->email.' руу имэйлээр илгээнэ)' : '').'. Нэвтэрмэгц шинэ нууц үг солино.')
             ->with('success_autohide', 3000)
             ->with('temporary_password', ['user' => $user->name.' ('.$user->username.')', 'password' => $temporary]);
     }

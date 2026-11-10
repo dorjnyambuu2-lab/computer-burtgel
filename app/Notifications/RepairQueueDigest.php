@@ -3,15 +3,17 @@
 namespace App\Notifications;
 
 use App\Models\Computer;
+use App\Notifications\Concerns\SendsMailAfterResponse;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 
 /** Засварт байгаа компьютеруудын өдөр тутмын жагсаалт (#1, #2 ...) админуудад */
-class RepairQueueDigest extends Notification
+class RepairQueueDigest extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsMailAfterResponse;
 
     /** @param Collection<int, Computer> $computers дарааллаар эрэмбэлсэн */
     public function __construct(public Collection $computers) {}

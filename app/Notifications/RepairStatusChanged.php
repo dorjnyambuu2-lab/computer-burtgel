@@ -3,7 +3,9 @@
 namespace App\Notifications;
 
 use App\Models\Computer;
+use App\Notifications\Concerns\SendsMailAfterResponse;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -11,9 +13,9 @@ use Illuminate\Notifications\Notification;
  * Засварын мэдээлэл: дараалалд орсон, явц өөрчлөгдсөн, засвар дууссан.
  * Систем дотор (мэдэгдэл) болон цахим шуудангаар илгээгдэнэ.
  */
-class RepairStatusChanged extends Notification
+class RepairStatusChanged extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SendsMailAfterResponse;
 
     public const KINDS = [
         'queued' => 'Засварын дараалалд орлоо',

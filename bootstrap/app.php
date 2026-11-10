@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
 
+        // Content-Length: хариу илгээсний дараах ажлыг (deferred имэйл) хөтөч хүлээхгүй
+        $middleware->append(\App\Http\Middleware\SetContentLength::class);
+
         // Хайлт, шүүлтүүрийн query параметрт массив ирвэл хасна (?q[]=x → 500 алдаанаас сэргийлнэ)
         $middleware->prependToGroup('web', \App\Http\Middleware\ScalarQueryParams::class);
 
