@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class MyComputerController extends Controller
 {
     /** Хэрэглэгчид хариуцуулсан компьютерууд (хэрэглэгчийн ID-аар, нэр давхцахаас хамаарахгүй) */
-    public static function ownedBy($user)
+    public static function ownedBy(\App\Models\User $user): \Illuminate\Database\Eloquent\Builder
     {
         return Computer::query()->where('assigned_user_id', $user->id);
     }

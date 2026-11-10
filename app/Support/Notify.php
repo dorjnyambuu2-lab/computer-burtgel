@@ -11,7 +11,7 @@ class Notify
      * Мэдэгдэл илгээнэ. Шуудангийн сервер тохируулаагүй / унтарсан үед үйлдэл өөрөө
      * бүтэлгүйтэхгүй: алдааг логт бичээд, систем доторх мэдэгдлийг ямар ч үед хадгална.
      */
-    public static function send($users, $notification): void
+    public static function send(iterable $users, \Illuminate\Notifications\Notification $notification): void
     {
         $users = collect($users)->filter()->unique('id')->values();
 

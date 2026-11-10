@@ -80,7 +80,7 @@ class ActivityLogController extends Controller
      *
      * @return array<int, string> [log id => байдал]
      */
-    private function restoreStates($logs): array
+    private function restoreStates(\Illuminate\Support\Collection $logs): array
     {
         $deletions = $logs->filter(fn ($log) => in_array($log->action, ['deleted', 'force_deleted'], true)
             && $log->subject_type === (new Computer)->getMorphClass() && $log->subject_id);

@@ -13,6 +13,15 @@ use Throwable;
  */
 class FastFailMySqlConnector extends MySqlConnector
 {
+    /**
+     * Эцэг классын (Laravel) гарын үсэг төрөлгүй тул энд төрөл нэмэх боломжгүй (PHP fatal error) — PHPDoc-оор тодруулна.
+     *
+     * @param  string  $dsn
+     * @param  string|null  $username
+     * @param  string|null  $password
+     * @param  array<int, mixed>  $options
+     * @return \PDO
+     */
     protected function tryAgainIfCausedByLostConnection(Throwable $e, $dsn, $username, $password, $options)
     {
         throw $e;

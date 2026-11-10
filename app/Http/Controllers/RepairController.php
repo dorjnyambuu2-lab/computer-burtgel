@@ -67,7 +67,7 @@ class RepairController extends Controller
      * Дууссан засвар бүрд: засварт орсон огноо, эвдрэл (тухайн засварын «repair» үйлдэл), нийт зардал
      * (орсноос дуусах хүртэлх үйлдлүүдийн зардал) нэмнэ.
      */
-    private function finishedRepairs($page)
+    private function finishedRepairs(\Illuminate\Pagination\LengthAwarePaginator $page): \Illuminate\Pagination\LengthAwarePaginator
     {
         $events = ComputerEvent::query()
             ->whereIn('computer_id', $page->pluck('computer_id')->unique())
