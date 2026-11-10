@@ -72,8 +72,8 @@
 <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
     <div>
         @if ($isBranchAdmin)
-            <h1 class="!mb-0 text-xl font-bold">Ажилтан <span class="text-base font-normal text-slate-400">· {{ $me->branch?->name }}</span></h1>        @else
-            <h1 class="!mb-0 text-xl font-bold">Хэрэглэгч</h1>
+            <h1 class="!mb-0 text-2xl font-bold text-slate-900">Ажилтан <span class="text-base font-normal text-slate-400">· {{ $me->branch?->name }}</span></h1>        @else
+            <h1 class="!mb-0 text-2xl font-bold text-slate-900">Хэрэглэгч</h1>
         @endif
     </div>
     <a href="{{ url('/users/create') }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold !text-white shadow-sm hover:bg-blue-700">
@@ -102,8 +102,13 @@
         <option value="active" @selected($status === 'active')>Идэвхтэй</option>
         <option value="inactive" @selected($status === 'inactive')>Идэвхгүй</option>
     </select>
-    <input type="date" name="date_from" value="{{ request('date_from') }}" title="Бүртгэсэн: -аас" class="{{ $inp }}">
-    <input type="date" name="date_to" value="{{ request('date_to') }}" title="Бүртгэсэн: хүртэл" class="{{ $inp }}">
+    {{-- Огнооны талбар хөтчийн хэлээр (mm/dd/yyyy) харагддаг тул юуны огноо болохыг шошгоор тодруулна --}}
+    <div class="flex items-center gap-2">
+        <span class="whitespace-nowrap text-xs font-medium text-slate-500">Бүртгэсэн</span>
+        <input type="date" name="date_from" value="{{ request('date_from') }}" title="Бүртгэсэн: эхлэх огноо" aria-label="Бүртгэсэн: эхлэх огноо" class="{{ $inp }}">
+        <span class="text-slate-400">–</span>
+        <input type="date" name="date_to" value="{{ request('date_to') }}" title="Бүртгэсэн: дуусах огноо" aria-label="Бүртгэсэн: дуусах огноо" class="{{ $inp }}">
+    </div>
     <input type="hidden" name="sort" value="{{ $sort }}"><input type="hidden" name="dir" value="{{ $dir }}">
     <button type="submit" class="rounded-xl border border-blue-600 bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Хайх</button>
     @if ($filtered)
@@ -117,11 +122,12 @@
             <thead>
                 <tr>
                     <th class="w-12">№</th>
-                    <th>{!! $sortLink('code', 'ID') !!}</th>
-                    <th>{!! $sortLink('name', 'Нэр') !!}</th><th>{!! $sortLink('username', 'Нэвтрэх нэр') !!}</th>
-                    <th>{!! $sortLink('role', 'Эрх') !!}</th><th>Салбар</th><th>{!! $sortLink('email', 'Имэйл') !!}</th>
-                    <th>{!! $hasLast ? $sortLink('last_seen_at', 'Сүүлд идэвхтэй байсан') : 'Сүүлд идэвхтэй байсан' !!}</th>
-                    <th>{!! $sortLink('created_at', 'Бүртгэсэн') !!}</th><th>Төлөв</th><th class="text-right">Үйлдэл</th>
+                    {{-- ID нэртэй, имэйл нэвтрэх нэртэй нэг баганад: хүснэгт өргөн дэлгэцэнд гүйлгэлгүй багтана --}}
+                    <th>{!! $sortLink('name', 'Нэр') !!} <span class="text-slate-300">/</span> {!! $sortLink('code', 'ID') !!}</th>
+                    <th>{!! $sortLink('username', 'Нэвтрэх нэр') !!} <span class="text-slate-300">/</span> {!! $sortLink('email', 'Имэйл') !!}</th>
+                    <th>{!! $sortLink('role', 'Эрх') !!}</th><th>Салбар</th>
+                    <th>{!! $hasLast ? $sortLink('last_seen_at', 'Сүүлд идэвхтэй') : 'Сүүлд идэвхтэй' !!} <span class="text-slate-300">/</span> {!! $sortLink('created_at', 'Бүртгэсэн') !!}</th>
+                    <th>Төлөв</th><th class="text-right">Үйлдэл</th>
                 </tr>
             </thead>
             <tbody>
@@ -131,14 +137,17 @@
                     @endphp
                     <tr>
                         <td class="font-mono text-xs font-semibold text-slate-500">#{{ $users->firstItem() + $loop->index }}</td>
-                        <td><span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-600">{{ $u->idCode() }}</span></td>
                         <td class="font-semibold text-slate-900">
                             <span class="whitespace-nowrap">{{ trim($u->surname.' '.$u->name) }}</span>
+                            <span data-user-code class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 align-middle font-mono text-[11px] font-semibold text-slate-600">{{ $u->idCode() }}</span>
                             @if ($u->department || $u->position)
                                 <span class="mt-0.5 block whitespace-nowrap text-xs font-normal text-slate-500">{{ collect([$u->department, $u->position])->filter()->implode(' · ') }}</span>
                             @endif
                         </td>
-                        <td class="text-slate-600">{{ $u->username ?: '—' }}</td>
+                        <td class="text-slate-600">
+                            {{ $u->username ?: '—' }}
+                            @if ($u->email)<span class="mt-0.5 block text-xs text-slate-400">{{ $u->email }}</span>@endif
+                        </td>
                         <td><span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $u->roleBadgeClass() }}">{{ $u->roleLabel() }}</span></td>
                         <td class="text-slate-600">
                             @if ($u->isSuperadmin())
@@ -149,11 +158,10 @@
                                 <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">⚠ Оноогоогүй</span>
                             @endif
                         </td>
-                        <td class="text-slate-600">{{ $u->email }}</td>
-                        <td class="text-slate-600" @if ($last) title="{{ $last->format('Y-m-d H:i') }}" @endif>
-                            {{ $last ? $last->locale('mn')->diffForHumans() : '—' }}
+                        <td class="text-slate-600">
+                            <span class="whitespace-nowrap" @if ($last) title="{{ $last->format('Y-m-d H:i') }}" @endif>{{ $last ? $last->locale('mn')->diffForHumans() : '—' }}</span>
+                            <span class="mt-0.5 block whitespace-nowrap text-xs text-slate-400">Бүртгэсэн {{ $u->created_at?->format('Y-m-d') ?? '—' }}</span>
                         </td>
-                        <td class="whitespace-nowrap text-slate-600">{{ $u->created_at?->format('Y-m-d') ?? '—' }}</td>
                         <td>
                             @if ($u->is_active)
                                 <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Идэвхтэй</span>
@@ -186,7 +194,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="11" class="py-10 text-center text-slate-400">Хэрэглэгч олдсонгүй.</td></tr>
+                    <tr><td colspan="8" class="py-10 text-center text-slate-400">Хэрэглэгч олдсонгүй.</td></tr>
                 @endforelse
             </tbody>
         </table>

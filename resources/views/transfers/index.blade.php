@@ -8,7 +8,7 @@
 
 <div class="mx-auto max-w-6xl space-y-4">
     <div>
-        <h1 class="!mb-0 text-xl font-bold">Төхөөрөмж шилжүүлэх</h1>    </div>
+        <h1 class="!mb-0 text-2xl font-bold text-slate-900">Төхөөрөмж шилжүүлэх</h1>    </div>
 
     @if ($errors->any())
         <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $errors->first() }}</div>
@@ -18,36 +18,14 @@
     <form method="POST" action="{{ route('transfers.store') }}" class="rounded-2xl border-2 border-blue-200 bg-white p-5 shadow-sm">
         @csrf
         <h2 class="mb-3 text-base font-bold">Шинэ шилжүүлэг</h2>
-        @if ($devices->isEmpty())
+        @if (! $hasDevices)
             <p class="text-sm text-slate-500">Ажилтанд оноогдсон төхөөрөмж алга. Төхөөрөмжийг эхлээд <a href="{{ route('computers.bulk-assign') }}" class="font-semibold !text-blue-600 hover:underline">«Төхөөрөмж олгох»</a>-оор олгоно.</p>
         @else
             @php
                 $destination = old('destination', 'user');
-                // Иж бүрдэл (үндсэн + дагалдах, ижил эзэмшигч) нэг сонголт болж, бүхэлдээ шилжинэ
+                // Өмнө сонгосон (алдаатай буцсан эсвэл ?computer=) төхөөрөмж — иж бүрдлийг нь серверээс авна.
+                // Төхөөрөмжийн жагсаалт хуудсанд ачаалагдахгүй: сонгох цонх route('transfers.devices')-ээс хайлтаар авна.
                 $selectedId = (string) old('computer_id', request('computer'));
-                $sets = $devices->groupBy(fn ($d) => ($d->kit_parent_id ?: $d->id).'|'.$d->assigned_user_id)
-                    ->map(fn ($g) => $g->sortBy(fn ($d) => [$d->kit_parent_id ? 1 : 0, $d->kit_index ?? 0, $d->id])->values());
-                // Сонгох цонхны хүснэгтийн мөрүүд: иж бүрдэл бүр нэг мөр (үндсэн төхөөрөмжөөр)
-                $deviceRows = $sets->map(function ($set) {
-                    $d = $set->first();
-
-                    return [
-                        'id' => $d->id,
-                        'ids' => $set->pluck('id')->map(fn ($id) => (string) $id)->all(),
-                        'code' => $d->inventory_number,
-                        'name' => $d->name,
-                        'category' => $d->category?->label(),
-                        'place' => $d->place,
-                        'department' => $d->department,
-                        'location' => $d->location,
-                        'holder' => $d->assigned_user_id ? (string) $d->assigned_user_id : '',
-                        'branch' => $d->branch_id ? (string) $d->branch_id : '',
-                        'branchName' => $d->branch?->name,
-                        'kit' => $set->count(),
-                        'items' => $set->count() > 1 ? $set->map(fn ($i) => $i->inventory_number.' '.$i->name)->implode(', ') : '',
-                    ];
-                })->sortBy(['place', 'code'])->values();
-                $filterValues = fn (string $key) => $deviceRows->pluck($key)->filter()->unique()->sort()->values();
             @endphp
 
             {{-- Супер админ: хаашаа шилжүүлэх --}}
@@ -131,13 +109,12 @@
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                         <input type="search" id="dev-q" placeholder="Хайх: дугаар, нэр, хариуцагч..." autocomplete="off" class="{{ $sel }} w-full !pl-9">
                     </div>
+                    {{-- Шүүлтүүрийн утгуудыг цонх анх нээгдэхэд серверээс авч бөглөнө --}}
                     <select id="dev-dept" class="{{ $sel }} flex-[1_1_9rem]" aria-label="Алба">
                         <option value="">Бүх алба</option>
-                        @foreach ($filterValues('department') as $v)<option value="{{ $v }}">{{ $v }}</option>@endforeach
                     </select>
                     <select id="dev-loc" class="{{ $sel }} flex-[1_1_9rem]" aria-label="Байршил">
                         <option value="">Бүх байршил</option>
-                        @foreach ($filterValues('location') as $v)<option value="{{ $v }}">{{ $v }}</option>@endforeach
                     </select>
                     <select id="dev-kit" class="{{ $sel }} flex-[1_1_9rem]" aria-label="Иж бүрдэл">
                         <option value="">Иж бүрдэл: бүгд</option>
@@ -147,7 +124,6 @@
                     @if ($showBranch)
                         <select id="dev-branch" class="{{ $sel }} flex-[1_1_9rem]" aria-label="Салбар">
                             <option value="">Бүх салбар</option>
-                            @foreach ($deviceRows->pluck('branchName', 'branch')->filter()->sort() as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach
                         </select>
                     @endif
                 </div>
@@ -166,6 +142,8 @@
                         <tbody id="dev-rows" class="divide-y divide-slate-100"></tbody>
                     </table>
                     <p id="dev-empty" class="hidden px-4 py-10 text-center text-sm text-slate-400">Шүүлтүүрт тохирох төхөөрөмж олдсонгүй.</p>
+                    <p id="dev-loading" class="hidden px-4 py-10 text-center text-sm text-slate-400">Ачаалж байна…</p>
+                    <p id="dev-more" class="hidden border-t border-slate-100 px-4 py-3 text-center text-xs text-slate-500"></p>
                 </div>
                 <div class="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
                     <span id="dev-count"></span>
@@ -176,8 +154,13 @@
             <script>
             // Төхөөрөмж сонгох цонх + сонгосон чиглэлийн талбарыг л харуулна (бусдыг идэвхгүй болгож илгээхгүй).
             // Хэрэглэгчийн жагсаалтаас одоогийн эзэмшигч, өөр салбарынхныг хасна. Иж бүрдэл бүхэлдээ шилжинэ.
+            // Төхөөрөмжийг серверээс хайлтаар (хамгийн ихдээ 50 иж бүрдэл) авна — хуудсанд бүгдийг ачаалахгүй.
             (function () {
-                const rows = @json($deviceRows);
+                const endpoint = @json(route('transfers.devices'));
+                let rows = [];
+                let optionsLoaded = false;
+                let timer = null;
+                let controller = null;
                 const showBranch = @json($showBranch);
                 const input = document.getElementById('transfer-device');
                 const label = document.getElementById('transfer-device-label');
@@ -193,15 +176,54 @@
                 function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
                 function value(id) { const el = document.getElementById(id); return el ? el.value : ''; }
 
-                function render() {
-                    const q = value('dev-q').trim().toLowerCase();
-                    const list = rows.filter(function (r) {
-                        return (!q || [r.code, r.name, r.place, r.items, r.category].join(' ').toLowerCase().indexOf(q) !== -1)
-                            && (!value('dev-dept') || r.department === value('dev-dept'))
-                            && (!value('dev-loc') || r.location === value('dev-loc'))
-                            && (!value('dev-kit') || (value('dev-kit') === 'kit') === (r.kit > 1))
-                            && (!value('dev-branch') || r.branch === value('dev-branch'));
+                function fillSelect(id, values) {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    values.forEach(function (v) {
+                        const o = document.createElement('option');
+                        o.value = typeof v === 'object' ? v.id : v;
+                        o.textContent = typeof v === 'object' ? v.name : v;
+                        el.appendChild(o);
                     });
+                }
+
+                // Хайлт, шүүлтүүрээр серверээс авна. Хуучин (удаан ирсэн) хариуг AbortController-оор цуцална.
+                function load(extra) {
+                    if (controller) controller.abort();
+                    controller = new AbortController();
+                    const params = new URLSearchParams(Object.assign({
+                        q: value('dev-q').trim(), department: value('dev-dept'), location: value('dev-loc'),
+                        kit: value('dev-kit'), branch: value('dev-branch'),
+                    }, extra || {}));
+                    if (!optionsLoaded) params.set('options', '1');
+                    document.getElementById('dev-loading').classList.toggle('hidden', rows.length > 0);
+                    return fetch(endpoint + '?' + params.toString(), {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin', signal: controller.signal,
+                    }).then(function (res) {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.json();
+                    }).then(function (data) {
+                        if (data.options && !optionsLoaded) {
+                            optionsLoaded = true;
+                            fillSelect('dev-dept', data.options.departments || []);
+                            fillSelect('dev-loc', data.options.locations || []);
+                            fillSelect('dev-branch', data.options.branches || []);
+                        }
+                        rows = data.rows || [];
+                        render(data);
+                        return data;
+                    }).catch(function (e) {
+                        if (e.name === 'AbortError') return null;
+                        document.getElementById('dev-loading').classList.add('hidden');
+                        tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-10 text-center text-sm text-rose-600">Төхөөрөмжийн жагсаалтыг авч чадсангүй. Дахин оролдоно уу.</td></tr>';
+                        return null;
+                    });
+                }
+
+                function render(data) {
+                    const list = rows;
+                    document.getElementById('dev-loading').classList.add('hidden');
                     tbody.innerHTML = list.map(function (r) {
                         const on = selected && selected.id === r.id;
                         return '<tr data-id="' + r.id + '" class="cursor-pointer transition ' + (on ? 'bg-blue-50' : 'hover:bg-slate-50') + '">'
@@ -216,7 +238,11 @@
                             + '</tr>';
                     }).join('');
                     document.getElementById('dev-empty').classList.toggle('hidden', list.length > 0);
-                    document.getElementById('dev-count').textContent = list.length + ' / ' + rows.length + ' төхөөрөмж';
+                    const total = data ? data.total : list.length;
+                    document.getElementById('dev-count').textContent = (data ? total + ' / ' + data.all : list.length) + ' төхөөрөмж';
+                    const more = document.getElementById('dev-more');
+                    more.classList.toggle('hidden', !(data && total > list.length));
+                    if (data && total > list.length) more.textContent = 'Эхний ' + list.length + '-г харууллаа. Хайлт, шүүлтүүрээр нарийсгана уу.';
                 }
 
                 function choose(row) {
@@ -255,11 +281,17 @@
                 }
 
                 pick.addEventListener('click', function () {
-                    render();
                     dialog.showModal();
                     document.getElementById('dev-q').focus();
+                    load();
                 });
-                filters.forEach(function (el) { el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', render); });
+                // Бичих явцад 250 мс хүлээгээд хайна; сонголт өөрчлөгдвөл шууд
+                filters.forEach(function (el) {
+                    el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', function () {
+                        clearTimeout(timer);
+                        timer = setTimeout(load, el.tagName === 'INPUT' ? 250 : 0);
+                    });
+                });
                 tbody.addEventListener('click', function (e) {
                     const tr = e.target.closest('tr[data-id]');
                     if (!tr) return;
@@ -276,7 +308,14 @@
 
                 // Өмнө сонгосон (алдаатай буцсан эсвэл ?computer=) төхөөрөмж: иж бүрдлийн аль ч гишүүнээр
                 const preset = @json($selectedId);
-                choose(preset ? rows.find(function (r) { return r.ids.indexOf(preset) !== -1; }) || null : null);
+                choose(null);
+                if (preset) {
+                    load({ id: preset, q: '', department: '', location: '', kit: '', branch: '' }).then(function (data) {
+                        const row = data && data.rows.find(function (r) { return r.ids.indexOf(preset) !== -1; });
+                        if (row) choose(row);
+                        rows = []; // цонх нээгдэхэд бүрэн жагсаалтыг дахин авна
+                    });
+                }
             })();
             </script>
         @endif

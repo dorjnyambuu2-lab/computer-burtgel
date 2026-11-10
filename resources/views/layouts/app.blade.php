@@ -51,6 +51,14 @@
         ]];
     }
 
+    // Header-ийн замын мөр («Төхөөрөмж › Бүх төхөөрөмж»): идэвхтэй цэсний бүлэг
+    $crumbGroup = null;
+    foreach ($navGroups as $g => $items) {
+        foreach ($items as $it) {
+            if ($g !== '' && ($it[3])()) { $crumbGroup = $g; break 2; }
+        }
+    }
+
     $logout = \Illuminate\Support\Facades\Route::has('logout') ? route('logout') : url('/logout');
 
     $unreadNotifications = $u && \Illuminate\Support\Facades\Schema::hasTable('notifications')
@@ -67,7 +75,7 @@
     <style>
     /* Хуучин хуудсуудын (computers, users, activity, trash) элементүүдийг шинэ загварт тааруулах */
     @layer components {
-        main h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; }
+        main h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 700; margin-bottom: 1rem; }
         main .card, main form.filter-bar { background:var(--surface); border:1px solid var(--color-slate-200); border-radius:1rem; box-shadow:0 1px 2px rgb(15 23 42/.04); }
         main .filter-bar { display:flex; flex-wrap:wrap; gap:.75rem; padding:1rem; margin-bottom:1rem; }
         main .filter-bar input, main .filter-bar select { flex:1 1 10rem; }
@@ -98,7 +106,7 @@
             </div>
             <div>
                 <div class="font-bold leading-tight">{{ config('app.name') }}</div>
-                <div class="text-xs text-slate-500">Тоног төхөөрөмжийн бүртгэл</div>
+                <div class="whitespace-nowrap text-[11px] leading-tight text-slate-500">Тоног төхөөрөмжийн бүртгэл</div>
             </div>
         </div>
         <nav class="overflow-y-auto px-3 pb-6" style="max-height: calc(100vh - 5rem)">
@@ -110,7 +118,8 @@
                     @foreach ($items as $item)
                         @php [$href, $label, $icon, $active] = $item; $badge = $item[4] ?? 0; @endphp
                         <a href="{{ url($href) }}"
-                           class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition {{ $active() ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                           @if ($active()) aria-current="page" @endif
+                           class="relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition {{ $active() ? 'bg-blue-50 text-blue-700 before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-blue-600' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">
                             <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
                             {{ $label }}
                             @if ($badge > 0)<span class="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-semibold text-white">{{ $badge }}</span>@endif
@@ -127,7 +136,13 @@
             <label for="menu-toggle" class="cursor-pointer rounded-lg border border-slate-200 p-2 lg:hidden">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </label>
-            <div class="hidden text-sm font-semibold text-slate-900 sm:block">@yield('title', 'Хянах самбар')</div>
+            <nav aria-label="Замын мөр" class="hidden min-w-0 items-center gap-1.5 text-sm sm:flex">
+                @if ($crumbGroup)
+                    <span class="text-slate-400">{{ $crumbGroup }}</span>
+                    <svg class="h-4 w-4 shrink-0 text-slate-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
+                @endif
+                <span class="truncate font-semibold text-slate-900">@yield('title', 'Хянах самбар')</span>
+            </nav>
 
             <div class="ml-auto flex items-center gap-3">
                 {{-- QR уншуулах: зөвхөн Superadmin / Админ-д (утсан дээр хурдан нээхэд зориулсан) --}}
@@ -166,8 +181,9 @@
 
         <main class="flex-1 px-4 py-6 sm:px-8">
             @if (session('success'))
-                <div class="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
-                    @if (session('success_autohide')) data-autohide="{{ (int) session('success_autohide') }}" @endif>{{ session('success') }}</div>
+                {{-- Амжилтын мэдэгдэл: дүрс, хаах товчтой; success_autohide үед өөрөө алга болно --}}
+                <div data-flash role="status" class="mb-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+                    @if (session('success_autohide')) data-autohide="{{ (int) session('success_autohide') }}" @endif><svg class="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg><div class="min-w-0 flex-1">{{ session('success') }}</div><button type="button" onclick="this.closest('[data-flash]').remove()" title="Хаах" aria-label="Хаах" class="-my-0.5 -mr-1 shrink-0 !min-h-0 rounded-lg !border-0 !bg-transparent !p-1 text-emerald-600/70 transition hover:!bg-emerald-100 hover:text-emerald-800"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
                 @if (session('success_autohide'))
                     <script>
                     // Түр мэдэгдэл: заасан хугацааны дараа бүдгэрч алга болно
@@ -182,12 +198,13 @@
                 @endif
             @endif
             @if ($u?->isBranchScoped() && ! $u->branch_id)
-                <div class="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div role="alert" class="mb-4 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <svg class="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
                     Танд хариуцах салбар оноогоогүй байна, тиймээс төхөөрөмж харагдахгүй. Супер админд хандаж салбараа оноолгоно уу.
                 </div>
             @endif
             @if (session('warning'))
-                <div class="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{{ session('warning') }}</div>
+                <div data-flash role="alert" class="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><svg class="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg><div class="min-w-0 flex-1">{{ session('warning') }}</div><button type="button" onclick="this.closest('[data-flash]').remove()" title="Хаах" aria-label="Хаах" class="-my-0.5 -mr-1 shrink-0 !min-h-0 rounded-lg !border-0 !bg-transparent !p-1 text-amber-600/70 transition hover:!bg-amber-100 hover:text-amber-800"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
             @endif
             @yield('content')
             {{ $slot ?? '' }}

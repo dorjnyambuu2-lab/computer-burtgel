@@ -167,7 +167,7 @@ class RoleAccessTest extends TestCase
 
         // Жагсаалт view дотор тооцоологддог тул ID-уудыг HTML-ийн дарааллаар уншина
         $codes = function (User $who, string $q = '') {
-            preg_match_all('/font-mono text-xs font-semibold text-slate-600">([^<]+)</u', $this->actingAs($who)->get('/users'.$q)->assertOk()->getContent(), $m);
+            preg_match_all('/data-user-code[^>]*>([^<]+)</u', $this->actingAs($who)->get('/users'.$q)->assertOk()->getContent(), $m);
 
             return $m[1];
         };
@@ -295,12 +295,27 @@ class RoleAccessTest extends TestCase
         $pc = $this->pc(['assigned_user_id' => $from->id, 'name' => 'Шилжих-PC', 'location' => '3 давхар']);
         Computer::factory()->create(['category' => 'monitor', 'status' => 'active', 'kit_parent_id' => $pc->id, 'assigned_user_id' => $from->id]);
 
-        // Сонгох цонх (хүснэгтийн өгөгдөл, шүүлтүүр) зурагдаж, ?computer=-оор урьдчилан сонгогдоно
+        // Хуудсанд сонгох цонх байна, харин төхөөрөмжийн жагсаалт хуудсанд ачаалагдахгүй (хайлтаар авна)
         $this->actingAs($admin)->get('/transfers?computer='.$pc->id)->assertOk()
             ->assertSee('id="dlg-device"', false)
-            ->assertSee(trim(json_encode('Шилжих-PC'), '"'), false) // хүснэгтийн өгөгдөл (JSON)
-            ->assertSee('3 давхар')                                  // байршлын шүүлтүүр
-            ->assertViewHas('devices', fn ($d) => $d->count() === 2);
+            ->assertSee('transfers\/devices', false) // @json(route(...)) URL-ийн «/»-ыг escape хийдэг
+            ->assertDontSee(trim(json_encode('Шилжих-PC'), '"'), false)
+            ->assertViewHas('hasDevices', true);
+
+        // Сонгох цонхны өгөгдөл: иж бүрдэл нэг мөр (2 төхөөрөмж), шүүлтүүрийн утгууд
+        $this->actingAs($admin)->getJson(route('transfers.devices', ['options' => 1]))->assertOk()
+            ->assertJsonPath('total', 1)->assertJsonPath('rows.0.name', 'Шилжих-PC')->assertJsonPath('rows.0.kit', 2)
+            ->assertJsonPath('options.locations', fn ($locations) => in_array('3 давхар', $locations, true));
+        // ?id= — дагалдах хэрэгслээр ч иж бүрдэл бүхэлдээ олдоно (урьдчилан сонгох)
+        $monitor = Computer::where('kit_parent_id', $pc->id)->value('id');
+        $this->actingAs($admin)->getJson(route('transfers.devices', ['id' => $monitor]))->assertJsonPath('rows.0.id', $pc->id);
+        // Хайлт: нэр, эзэмшигч, ангиллын монгол нэрээр; таарахгүй бол хоосон
+        $this->actingAs($admin)->getJson(route('transfers.devices', ['q' => 'Болд']))->assertJsonPath('total', 1);
+        $this->actingAs($admin)->getJson(route('transfers.devices', ['q' => 'дэлгэц']))->assertJsonPath('total', 1);
+        $this->actingAs($admin)->getJson(route('transfers.devices', ['q' => 'Байхгүй-зүйл']))->assertJsonPath('total', 0);
+        $this->actingAs($admin)->getJson(route('transfers.devices', ['kit' => 'single']))->assertJsonPath('total', 0);
+        // Ажилтан хандах эрхгүй
+        $this->actingAs($from)->get(route('transfers.devices'))->assertRedirect('/');
 
         $this->actingAs($admin)->post('/transfers', ['computer_id' => $pc->id, 'to_user_id' => $to->id, 'reason' => 'Хэлтэс солив'])
             ->assertSessionHasNoErrors();

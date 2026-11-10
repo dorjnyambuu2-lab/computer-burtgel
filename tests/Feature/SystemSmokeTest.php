@@ -326,6 +326,46 @@ class SystemSmokeTest extends TestCase
         $this->assertLessThan(strlen($plain->getContent()) / 2, strlen($gz->getContent()));
     }
 
+    // ─────────────────────────── UI ───────────────────────────
+
+    public function test_flash_messages_have_icon_and_close_button_and_breadcrumb_shows_section(): void
+    {
+        $this->actingAs($this->super)->withSession(['success' => 'Амжилттай хадгаллаа', 'warning' => 'Анхааруулга шалгах'])
+            ->get('/users')->assertOk()
+            ->assertSee('Амжилттай хадгаллаа')->assertSee('Анхааруулга шалгах')
+            ->assertSee('data-flash', false)->assertSee('aria-label="Хаах"', false)
+            // Замын мөр: «Систем › Хэрэглэгч», идэвхтэй цэс aria-current-тэй
+            ->assertSee('aria-label="Замын мөр"', false)->assertSee('aria-current="page"', false);
+    }
+
+    public function test_similar_notifications_are_grouped_and_opening_a_group_reads_all_of_it(): void
+    {
+        $user = $this->admin;
+        $make = function (string $type, string $url, string $title, int $minutesAgo) use ($user) {
+            return $user->notifications()->create([
+                'id' => (string) \Illuminate\Support\Str::uuid(), 'type' => $type,
+                'data' => ['title' => $title, 'body' => 'Тайлбар', 'url' => url($url)],
+                'created_at' => now()->subMinutes($minutesAgo), 'updated_at' => now()->subMinutes($minutesAgo),
+            ]);
+        };
+        $repair = 'App\\Notifications\\RepairStatusChanged';
+        $make($repair, '/repairs/1', 'Засварт орлоо', 30);
+        $make($repair, '/repairs/1', 'Явц: Оношилгоо', 20);
+        $latest = $make($repair, '/repairs/1', 'Явц: Засаж байна', 10);
+        $other = $make($repair, '/repairs/2', 'Өөр төхөөрөмж', 5);
+
+        $html = $this->actingAs($user)->get(route('notifications.index'))->assertOk()
+            ->assertSee('3 мэдэгдэл')->assertSee('Өмнөх 2-ийг харах')->assertSee('Явц: Засаж байна')->getContent();
+        $this->assertSame(2, substr_count($html, 'data-notification-group'));
+        // Хамгийн сүүлийн бүлэг эхэнд
+        $this->assertLessThan(strpos($html, 'Явц: Засаж байна'), strpos($html, 'Өөр төхөөрөмж'));
+
+        // Бүлгийг нээхэд бүлгийн 3 мэдэгдэл уншсан болно, бусад бүлэг хөндөгдөхгүй
+        $this->actingAs($user)->get(route('notifications.open', ['id' => $latest->id, 'all' => 1]))->assertRedirect(url('/repairs/1'));
+        $this->assertSame(1, $user->unreadNotifications()->count());
+        $this->assertNull($other->fresh()->read_at);
+    }
+
     // ─────────────────────────── Dark / Light горим ───────────────────────────
 
     public function test_theme_script_and_toggle_are_on_app_and_guest_pages(): void

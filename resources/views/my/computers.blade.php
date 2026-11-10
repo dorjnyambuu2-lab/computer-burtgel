@@ -12,7 +12,7 @@
 @endphp
 
 <div class="mx-auto max-w-4xl space-y-4">
-    <h1 class="text-xl font-bold">Миний төхөөрөмжүүд</h1>
+    <h1 class="text-2xl font-bold text-slate-900">Миний төхөөрөмжүүд</h1>
 
     @if ($errors->any())
         <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ $errors->first() }}</div>

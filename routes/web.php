@@ -66,6 +66,7 @@ Route::middleware('auth')->group(function () {
     // Төхөөрөмж шилжүүлэх: Супер админ (бүх салбар) ба салбарын Админ (өөрийн салбар); ажилтан эрхгүй
     Route::middleware('role:superadmin,admin')->group(function () {
         Route::get('transfers', [ComputerTransferController::class, 'index'])->name('transfers.index');
+        Route::get('transfers/devices', [ComputerTransferController::class, 'devices'])->name('transfers.devices');
         Route::post('transfers', [ComputerTransferController::class, 'store'])->name('transfers.store');
         // Өмнө ажилтнаас ирсэн шийдвэрлэгдээгүй хүсэлт: хүлээн авах (агуулахад) → олгох, эсвэл татгалзах
         Route::post('transfers/{transfer}/receive', [ComputerTransferController::class, 'receive'])->name('transfers.receive');

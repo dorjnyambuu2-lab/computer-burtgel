@@ -133,9 +133,10 @@ class Computer extends Model
             if (blank($computer->inventory_number)) {
                 $computer->inventory_number = static::nextInventoryNumber($computer->created_by);
             }
+            // Нэрэнд бүртгэлийн дугаарыг давхар оруулахгүй (жагсаалт бүрт тусдаа багана): «Mouse», «Дэлгэц»
             if (blank($computer->name)) {
                 $computer->name = trim(($computer->brand ?? '').' '.($computer->model ?? ''))
-                    ?: (($computer->category?->label() ?? $computer->type?->label() ?? 'Төхөөрөмж').' '.$computer->inventory_number);
+                    ?: ($computer->category?->label() ?? $computer->type?->label() ?? 'Төхөөрөмж');
             }
         });
 

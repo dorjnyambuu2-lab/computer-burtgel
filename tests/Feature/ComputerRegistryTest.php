@@ -204,10 +204,12 @@ class ComputerRegistryTest extends TestCase
         $this->actingAs(User::factory()->superadmin()->create())->post('/computers/multi', $base + ['items' => [['category' => 'monitor'], ['category' => 'printer']]])
             ->assertSessionHasErrors(['branch_id' => 'Салбар сонгоно уу.']);
 
-        // Ганцаар + mouse: үндсэн компьютерийн автомат нэр шинэ дугаартайгаа таарна (-1)
+        // Ганцаар + mouse: үндсэн компьютер иж бүрдлийн -1 дугаар авна; автомат нэрэнд дугаар давхардахгүй
         $this->actingAs($admin)->post('/computers', $base + ['categories' => ['processor'], 'with_accessories' => ['mouse']])->assertSessionHasNoErrors();
         $main = Computer::where('category', 'processor')->latest('id')->first();
-        $this->assertSame('Процессор '.$main->inventory_number, $main->name);
+        $this->assertStringEndsWith('-1', $main->inventory_number);
+        $this->assertSame('Процессор', $main->name);
+        $this->assertSame('Mouse', Computer::where('kit_parent_id', $main->id)->value('name'));
     }
 
     public function test_new_holder_is_added_as_employee(): void

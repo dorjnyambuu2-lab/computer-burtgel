@@ -52,7 +52,7 @@
 @else
 <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
     <div>
-        <h1 class="text-xl font-bold">Компьютер бүртгэлийн систем</h1>
+        <h1 class="text-2xl font-bold text-slate-900">Компьютер бүртгэлийн систем</h1>
     </div>
     @if ($canAdd)
         <a href="{{ url('/computers/create') }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
@@ -62,11 +62,12 @@
 </div>
 
 {{-- Stat cards --}}
-<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+{{-- Утсан дээр 2 багана (5 дахь карт бүтэн мөр), том дэлгэцэнд 5 багана --}}
+<div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
     @foreach ($cards as [$label, $val, $sub, $txt, $bg, $href, $icon])
-        <a href="{{ $href }}" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+        <a href="{{ $href }}" class="{{ $loop->last ? 'col-span-2 xl:col-span-1' : '' }} rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
             <div class="flex items-center justify-between">
-                <div class="text-sm font-semibold text-slate-600">{{ $label }}</div>
+                <div class="text-[13px] font-semibold text-slate-600 sm:text-sm">{{ $label }}</div>
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl {{ $bg }} {{ $txt }}">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ $icon }}"/></svg>
                 </span>

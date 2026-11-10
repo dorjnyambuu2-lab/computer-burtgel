@@ -5,7 +5,7 @@
 @section('content')
 <div class="mx-auto max-w-xl space-y-4">
     <div>
-        <h1 class="text-xl font-bold">QR уншуулах</h1>
+        <h1 class="text-2xl font-bold text-slate-900">QR уншуулах</h1>
     </div>
 
     @if (session('error'))

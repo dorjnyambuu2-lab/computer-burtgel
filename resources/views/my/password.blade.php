@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="max-w-md mx-auto bg-white rounded-2xl shadow p-6 mt-6">
-    <h1 class="text-xl font-bold mb-4">Нууц үг солих</h1>
+    <h1 class="text-2xl font-bold text-slate-900 mb-4">Нууц үг солих</h1>
 
     @if (auth()->user()->must_change_password && ! session('warning'))
         <div class="mb-4 rounded bg-amber-50 p-3 text-sm text-amber-800">Та анхны эсвэл түр нууц үгээр нэвтэрсэн байна. Шинэ нууц үг тохируулна уу.</div>
