@@ -61,6 +61,7 @@ class UserController extends Controller
             'username.required'  => 'Нэвтрэх нэрээ оруулна уу.',
             'username.unique'    => 'Энэ нэвтрэх нэр бүртгэлтэй байна.',
             'email.required'     => 'Имэйлээ оруулна уу.',
+            'email.required'     => 'Супер админд имэйл заавал шаардлагатай (нууц үг сэргээхэд хэрэглэгдэнэ).',
             'email.email'        => 'Имэйл хаяг буруу байна.',
             'email.unique'       => 'Энэ имэйл бүртгэлтэй байна.',
             'role.required'      => 'Эрхийг сонгоно уу.',
@@ -92,7 +93,8 @@ class UserController extends Controller
         $data = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:50', 'unique:users,username'],
-            'email'    => ['nullable', 'email', 'max:255', 'unique:users,email'],
+            // Супер админ нууц үгээ зөвхөн имэйлээр сэргээдэг тул имэйл заавал (ProfileController-той адил)
+            'email'    => [Rule::requiredIf(fn () => $request->input('role') === 'superadmin'), 'nullable', 'email', 'max:255', 'unique:users,email'],
             'role'     => ['required', Rule::in(array_keys($me->assignableRoles()))],
             ...($me->isBranchScoped() ? [] : $this->branchRules($request)),
             ...$this->jobRules(),
@@ -138,7 +140,8 @@ class UserController extends Controller
         $data = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
-            'email'    => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'email'    => [Rule::requiredIf(fn () => ($request->input('role') ?: $user->role) === 'superadmin'), 'nullable', 'email', 'max:255',
+                Rule::unique('users', 'email')->ignore($user->id)],
             'role'     => [$isSelf ? 'nullable' : 'required', Rule::in(array_keys($me->assignableRoles($user)))],
             ...($isSelf || $me->isBranchScoped() ? [] : $this->branchRules($request)),
             ...$this->jobRules(),

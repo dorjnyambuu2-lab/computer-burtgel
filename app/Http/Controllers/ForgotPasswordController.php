@@ -42,8 +42,12 @@ class ForgotPasswordController extends Controller
             ->where(fn ($q) => $q->where('username', $login)->orWhere('email', $login))
             ->first();
 
-        if ($user?->isSuperadmin()) {
+        if ($user?->isSuperadmin() && filled($user->email)) {
             $this->sendResetLink($user);
+        } elseif ($user?->isSuperadmin()) {
+            // Имэйлгүй (хуучин) супер админ: холбоос илгээх боломжгүй — бусад супер админд хүсэлт очно
+            // (өмнө нь холбоос илгээх гэж өгөгдлийн санд алдаа өгөөд, юу ч хийгддэггүй байсан)
+            $this->requestReset($user, $request);
         } elseif ($user) {
             // Имэйлтэй админ холбоогоор өөрөө сэргээнэ; бусад нь хүсэлтээр түр нууц үг авна
             $linked = $user->isAdmin() && filled($user->email) && $this->sendResetLink($user);

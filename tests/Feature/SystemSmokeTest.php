@@ -366,6 +366,24 @@ class SystemSmokeTest extends TestCase
         $this->assertNull($other->fresh()->read_at);
     }
 
+    // ─────────────────────────── Супер админы имэйл (E2E-ээр илэрсэн) ───────────────────────────
+
+    public function test_superadmin_requires_email_and_emailless_superadmin_can_still_request_reset(): void
+    {
+        // Маягт: имэйлгүй супер админ үүсгэх, засах боломжгүй
+        $form = ['name' => 'Шинэ супер', 'username' => 'super2', 'role' => 'superadmin', 'password' => 'secret-pass-1', 'password_confirmation' => 'secret-pass-1'];
+        $this->actingAs($this->super)->post('/users', $form)->assertSessionHasErrors('email');
+        $this->assertFalse(User::where('username', 'super2')->exists());
+        $this->actingAs($this->super)->post('/users', $form + ['email' => 'super2@example.mn'])->assertSessionHasNoErrors();
+
+        // Хуучин өгөгдөлд имэйлгүй супер админ байвал: сэргээх хүсэлт бусад супер админд очно (өмнө DB алдаа өгдөг байв)
+        $old = User::factory()->superadmin()->create(['username' => 'oldsuper', 'email' => null]);
+        $this->app['auth']->guard()->logout(); // «Нууц үг мартсан» нь зөвхөн нэвтрээгүй хүнд
+        $this->post('/forgot-password', ['login' => 'oldsuper'])->assertSessionHasNoErrors()->assertSessionHas('status');
+        $this->assertTrue(\App\Models\PasswordResetRequest::where('user_id', $old->id)->where('status', 'pending')->exists());
+        $this->actingAs($this->super)->get('/password-requests')->assertOk()->assertSee('oldsuper');
+    }
+
     // ─────────────────────────── Dark / Light горим ───────────────────────────
 
     public function test_theme_script_and_toggle_are_on_app_and_guest_pages(): void
