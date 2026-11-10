@@ -103,11 +103,14 @@
         <option value="inactive" @selected($status === 'inactive')>Идэвхгүй</option>
     </select>
     {{-- Огнооны талбар хөтчийн хэлээр (mm/dd/yyyy) харагддаг тул юуны огноо болохыг шошгоор тодруулна --}}
-    <div class="flex items-center gap-2">
+    {{-- Утсан дээр мөр шилжиж, огнооны талбарууд өргөнд багтана --}}
+    <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
         <span class="whitespace-nowrap text-xs font-medium text-slate-500">Бүртгэсэн</span>
-        <input type="date" name="date_from" value="{{ request('date_from') }}" title="Бүртгэсэн: эхлэх огноо" aria-label="Бүртгэсэн: эхлэх огноо" class="{{ $inp }}">
-        <span class="text-slate-400">–</span>
-        <input type="date" name="date_to" value="{{ request('date_to') }}" title="Бүртгэсэн: дуусах огноо" aria-label="Бүртгэсэн: дуусах огноо" class="{{ $inp }}">
+        <div class="flex min-w-0 flex-1 items-center gap-2">
+            <input type="date" name="date_from" value="{{ request('date_from') }}" title="Бүртгэсэн: эхлэх огноо" aria-label="Бүртгэсэн: эхлэх огноо" class="{{ $inp }} min-w-0 flex-1">
+            <span class="text-slate-400">–</span>
+            <input type="date" name="date_to" value="{{ request('date_to') }}" title="Бүртгэсэн: дуусах огноо" aria-label="Бүртгэсэн: дуусах огноо" class="{{ $inp }} min-w-0 flex-1">
+        </div>
     </div>
     <input type="hidden" name="sort" value="{{ $sort }}"><input type="hidden" name="dir" value="{{ $dir }}">
     <button type="submit" class="rounded-xl border border-blue-600 bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Хайх</button>
