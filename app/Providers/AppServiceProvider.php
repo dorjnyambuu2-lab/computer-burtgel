@@ -17,7 +17,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // MySQL гацсан үед (порт нээлттэй ч хариу өгөхгүй) PDO::ATTR_TIMEOUT тусалдаггүй — mysqlnd хариу хүлээх
+        // хугацааг хязгаарлана. Зөвхөн вэб хүсэлтэд: migration, нөөцлөлт зэрэг урт командыг тасалчихгүй.
+        if (! $this->app->runningInConsole() && ($seconds = (int) config('database.connections.mysql.web_read_timeout')) > 0) {
+            ini_set('mysqlnd.net_read_timeout', (string) $seconds);
+            // Анхны холболт бүтэлгүйтвэл дахин оролдохгүй (оролдлого бүр timeout хүлээдэг)
+            $this->app->bind('db.connector.mysql', \App\Support\FastFailMySqlConnector::class);
+            $this->app->bind('db.connector.mariadb', \App\Support\FastFailMySqlConnector::class);
+        }
     }
 
     /**

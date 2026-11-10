@@ -300,6 +300,32 @@ class SystemSmokeTest extends TestCase
         $this->assertFalse($this->actingAs($this->super)->get('/computers/export')->headers->has('Content-Length'));
     }
 
+    public function test_database_outage_shows_friendly_page_instead_of_error(): void
+    {
+        \Illuminate\Support\Facades\Route::get('/__db_down_probe', fn () => throw new \PDOException('SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it'));
+        \Illuminate\Support\Facades\Route::get('/__db_gone_probe', fn () => throw new \Illuminate\Database\QueryException('mysql', 'select 1', [], new \PDOException('SQLSTATE[HY000] [2006] MySQL server has gone away')));
+        \Illuminate\Support\Facades\Route::get('/__other_error_probe', fn () => throw new \PDOException('SQLSTATE[42S02]: Base table or view not found'));
+
+        $this->get('/__db_down_probe')->assertStatus(503)->assertSee('Өгөгдлийн сан түр ажиллахгүй байна');
+        $this->get('/__db_gone_probe')->assertStatus(503)->assertSee('Өгөгдлийн сан түр ажиллахгүй байна');
+        $this->getJson('/__db_down_probe')->assertStatus(503)->assertJson(['message' => 'Өгөгдлийн сан түр ажиллахгүй байна.']);
+        // Бусад өгөгдлийн сангийн алдаа (кодын алдаа) энэ хуудсаар далдлагдахгүй
+        $this->get('/__other_error_probe')->assertStatus(500);
+    }
+
+    public function test_gzip_compresses_html_when_browser_accepts_it(): void
+    {
+        $plain = $this->get('/login');
+        $this->assertNull($plain->headers->get('Content-Encoding'));
+
+        $gz = $this->get('/login', ['Accept-Encoding' => 'gzip, deflate, br'])->assertOk();
+        $this->assertSame('gzip', $gz->headers->get('Content-Encoding'));
+        $this->assertStringContainsString('Accept-Encoding', (string) $gz->headers->get('Vary'));
+        $this->assertSame((string) strlen($gz->getContent()), $gz->headers->get('Content-Length'));
+        $this->assertSame($plain->getContent(), gzdecode($gz->getContent()));
+        $this->assertLessThan(strlen($plain->getContent()) / 2, strlen($gz->getContent()));
+    }
+
     // ─────────────────────────── Dark / Light горим ───────────────────────────
 
     public function test_theme_script_and_toggle_are_on_app_and_guest_pages(): void

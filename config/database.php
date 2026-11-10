@@ -61,7 +61,12 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                // TCP холболт тогтоох хугацаа (сервер унтарсан/хүрэхгүй үед 60 сек биш 5 сек-д алдаа өгнө)
+                PDO::ATTR_TIMEOUT => (int) env('DB_CONNECT_TIMEOUT', 5),
             ], fn ($value) => $value !== null) : [],
+            // Вэб хүсэлтэд MySQL хариу хүлээх дээд хугацаа (сек). MySQL гацсан/асах явцдаа унаж буй үед
+            // хуудас 60 сек гацахын оронд хурдан алдаа өгнө (AppServiceProvider::register). Artisan командад хамаарахгүй.
+            'web_read_timeout' => (int) env('DB_WEB_READ_TIMEOUT', 5),
         ],
 
         'mariadb' => [
@@ -81,7 +86,12 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                // TCP холболт тогтоох хугацаа (сервер унтарсан/хүрэхгүй үед 60 сек биш 5 сек-д алдаа өгнө)
+                PDO::ATTR_TIMEOUT => (int) env('DB_CONNECT_TIMEOUT', 5),
             ], fn ($value) => $value !== null) : [],
+            // Вэб хүсэлтэд MySQL хариу хүлээх дээд хугацаа (сек). MySQL гацсан/асах явцдаа унаж буй үед
+            // хуудас 60 сек гацахын оронд хурдан алдаа өгнө (AppServiceProvider::register). Artisan командад хамаарахгүй.
+            'web_read_timeout' => (int) env('DB_WEB_READ_TIMEOUT', 5),
         ],
 
         'pgsql' => [
