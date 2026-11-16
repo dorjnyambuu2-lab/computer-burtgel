@@ -49,7 +49,8 @@ class ClientNetwork
      */
     public static function syncForEmployee(User $user, Request $request): ?Computer
     {
-        if ($user->role !== 'employee') {
+        // Сервер дээрээс нэвтэрсэн бол юу ч бичихгүй тул detect()-ийн удаан PowerShell (WMI) дуудлагыг хийхгүй
+        if ($user->role !== 'employee' || in_array((string) $request->ip(), ['127.0.0.1', '::1'], true)) {
             return null;
         }
 
