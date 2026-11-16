@@ -42,7 +42,8 @@ class ActivityCoverageTest extends TestCase
         $active = $this->last(User::class, $admin->id)->changes['is_active'];
         $this->assertSame(['Тийм', 'Үгүй'], [ActivityLog::displayValue('is_active', $active['old']), ActivityLog::displayValue('is_active', $active['new'])]);
 
-        // Админ түр нууц үг олгосон / хэрэглэгч өөрөө сольсон
+        // Админ түр нууц үг олгосон / хэрэглэгч өөрөө сольсон (идэвхгүй хэрэглэгч нэвтэрч чадахгүй тул эхлээд идэвхжүүлнэ)
+        User::whereKey($admin->id)->update(['is_active' => true]);
         $admin->forceFill(['password' => 'Temp12345'])->save();
         $this->assertSame('password_reset', $this->last(User::class, $admin->id)->action);
         $this->actingAs($admin->fresh())->put('/my/password', ['current_password' => 'Temp12345', 'password' => 'NewPass123', 'password_confirmation' => 'NewPass123']);

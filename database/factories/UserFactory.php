@@ -31,6 +31,8 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            // Баазын анхдагч утга (default true); actingAs()-д дамжуулсан model-д ч талбар байх ёстой (EnsureUserIsActive)
+            'is_active' => true,
         ];
     }
 

@@ -175,6 +175,10 @@ class UserController extends Controller
                         'is_active' => $user->name.'-д '.$held.' төхөөрөмж байна. Идэвхгүй болгохын өмнө буцаан авах эсвэл шилжүүлнэ үү.',
                     ]);
                 }
+                // Идэвхгүй болгоход «Намайг сана» cookie-г хүчингүй болгоно (нээлттэй session-ыг EnsureUserIsActive гаргана)
+                if ($user->isDirty('is_active') && ! $user->is_active) {
+                    $user->setRememberToken(\Illuminate\Support\Str::random(60));
+                }
             }
 
             if (! empty($data['password'])) {
