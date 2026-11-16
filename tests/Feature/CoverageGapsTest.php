@@ -450,4 +450,53 @@ class CoverageGapsTest extends TestCase
         $this->post('/login', ['login' => 'root', 'password' => 'NewPass123'])->assertRedirect();
         $this->assertAuthenticatedAs($super);
     }
+
+    // ───────────── Хамгаалалтын толгой, имэйлийн хэл ─────────────
+
+    public function test_security_headers_on_pages_redirects_and_errors(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $responses = [
+            'нэвтрэх хуудас' => $this->get('/login'),
+            'хянах самбар' => $this->actingAs($admin)->get('/'),
+            'чиглүүлэлт' => $this->actingAs($admin)->get('/computers/resolve?code=BAIHGUI'),
+            '404' => $this->actingAs($admin)->get('/computers/999999'),
+        ];
+
+        foreach ($responses as $label => $response) {
+            $this->assertSame('SAMEORIGIN', $response->headers->get('X-Frame-Options'), $label);
+            $this->assertSame("frame-ancestors 'self'", $response->headers->get('Content-Security-Policy'), $label);
+            $this->assertSame('nosniff', $response->headers->get('X-Content-Type-Options'), $label);
+            $this->assertSame('strict-origin-when-cross-origin', $response->headers->get('Referrer-Policy'), $label);
+        }
+    }
+
+    public function test_notification_emails_have_no_english_template_text(): void
+    {
+        $super = User::factory()->superadmin()->create(['email' => 'root@example.mn']);
+        $markdown = app(\Illuminate\Mail\Markdown::class);
+        $mails = [
+            'нууц үг сэргээх холбоос' => (new \Illuminate\Auth\Notifications\ResetPassword('token123'))->toMail($super),
+            'түр нууц үг' => (new \App\Notifications\TemporaryPasswordIssued('Temp12345678'))->toMail($super),
+            // Мэндчилгээ, төгсгөлийн үг тохируулаагүй ирээдүйн мэдэгдэл ч монголоор
+            'анхдагч загвар' => (new \Illuminate\Notifications\Messages\MailMessage)->line('Туршилт')->action('Нээх', url('/')),
+        ];
+
+        foreach ($mails as $label => $mail) {
+            $html = (string) $mail->render();
+            $text = (string) $markdown->renderText($mail->markdown, $mail->data());
+            foreach ([$html, $text] as $body) {
+                $plain = html_entity_decode(strip_tags($body), ENT_QUOTES);
+                foreach (["If you're having trouble", 'copy and paste the URL', 'All rights reserved', 'Regards,', 'Hello!'] as $english) {
+                    $this->assertStringNotContainsString($english, $plain, "{$label}: «{$english}» англиар үлдсэн");
+                }
+                $this->assertStringContainsString('Бүх эрх хамгаалагдсан.', $plain, $label);
+                $this->assertStringContainsString('хөтчийнхөө хаягийн мөрөнд буулгана уу', $plain, $label);
+            }
+        }
+
+        $default = html_entity_decode(strip_tags((string) $mails['анхдагч загвар']->render()), ENT_QUOTES);
+        $this->assertStringContainsString('Сайн байна уу!', $default);
+        $this->assertStringContainsString('Хүндэтгэсэн,', $default);
+    }
 }

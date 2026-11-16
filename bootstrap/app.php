@@ -22,6 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\App\Http\Middleware\SetContentLength::class);
         // gzip шахалт (SetContentLength-ийн дотор: эхлээд шахаад, дараа нь шахсан хэмжээг тавина)
         $middleware->append(\App\Http\Middleware\CompressResponse::class);
+        // Clickjacking, MIME sniffing-ээс хамгаалах толгойнууд (алдааны хуудсанд ч тавигдана)
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
         // Хайлт, шүүлтүүрийн query параметрт массив ирвэл хасна (?q[]=x → 500 алдаанаас сэргийлнэ)
         $middleware->prependToGroup('web', \App\Http\Middleware\ScalarQueryParams::class);
