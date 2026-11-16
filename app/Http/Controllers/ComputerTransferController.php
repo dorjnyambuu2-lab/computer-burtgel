@@ -336,10 +336,11 @@ class ComputerTransferController extends Controller
     public function receive(Request $request, ComputerTransfer $transfer): RedirectResponse
     {
         $this->authorizeTransfer($request, $transfer);
-        abort_unless($transfer->status === 'pending', 422);
+        if ($stale = $this->staleTransfer($transfer, 'pending')) {
+            return $stale;
+        }
 
         $computer = $transfer->computer;
-        abort_unless($computer && ! $computer->trashed(), 422);
 
         DB::transaction(function () use ($transfer, $computer, $request) {
             $previous = $computer->assigned_user_id;
@@ -366,7 +367,9 @@ class ComputerTransferController extends Controller
     public function issue(Request $request, ComputerTransfer $transfer): RedirectResponse
     {
         $this->authorizeTransfer($request, $transfer);
-        abort_unless($transfer->status === 'received', 422);
+        if ($stale = $this->staleTransfer($transfer, 'received')) {
+            return $stale;
+        }
 
         $data = $request->validate([
             'user_id' => ['required', 'integer', User::assignableRule($request->user())],
@@ -377,7 +380,6 @@ class ComputerTransferController extends Controller
         ]);
 
         $computer = $transfer->computer;
-        abort_unless($computer && ! $computer->trashed(), 422);
         $next = User::findOrFail($data['user_id']);
 
         // Засварт, актласан бол олгохгүй; дараагийн ажилтан төхөөрөмжийн салбарынх байна
@@ -410,7 +412,9 @@ class ComputerTransferController extends Controller
     public function reject(Request $request, ComputerTransfer $transfer): RedirectResponse
     {
         $this->authorizeTransfer($request, $transfer);
-        abort_unless($transfer->status === 'pending', 422);
+        if ($stale = $this->staleTransfer($transfer, 'pending', needsDevice: false)) {
+            return $stale;
+        }
 
         $transfer->update([
             'status' => 'rejected',
@@ -419,6 +423,26 @@ class ComputerTransferController extends Controller
         ]);
 
         return back()->with('success', 'Хүсэлт татгалзагдлаа.');
+    }
+
+    /**
+     * Товчийг давхар дарсан, өөр админ түрүүлж шийдвэрлэсэн, эсвэл төхөөрөмж нь устгагдсан үед алдааны (422) хуудасны
+     * оронд анхааруулгатайгаар буцаана. APP_DEBUG асаалттай үед тэр хуудсанд эх кодын stack trace харагддаг байсан.
+     */
+    private function staleTransfer(ComputerTransfer $transfer, string $expected, bool $needsDevice = true): ?RedirectResponse
+    {
+        if ($transfer->status !== $expected) {
+            return back()->with('warning', $transfer->status === 'pending'
+                ? 'Төхөөрөмжийг эхлээд IT-д хүлээн авна уу.'
+                : 'Энэ шилжүүлгийн хүсэлт аль хэдийн шийдвэрлэгдсэн байна. Хуудсаа шинэчилж одоогийн төлвийг харна уу.');
+        }
+
+        $computer = $transfer->computer;
+        if ($needsDevice && (! $computer || $computer->trashed())) {
+            return back()->with('warning', 'Энэ шилжүүлгийн төхөөрөмж устгагдсан байна. Эхлээд «Устгасан» хэсгээс сэргээнэ үү.');
+        }
+
+        return null;
     }
 
     /** Админ зөвхөн өөрийн салбарын шилжүүлгийг шийдвэрлэнэ */

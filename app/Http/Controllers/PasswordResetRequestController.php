@@ -36,7 +36,9 @@ class PasswordResetRequestController extends Controller
     public function resolve(Request $request, PasswordResetRequest $passwordRequest): RedirectResponse
     {
         $this->authorizeRequest($request, $passwordRequest);
-        abort_unless($passwordRequest->status === 'pending', 409, 'Энэ хүсэлт аль хэдийн шийдвэрлэгдсэн.');
+        if ($stale = $this->alreadyDecided($passwordRequest)) {
+            return $stale;
+        }
 
         $user = $passwordRequest->user;
         $temporary = Str::password(12, symbols: false);
@@ -72,11 +74,26 @@ class PasswordResetRequestController extends Controller
     public function reject(Request $request, PasswordResetRequest $passwordRequest): RedirectResponse
     {
         $this->authorizeRequest($request, $passwordRequest);
-        abort_unless($passwordRequest->status === 'pending', 409, 'Энэ хүсэлт аль хэдийн шийдвэрлэгдсэн.');
+        if ($stale = $this->alreadyDecided($passwordRequest)) {
+            return $stale;
+        }
 
         $passwordRequest->update(['status' => 'rejected', 'resolved_by' => $request->user()->id, 'resolved_at' => now()]);
 
         return back()->with('success', 'Хүсэлтийг татгалзлаа.')->with('success_autohide', 3000);
+    }
+
+    /**
+     * Товчийг давхар дарсан, эсвэл өөр админ түрүүлж шийдвэрлэсэн үед алдааны (409) хуудасны оронд
+     * анхааруулгатайгаар буцаана. APP_DEBUG асаалттай үед тэр хуудсанд эх кодын stack trace харагддаг байсан.
+     */
+    private function alreadyDecided(PasswordResetRequest $passwordRequest): ?RedirectResponse
+    {
+        if ($passwordRequest->status === 'pending') {
+            return null;
+        }
+
+        return back()->with('warning', 'Энэ хүсэлт аль хэдийн шийдвэрлэгдсэн байна ('.$passwordRequest->statusLabel().').');
     }
 
     /** Админ зөвхөн өөрийн салбарын ажилтны хүсэлтийг шийдвэрлэнэ */

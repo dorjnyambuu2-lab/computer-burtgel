@@ -91,7 +91,8 @@
         </div>
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-3">
+    {{-- grid-cols-1 (minmax(0,1fr)): утсан дээр урт мөр баганыг дэлгэцээс өргөн болгож хажуу тийш гүйлгэхгүй --}}
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {{-- Утсан дээр үйлдлүүд эхэнд, том дэлгэц дээр баруун талд --}}
         <div class="order-first lg:order-none lg:col-span-1 lg:col-start-3 lg:row-start-1">
             @include('computers._actions')
@@ -138,7 +139,8 @@
                             @php $current = $item->id === $computer->id; @endphp
                             <li class="flex items-center gap-3 py-2 {{ $current ? 'font-semibold' : '' }}">
                                 <span class="w-28 shrink-0 font-mono text-xs {{ $item->kit_parent_id ? 'text-slate-500' : 'text-slate-800' }}">{{ $item->inventory_number }}</span>
-                                <span class="w-24 shrink-0 text-xs text-slate-500">{{ $item->category?->label() ?? $item->type?->label() }}</span>
+                                {{-- Ангиллыг утсан дээр нууна: дугаар + ангилал + нэр + төлөв 375px-д багтахгүй байсан --}}
+                                <span class="hidden w-24 shrink-0 text-xs text-slate-500 sm:block">{{ $item->category?->label() ?? $item->type?->label() }}</span>
                                 @if ($current || $item->trashed())
                                     <span class="min-w-0 flex-1 truncate">{{ $item->name }}@if ($item->trashed()) <span class="text-xs font-normal text-rose-600">(устгасан)</span>@endif</span>
                                 @else
