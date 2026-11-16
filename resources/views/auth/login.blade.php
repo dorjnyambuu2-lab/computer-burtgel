@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="mn">
+{{-- Нэвтрэх хуудас үргэлж харанхуй загвартай: горим солих товчгүй, хэрэглэгчийн сонголт (localStorage) нөлөөлөхгүй --}}
+<html lang="mn" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Нэвтрэх · {{ config('app.name') }}</title>
-    @include('partials.theme')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @keyframes login-float { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(24px, -18px) scale(1.06); } }
@@ -22,7 +22,6 @@
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 antialiased">
-@include('partials.theme-toggle', ['class' => 'fixed right-4 top-4 z-50 grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white/80 text-slate-600 shadow-sm backdrop-blur transition hover:text-slate-900'])
 <div class="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
 
     {{-- Зүүн тал: брэнд --}}

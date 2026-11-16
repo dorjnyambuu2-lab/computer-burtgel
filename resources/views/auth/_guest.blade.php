@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="mn">
+{{-- Нэвтрэх хуудастай ижил: үргэлж харанхуй загвартай, горим солих товчгүй --}}
+<html lang="mn" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title') · {{ config('app.name') }}</title>
-    @include('partials.theme')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @keyframes guest-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
@@ -19,7 +19,6 @@
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 antialiased">
-@include('partials.theme-toggle', ['class' => 'fixed right-4 top-4 z-50 grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white/80 text-slate-600 shadow-sm backdrop-blur transition hover:text-slate-900'])
 <div class="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-12 sm:px-8">
     {{-- Арын өнгөт гэрэл ба тор --}}
     <div class="pointer-events-none absolute -left-40 -top-40 h-[30rem] w-[30rem] rounded-full bg-blue-400/20 blur-3xl"></div>

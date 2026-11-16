@@ -386,17 +386,23 @@ class SystemSmokeTest extends TestCase
 
     // ─────────────────────────── Dark / Light горим ───────────────────────────
 
-    public function test_theme_script_and_toggle_are_on_app_and_guest_pages(): void
+    public function test_theme_script_and_toggle_are_on_app_pages(): void
     {
         foreach (['/', '/computers', '/profile'] as $url) {
             $this->actingAs($this->super)->get($url)->assertOk()
                 ->assertSee('window.toggleTheme', false)->assertSee('onclick="toggleTheme()"', false);
         }
         $this->actingAs($this->employee)->get('/my/computers')->assertOk()->assertSee('onclick="toggleTheme()"', false);
+    }
 
-        $this->app['auth']->forgetGuards();
+    /** Нэвтрэх, нууц үг сэргээх хуудас үргэлж харанхуй загвартай: горим солих товч, скриптгүй */
+    public function test_guest_pages_are_always_dark_without_toggle(): void
+    {
         foreach (['/login', '/forgot-password'] as $url) {
-            $this->get($url)->assertOk()->assertSee('window.toggleTheme', false)->assertSee('onclick="toggleTheme()"', false);
+            $this->get($url)->assertOk()
+                ->assertSee('<html lang="mn" class="dark">', false)
+                ->assertDontSee('toggleTheme', false)
+                ->assertDontSee('localStorage', false);
         }
     }
 
