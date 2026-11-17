@@ -201,10 +201,10 @@ class ComputerTransferController extends Controller
         $query = ComputerTransfer::with(['computer', 'fromUser', 'toUser', 'issuedTo', 'receiver'])
             ->visibleTo($me)
             ->when($term !== '' && $number === null, fn ($q) => $q->where(fn ($w) => $w
-                ->whereHas('computer', fn ($c) => $c->where('name', 'like', "%$term%")->orWhere('inventory_number', 'like', "%$term%"))
-                ->orWhereHas('fromUser', fn ($u) => $u->where('name', 'like', "%$term%"))
-                ->orWhereHas('toUser', fn ($u) => $u->where('name', 'like', "%$term%"))
-                ->orWhere('to_department', 'like', "%$term%")))
+                ->whereHas('computer', fn ($c) => $c->whereLike('name', "%$term%")->orWhereLike('inventory_number', "%$term%"))
+                ->orWhereHas('fromUser', fn ($u) => $u->whereLike('name', "%$term%"))
+                ->orWhereHas('toUser', fn ($u) => $u->whereLike('name', "%$term%"))
+                ->orWhereLike('to_department', "%$term%")))
             ->orderByRaw("CASE WHEN status IN ('pending', 'received') THEN 0 ELSE 1 END") // нээлттэй нь эхэнд (MySQL, SQLite аль алинд)
             ->latest()->orderByDesc('id');
 
@@ -266,9 +266,9 @@ class ComputerTransferController extends Controller
         $matches = $this->transferableDevices($me)
             ->when((int) $request->query('id') > 0, fn ($w) => $w->whereKey((int) $request->query('id')))
             ->when($q !== '', fn ($w) => $w->where(fn ($s) => $s
-                ->where('inventory_number', 'like', "%$q%")->orWhere('name', 'like', "%$q%")
-                ->orWhere('assigned_to', 'like', "%$q%")->orWhere('department', 'like', "%$q%")->orWhere('location', 'like', "%$q%")
-                ->orWhereHas('assignedUser', fn ($u) => $u->where('name', 'like', "%$q%"))
+                ->whereLike('inventory_number', "%$q%")->orWhereLike('name', "%$q%")
+                ->orWhereLike('assigned_to', "%$q%")->orWhereLike('department', "%$q%")->orWhereLike('location', "%$q%")
+                ->orWhereHas('assignedUser', fn ($u) => $u->whereLike('name', "%$q%"))
                 ->when($categories, fn ($c) => $c->orWhereIn('category', $categories))))
             ->when($str('department') !== '', fn ($w) => $w->where('department', $str('department')))
             ->when($str('location') !== '', fn ($w) => $w->where('location', $str('location')))

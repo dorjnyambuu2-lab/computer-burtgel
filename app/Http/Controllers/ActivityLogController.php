@@ -36,7 +36,7 @@ class ActivityLogController extends Controller
             ->when($request->filled('action'), fn ($q) => $q->where('action', $request->input('action')))
             ->when(ctype_digit((string) $request->input('user_id')), fn ($q) => $q->where('user_id', (int) $request->input('user_id')))
             // «#12» бол дэс дугаараар (доор), бусад үед компьютерийн нэрээр
-            ->when($request->filled('q') && $number === null, fn ($q) => $q->where('subject_label', 'like', '%'.$request->input('q').'%'))
+            ->when($request->filled('q') && $number === null, fn ($q) => $q->whereLike('subject_label', '%'.$request->input('q').'%'))
             // Огноо: зөвхөн зөв (YYYY-MM-DD) бол шүүнэ — буруу утга MySQL-д алдаа, хоосон үр дүн өгөхгүй
             ->when($this->date($request, 'from'), fn ($q, $d) => $q->where('created_at', '>=', $d->startOfDay()))
             ->when($this->date($request, 'to'), fn ($q, $d) => $q->where('created_at', '<=', $d->endOfDay()))

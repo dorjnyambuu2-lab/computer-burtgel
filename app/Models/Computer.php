@@ -539,7 +539,7 @@ class Computer extends Model
         $pattern = '/^'.preg_quote($prefix, '/').'(\d+)(?:-\d+)?$/';
 
         return 1 + (int) static::global()
-            ->where('inventory_number', 'like', $prefix.'%')
+            ->whereLike('inventory_number', $prefix.'%')
             ->pluck('inventory_number')
             ->map(fn ($number) => preg_match($pattern, (string) $number, $m) ? (int) $m[1] : 0)
             ->max();
@@ -882,7 +882,7 @@ class Computer extends Model
             'price' => $price,
             'repair_cost' => $repairCost,
             // Төлөв «Засварт» болсон удаа (засварын дараалал, засах форм аль алинаас) — Тайлантай ижил
-            'repair_count' => DB::table('activity_logs')->where('subject_id', $this->id)->where('subject_type', 'like', '%Computer')
+            'repair_count' => DB::table('activity_logs')->where('subject_id', $this->id)->whereLike('subject_type', '%Computer')
                 ->whereIn('action', ['created', 'updated'])
                 ->where('changes->status->new', ComputerStatus::InRepair->value)
                 ->count(),
@@ -922,7 +922,7 @@ class Computer extends Model
         return $query->where(function (Builder $q) use ($like) {
             foreach (['inventory_number', 'name', 'brand', 'model', 'serial_number',
                 'ip_address', 'mac_address', 'cpu', 'specs', 'assigned_to', 'department', 'unit', 'position', 'location', 'holder_surname', 'holder_name'] as $col) {
-                $q->orWhere($col, 'like', $like);
+                $q->orWhereLike($col, $like); // MySQL, SQLite дээр LIKE, PostgreSQL дээр ILIKE (том, жижиг үсэг ялгахгүй)
             }
         });
     }

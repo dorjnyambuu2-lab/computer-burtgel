@@ -125,9 +125,9 @@ class AssetRequestController extends Controller
             ->visibleTo($request->user())
             ->when(in_array($request->type, ['issue', 'request'], true), fn ($q) => $q->where('type', $request->type))
             ->when($term !== '' && $number === null, fn ($q) => $q->where(fn ($w) => $w
-                ->where('subject', 'like', "%$term%")->orWhere('description', 'like', "%$term%")
-                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%$term%"))
-                ->orWhereHas('computer', fn ($c) => $c->where('name', 'like', "%$term%")->orWhere('inventory_number', 'like', "%$term%"))));
+                ->whereLike('subject', "%$term%")->orWhereLike('description', "%$term%")
+                ->orWhereHas('user', fn ($u) => $u->whereLike('name', "%$term%"))
+                ->orWhereHas('computer', fn ($c) => $c->whereLike('name', "%$term%")->orWhereLike('inventory_number', "%$term%"))));
 
         $query = $filtered()->with(['user', 'computer', 'handler:id,name', 'items'])
             ->when(array_key_exists((string) $request->status, self::STATUSES), fn ($q) => $q->where('status', $request->status))

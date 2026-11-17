@@ -43,7 +43,7 @@ class DepartmentController extends Controller
                 ->when(static::MODEL === Department::class && $request->filled('unit'), fn ($q) => $request->query('unit') === 'none'
                     ? $q->whereNull('unit_id')
                     : $q->where('unit_id', (int) $request->query('unit')))
-                ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.trim((string) $request->query('q')).'%'))
+                ->when($request->filled('q'), fn ($q) => $q->whereLike('name', '%'.trim((string) $request->query('q')).'%'))
                 ->orderBy('branch_id')->orderBy('name')->get(),
             // Алба: харьяалах нэгж сонгох жагсаалт (салбар бүрийнх)
             'units' => static::MODEL === Department::class ? $list(Unit::class)->orderBy('name')->get(['id', 'branch_id', 'name']) : collect(),

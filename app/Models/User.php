@@ -128,7 +128,7 @@ class User extends Authenticatable
     public static function nextCode(string $prefix): string
     {
         // «A%» нь «SA…»-г оруулахгүй ч «A» угтвартай өөр код байж болзошгүй тул яг угтвар + тоог шүүнэ
-        $max = static::query()->where('code', 'like', $prefix.'%')->pluck('code')
+        $max = static::query()->whereLike('code', $prefix.'%')->pluck('code')
             ->filter(fn ($code) => preg_match('/^'.$prefix.'\d+$/', $code))
             ->map(fn ($code) => (int) substr($code, strlen($prefix)))
             ->max();

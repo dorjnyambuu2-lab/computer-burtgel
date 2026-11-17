@@ -18,6 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
 
+        // Render зэрэг reverse proxy-ийн ард (TRUSTED_PROXIES=*): HTTPS холбоос, хэрэглэгчийн жинхэнэ IP-г зөв танина.
+        // XAMPP / дотоод сүлжээнд тохируулахгүй — X-Forwarded-For толгойг хуурамчаар илгээж IP солих боломж олгохгүйн тулд.
+        if ($proxies = env('TRUSTED_PROXIES')) {
+            $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+        }
+
         // Content-Length: хариу илгээсний дараах ажлыг (deferred имэйл) хөтөч хүлээхгүй
         $middleware->append(\App\Http\Middleware\SetContentLength::class);
         // gzip шахалт (SetContentLength-ийн дотор: эхлээд шахаад, дараа нь шахсан хэмжээг тавина)
