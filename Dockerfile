@@ -18,10 +18,14 @@ RUN mkdir -p storage/framework/views public && npm run build
 
 # 3) Ажиллах орчин: PHP 8.2 + Apache
 FROM php:8.2-apache
+# mod_deflate унтраана: CSS, JS-ийг урьдчилан шахсан .gz-ээр, HTML-ийг аппын CompressResponse-оор шахдаг тул
+# дахин шахвал хөтөч CSS, JS-ийг уншиж чадахгүй болдог
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libpq-dev libzip-dev unzip \
     && docker-php-ext-install pdo_pgsql pdo_mysql zip opcache \
     && a2enmod rewrite headers \
+    && a2dismod -f deflate \
+    && echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf && a2enconf servername \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf

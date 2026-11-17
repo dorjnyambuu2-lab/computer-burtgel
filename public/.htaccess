@@ -53,3 +53,11 @@
         Header set Content-Encoding gzip
     </FilesMatch>
 </IfModule>
+
+# Already-compressed .gz files must not be gzipped a second time where mod_deflate is on
+# (e.g. the Docker image): the browser would decode once, get gzip bytes and drop the CSS/JS.
+<IfModule mod_env.c>
+    <FilesMatch "\.(css|js|svg)\.gz$">
+        SetEnv no-gzip 1
+    </FilesMatch>
+</IfModule>
