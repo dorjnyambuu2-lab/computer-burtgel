@@ -156,3 +156,29 @@ Artisan::command('superadmin:reset-password {username? : Супер админы
     $user->forceFill(['password' => $password, 'must_change_password' => false, 'is_active' => true])->save();
     $this->info($user->username.' хэрэглэгчийн нууц үг шинэчлэгдлээ.');
 })->purpose('Супер админы нууц үгийг серверээс сэргээх');
+
+// Shell-гүй орчинд (Render-ийн үнэгүй багц) docker/start.sh дууддаг: SUPERADMIN_RESET_PASSWORD тохируулсан бол
+// Супер админы нууц үгийг түүгээр солиод нэвтэрмэгц шинэ нууц үг солиулна. Нууц үгийг лог руу бичихгүй.
+Artisan::command('superadmin:reset-from-env', function () {
+    $password = (string) config('security.superadmin_reset_password');
+    if ($password === '') {
+        return 0;
+    }
+    if (mb_strlen($password) < 8) {
+        $this->error('SUPERADMIN_RESET_PASSWORD 8-аас доошгүй тэмдэгттэй байна.');
+
+        return 1;
+    }
+
+    $user = User::where('role', 'superadmin')->orderByRaw("username = 'superadmin' desc")->orderBy('id')->first();
+    if (! $user) {
+        $this->error('Супер админ олдсонгүй.');
+
+        return 1;
+    }
+
+    $user->forceFill(['password' => $password, 'must_change_password' => true, 'is_active' => true])->save();
+    $this->info($user->username.': нууц үгийг SUPERADMIN_RESET_PASSWORD-оор шинэчиллээ (нэвтэрмэгц солиулна). Хувьсагчийг одоо хоослоно уу.');
+
+    return 0;
+})->purpose('Супер админы нууц үгийг SUPERADMIN_RESET_PASSWORD орчны хувьсагчаар сэргээх');
