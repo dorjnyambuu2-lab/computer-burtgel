@@ -1,0 +1,60 @@
+@startuml
+title Эвдрэлийн хүсэлт ба засвар
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundCorner 10
+skinparam ArrowColor #475569
+skinparam activity {
+  BackgroundColor #F8FAFC
+  BorderColor #94A3B8
+  DiamondBackgroundColor #FEF3C7
+  DiamondBorderColor #D97706
+}
+skinparam swimlane {
+  BorderColor #CBD5E1
+  TitleFontStyle bold
+}
+
+|#ECFDF5|Ажилтан|
+|#FFFFFF|Систем|
+|#EFF6FF|Админ|
+
+|Ажилтан|
+start
+:Төхөөрөмж сонгож, эвдрэлээ бичих;
+
+|Систем|
+if (Засварт эсвэл нээлттэй\nхүсэлттэй юу?) then (тийм)
+  |Ажилтан|
+  :Алдааны мэдэгдэл харах;
+  stop
+else (үгүй)
+  |Систем|
+  :Хүсэлт хадгалж, админд мэдэгдэх;
+endif
+
+|Админ|
+:Хүсэлтийг хянах;
+if (Засварт оруулах уу?) then (тийм)
+  |Систем|
+  :Дараалалд оруулах (төлөв «Засварт»);
+  |Админ|
+  :Явц, зардал шинэчилж, засвар дуусгах;
+  |Систем|
+  if (Хариуцагчтай юу?) then (тийм)
+    :«Ашиглагдаж байгаа»;
+  else (үгүй)
+    :«Агуулахад»;
+  endif
+  :Хүсэлт «Дууссан»;
+else (үгүй)
+  |Систем|
+  :Хүсэлт «Татгалзсан»;
+endif
+
+:Түүх, мэдэгдэл бичих;
+
+|Ажилтан|
+:Шийдвэрийг харах;
+stop
+@enduml

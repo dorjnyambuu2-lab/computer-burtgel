@@ -1,0 +1,61 @@
+@startuml
+title Төхөөрөмж захиалах, шийдвэрлэх, олгох
+hide footbox
+autonumber
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundCorner 8
+skinparam ArrowColor #475569
+skinparam sequence {
+  LifeLineBorderColor #94A3B8
+  ParticipantBorderColor #94A3B8
+  ParticipantBackgroundColor #F8FAFC
+  ActorBorderColor #1E40AF
+  ActorBackgroundColor #DBEAFE
+  GroupBorderColor #CBD5E1
+  GroupBackgroundColor #F1F5F9
+}
+
+actor "Ажилтан" as E
+participant "Laravel" as L
+database "MySQL" as DB
+actor "Админ" as A
+
+== 1. Захиалга илгээх ==
+E -> L : POST /my/requests (items[])
+activate L
+L -> DB : INSERT asset_requests, asset_request_items
+L -> DB : INSERT notifications (админд)
+L --> E : «Хүсэлт илгээгдлээ»
+deactivate L
+
+== 2. Мөр бүрийг шийдвэрлэх ==
+A -> L : PATCH /requests/{id}
+activate L
+alt Өөр салбарынх
+  L --> A : 403
+else Зөв
+  L -> DB : UPDATE мөрүүд, ерөнхий төлөв
+  L -> DB : INSERT notifications (ажилтанд)
+  L --> A : Амжилттай
+end
+deactivate L
+
+== 3. Төхөөрөмж олгох ==
+A -> L : POST /computers/bulk-assign\n(computer_ids[], request_item)
+activate L
+L -> DB : Мөрийг түгжиж шалгах
+L -> DB : UPDATE computers (хариуцагч, төлөв)
+L -> DB : INSERT computer_events
+L -> DB : UPDATE мөр (delivered_quantity), ерөнхий төлөв
+L -> DB : INSERT notifications (ажилтанд)
+L --> A : Амжилттай
+deactivate L
+
+== 4. Хүлээн авах ==
+E -> L : POST /my/computers/{id}/acknowledge
+activate L
+L -> DB : UPDATE computers (acknowledged_at)
+L --> E : «Хүлээн авснаа баталгаажууллаа»
+deactivate L
+@enduml

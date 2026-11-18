@@ -1,0 +1,62 @@
+@startuml
+title Компьютер бүртгэлийн систем — Component диаграм
+top to bottom direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundCorner 8
+skinparam ArrowColor #475569
+skinparam componentStyle rectangle
+skinparam nodesep 40
+skinparam ranksep 55
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #94A3B8
+}
+skinparam package {
+  BorderColor #CBD5E1
+  FontColor #475569
+}
+
+[Хөтөч: Blade хуудас, Tailwind CSS, JavaScript] as UI #DBEAFE
+
+package "Laravel 12 програм (PHP 8.2)" {
+  package "Хүсэлт хүлээн авах" as Entry #EFF6FF {
+    [routes/web.php] as Routes
+    [Middleware\nauth, role, ForcePasswordChange] as MW
+  }
+
+  package "Controllers" as Ctrl #FFFBEB {
+    [Төхөөрөмж\nComputer, Bulk, Action, Tools] as C1
+    [Засвар\nRepair] as C2
+    [Шилжүүлэг\nComputerTransfer] as C3
+    [Хүсэлт\nAssetRequest, MyComputer] as C4
+    [Байгууллага\nUser, Branch, Department, Unit] as C5
+    [Нэвтрэлт\nAuth, Password, Forgot] as C6
+    [Хяналт\nDashboard, ActivityLog] as C7
+  }
+
+  package "Бизнес логик" as Logic #F0FDF4 {
+    [Eloquent Models\nBranchScope, LogsActivity] as Models
+    [RepairService] as RS
+    [Notifications] as Notif
+    [DatabaseBackup] as Bk
+  }
+
+  [Artisan командууд\ndb:backup, warranty:digest] as Cmd #F1F5F9
+}
+
+database "MySQL" as DB #E0E7FF
+cloud "Gmail SMTP" as Mail #FEF3C7
+folder "Нөөц файл (.sql.gz)" as Files #F1F5F9
+
+UI --> Routes : HTTP
+Routes --> MW
+MW --> Ctrl
+Ctrl --> Logic
+Models --> DB : SQL
+Notif --> DB
+Notif --> Mail : имэйл
+Cmd --> Bk
+Cmd --> Notif
+Bk --> Files
+@enduml

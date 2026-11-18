@@ -1,0 +1,35 @@
+@startuml
+title Компьютер бүртгэлийн систем — Deployment диаграм
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundCorner 8
+skinparam ArrowColor #475569
+skinparam nodesep 40
+skinparam ranksep 80
+skinparam node {
+  BackgroundColor #F8FAFC
+  BorderColor #94A3B8
+}
+
+node "Хэрэглэгчийн төхөөрөмж" <<device>> as Client {
+  artifact "Вэб хөтөч" as Browser #DBEAFE
+}
+
+node "Windows компьютер (XAMPP)" <<server>> as Server {
+  node "Apache" as Apache #FFFBEB {
+    artifact "Laravel 12\nPHP 8.2" as App #FEF3C7
+  }
+  database "MySQL\ncomputer_registry" as DB #E0E7FF
+  artifact "Task Scheduler\nbackup.bat, warranty.bat" as Task #F1F5F9
+  folder "storage/app/backups" as Backup #F1F5F9
+}
+
+cloud "Gmail SMTP\nsmtp.gmail.com:587" as Gmail #DCFCE7
+
+Browser --> App : HTTP
+App --> DB : TCP 3306
+App --> Gmail : SMTP (TLS)
+Task --> App : php artisan
+App --> Backup : mysqldump
+@enduml

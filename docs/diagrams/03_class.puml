@@ -1,0 +1,143 @@
+@startuml
+title Компьютер бүртгэлийн систем — Class диаграм
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam roundCorner 8
+skinparam nodesep 50
+skinparam ranksep 60
+skinparam ArrowColor #475569
+skinparam class {
+  BorderColor #94A3B8
+  BackgroundColor #FFFFFF
+}
+skinparam package {
+  BorderColor #CBD5E1
+  FontColor #475569
+}
+hide empty members
+hide empty fields
+
+package "Байгууллага" #EFF6FF {
+  class Branch {
+    +name : string
+    +code : string
+    +address : string
+  }
+  abstract class BranchList {
+    +name : string
+    +{static} resolve(branchId, name)
+  }
+  class Unit
+  class Department
+  class User {
+    +name : string
+    +username : string
+    +email : string
+    +role : string
+    +is_active : bool
+    +isSuperadmin() : bool
+    +isAdmin() : bool
+    +isBranchScoped() : bool
+    +canEditUser(target) : bool
+  }
+}
+
+package "Төхөөрөмж" #FFFBEB {
+  class Computer {
+    +inventory_number : string
+    +qr_code : string
+    +name : string
+    +category : EquipmentCategory
+    +type : ComputerType
+    +status : ComputerStatus
+    +repair_stage : RepairStage
+    +canBeKitMain() : bool
+    +kitItems() : HasMany
+    +{static} repairQueueNumbers() : array
+  }
+  class ComputerEvent {
+    +type : string
+    +note : string
+    +cost : decimal
+  }
+  class ComputerTransfer {
+    +destination : string
+    +reason : string
+    +status : string
+  }
+  class RepairService <<service>> {
+    +start(computer, actor, note, cost)
+    +updateStage(computer, actor, stage, note, cost)
+    +complete(computer, actor, note, cost)
+    +move(computer, offset) : bool
+  }
+}
+
+package "Хүсэлт" #F0FDF4 {
+  class AssetRequest {
+    +type : string
+    +description : string
+    +status : string
+    +syncStatusFromItems()
+    +scopeVisibleTo(query, user)
+  }
+  class AssetRequestItem {
+    +name : string
+    +quantity : int
+    +delivered_quantity : int
+    +status : string
+  }
+  class PasswordResetRequest {
+    +status : string
+    +ip_address : string
+  }
+}
+
+class ActivityLog {
+  +action : string
+  +subject_type : string
+  +changes : array
+}
+
+package "Enum" #F8FAFC {
+  enum ComputerStatus {
+    New
+    Active
+    InRepair
+    InStorage
+    Decommissioned
+  }
+  enum RepairStage {
+    Queued
+    Diagnosing
+    InProgress
+    WaitingParts
+  }
+}
+
+BranchList <|-- Unit
+BranchList <|-- Department
+Branch "1" o-- "0..*" Unit
+Branch "1" o-- "0..*" Department
+Unit "0..1" o-- "0..*" Department
+Branch "0..1" o-- "0..*" User
+Branch "0..1" o-- "0..*" Computer
+User "0..1" -- "0..*" Computer : хариуцна
+Computer "0..1" o-- "0..*" Computer : иж бүрдэл
+Computer "1" *-- "0..*" ComputerEvent
+Computer "1" *-- "0..*" ComputerTransfer
+User "1" -- "0..*" AssetRequest : илгээнэ
+Computer "0..1" -- "0..*" AssetRequest : эвдрэл
+AssetRequest "1" *-- "0..*" AssetRequestItem
+User "1" -- "0..*" PasswordResetRequest
+User "0..1" -- "0..*" ActivityLog
+RepairService ..> Computer
+Computer ..> ComputerStatus
+Computer ..> RepairStage
+
+note bottom of BranchList
+  Бүх class нь Laravel Eloquent Model-оос удамшина.
+  Эрх нь User.role: superadmin, admin, employee.
+end note
+@enduml

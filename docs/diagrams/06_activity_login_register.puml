@@ -1,0 +1,42 @@
+@startuml
+title Нэвтрэх ба төхөөрөмж бүртгэх
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundCorner 10
+skinparam ArrowColor #475569
+skinparam activity {
+  BackgroundColor #F8FAFC
+  BorderColor #94A3B8
+  DiamondBackgroundColor #FEF3C7
+  DiamondBorderColor #D97706
+}
+skinparam swimlane {
+  BorderColor #CBD5E1
+  TitleFontStyle bold
+}
+
+|#EFF6FF|Админ|
+|#FFFFFF|Систем|
+
+|Админ|
+start
+repeat :Нэвтрэх нэр, нууц үг оруулах;
+  |Систем|
+  :Хэрэглэгч, идэвхтэй эсэхийг шалгах;
+repeat while (Мэдээлэл зөв үү?) is (үгүй) not (тийм)
+:Session үүсгэж, хянах самбар харуулах;
+
+|Админ|
+repeat :«Шинэ төхөөрөмж бүртгэх» маягт бөглөх;
+  |Систем|
+  :Талбар, серийн дугаар, IP, MAC шалгах;
+repeat while (Алдаатай юу?) is (тийм) not (үгүй)
+
+:Салбар, бүртгэлийн дугаар, QR код оноох;
+:Иж бүрдэл, шинэ хариуцагчийг хамт бүртгэх;
+:Үйлдлийн түүх, мэдэгдэл бичих;
+
+|Админ|
+:Амжилттай мэдэгдэл харах;
+stop
+@enduml

@@ -1,0 +1,102 @@
+@startuml
+title Компьютер бүртгэлийн систем — Use case диаграм
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundCorner 10
+skinparam nodesep 12
+skinparam ranksep 90
+skinparam ArrowColor #64748B
+skinparam ActorBorderColor #1E40AF
+skinparam ActorBackgroundColor #DBEAFE
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #94A3B8
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #CBD5E1
+  RoundCorner 12
+}
+
+actor "Хэрэглэгч" as U
+actor "Ажилтан" as EM
+actor "Админ" as AD
+actor "Супер админ" as SA
+
+U <|-- EM
+U <|-- AD
+AD <|-- SA
+
+rectangle "Компьютер бүртгэлийн систем" {
+
+  rectangle "Нийтлэг" #EFF6FF {
+    usecase "Нэвтрэх, гарах" as C1
+    usecase "Нууц үг солих, сэргээх" as C2
+    usecase "Профайл засах" as C3
+  }
+
+  rectangle "Ажилтан" #ECFDF5 {
+    usecase "Миний төхөөрөмж харах" as E1
+    usecase "Хүлээн авснаа баталгаажуулах" as E2
+    usecase "Эвдрэл мэдээлэх" as E3
+    usecase "Төхөөрөмж захиалах" as E4
+  }
+
+  rectangle "Төхөөрөмж удирдах" #FFF7ED {
+    usecase "Төхөөрөмж бүртгэх, засах\n(иж бүрдэл)" as D1
+    usecase "Олгох, буцаан авах" as D2
+    usecase "Шилжүүлэх" as D3
+    usecase "QR шошго хэвлэх, уншуулах" as D4
+    usecase "Хайх, шүүх, CSV татах" as D5
+    usecase "Архивлах, сэргээх" as D6
+  }
+
+  rectangle "Хүсэлт, засвар" #FEF2F2 {
+    usecase "Ажилтны хүсэлт шийдвэрлэх" as R1
+    usecase "Засварын дараалал удирдах" as R2
+  }
+
+  rectangle "Байгууллага, хяналт" #F5F3FF {
+    usecase "Ажилтан бүртгэх, түр нууц үг олгох" as O1
+    usecase "Нэгж, алба удирдах" as O2
+    usecase "Хянах самбар, үйлдлийн түүх" as O3
+  }
+
+  rectangle "Зөвхөн Супер админ" #F1F5F9 {
+    usecase "Салбар удирдах" as S1
+    usecase "Админ үүсгэх, идэвхгүй болгох" as S2
+    usecase "Бүрмөсөн устгах" as S3
+    usecase "Түүхээс сэргээх, түүх устгах" as S4
+  }
+}
+
+U --> C1
+U --> C2
+U --> C3
+
+EM --> E1
+EM --> E2
+EM --> E3
+EM --> E4
+
+AD --> D1
+AD --> D2
+AD --> D3
+AD --> D4
+AD --> D5
+AD --> D6
+AD --> R1
+AD --> R2
+AD --> O1
+AD --> O2
+AD --> O3
+
+SA --> S1
+SA --> S2
+SA --> S3
+SA --> S4
+
+R1 ..> D2 : <<extend>>\nзахиалга
+R1 ..> R2 : <<extend>>\nэвдрэл
+@enduml

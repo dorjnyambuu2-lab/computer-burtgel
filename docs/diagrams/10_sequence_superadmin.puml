@@ -1,0 +1,68 @@
+@startuml
+title Супер админ: салбар, нэгж, алба, админ үүсгэх
+hide footbox
+autonumber
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundCorner 8
+skinparam ArrowColor #475569
+skinparam sequence {
+  LifeLineBorderColor #94A3B8
+  ParticipantBorderColor #94A3B8
+  ParticipantBackgroundColor #F8FAFC
+  ActorBorderColor #1E40AF
+  ActorBackgroundColor #DBEAFE
+  GroupBorderColor #CBD5E1
+  GroupBackgroundColor #F1F5F9
+}
+
+actor "Супер админ" as S
+participant "Laravel" as L
+database "MySQL" as DB
+
+== 1. Салбар үүсгэх ==
+S -> L : POST /branches
+activate L
+L -> L : role:superadmin, давхардал шалгах
+alt Давхардсан
+  L --> S : Формд алдаа
+else Зөв
+  L -> DB : INSERT branches, activity_logs
+  L --> S : Амжилттай
+end
+deactivate L
+
+== 2. Нэгж, алба үүсгэх ==
+S -> L : POST /units, POST /departments
+activate L
+L -> L : Салбар дотор нэр давхардал шалгах
+L -> DB : INSERT units / departments, activity_logs
+L --> S : Амжилттай
+deactivate L
+
+== 3. Админ үүсгэх ==
+S -> L : POST /users
+activate L
+L -> L : Эрх, нэвтрэх нэр, имэйл шалгах
+alt Давхардсан
+  L --> S : Формд алдаа
+else Зөв
+  L -> L : Нууц үгийг hash хийх
+  L -> DB : INSERT users (role=admin, branch_id)
+  L -> DB : INSERT activity_logs
+  L --> S : «Хэрэглэгч нэмэгдлээ»
+end
+deactivate L
+
+== 4. Админ идэвхгүй болгох ==
+S -> L : PUT /users/{id}
+activate L
+L -> DB : Оноосон төхөөрөмж шалгах
+alt Төхөөрөмжтэй
+  L --> S : «Эхлээд буцаан авна уу»
+else Төхөөрөмжгүй
+  L -> DB : UPDATE users (is_active=0)
+  L --> S : Амжилттай
+end
+deactivate L
+@enduml

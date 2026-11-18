@@ -1,0 +1,192 @@
+@startuml
+title Компьютер бүртгэлийн систем — ERD (MySQL)
+hide circle
+hide methods
+hide stereotype
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundCorner 8
+skinparam nodesep 60
+skinparam ranksep 70
+skinparam ArrowColor #475569
+skinparam class {
+  BorderColor #94A3B8
+  HeaderFontStyle bold
+}
+skinparam package {
+  BorderColor #CBD5E1
+  FontColor #475569
+}
+
+package "Байгууллага" {
+  entity "branches" as branches #DBEAFE {
+    * id <<PK>>
+    --
+    * name <<UQ>>
+    code <<UQ>>
+    address
+  }
+  entity "units" as units #DBEAFE {
+    * id <<PK>>
+    --
+    branch_id <<FK>>
+    * name
+  }
+  entity "departments" as departments #DBEAFE {
+    * id <<PK>>
+    --
+    branch_id <<FK>>
+    unit_id <<FK>>
+    * name
+  }
+  entity "users" as users #E0E7FF {
+    * id <<PK>>
+    --
+    username <<UQ>>
+    email <<UQ>>
+    * password
+    * name
+    surname
+    * role
+    branch_id <<FK>>
+    unit_id <<FK>>
+    department_id <<FK>>
+    position
+    * is_active
+    * must_change_password
+  }
+}
+
+package "Төхөөрөмж" {
+  entity "computers" as computers #FEF3C7 {
+    * id <<PK>>
+    --
+    * inventory_number <<UQ>>
+    qr_code <<UQ>>
+    serial_number <<UQ>>
+    * name
+    * type
+    category
+    brand, model
+    cpu, ram_gb, storage, os
+    ip_address <<UQ>>
+    mac_address <<UQ>>
+    * status
+    repair_position, repair_stage
+    purchase_date, purchase_price
+    warranty_until
+    acknowledged_at
+    deleted_at
+    --
+    branch_id <<FK>>
+    unit_id <<FK>>
+    department_id <<FK>>
+    assigned_user_id <<FK>>
+    kit_parent_id <<FK>>
+  }
+  entity "computer_events" as computer_events #FEF3C7 {
+    * id <<PK>>
+    --
+    * computer_id <<FK>>
+    actor_id <<FK>>
+    user_id <<FK>>
+    * type
+    note
+    cost
+  }
+  entity "computer_transfers" as computer_transfers #FEF3C7 {
+    * id <<PK>>
+    --
+    * computer_id <<FK>>
+    from_user_id <<FK>>
+    to_user_id <<FK>>
+    issued_by <<FK>>
+    * destination
+    to_department
+    reason
+    * status
+  }
+}
+
+package "Хүсэлт" {
+  entity "asset_requests" as asset_requests #DCFCE7 {
+    * id <<PK>>
+    --
+    * user_id <<FK>>
+    computer_id <<FK>>
+    handled_by <<FK>>
+    * type
+    subject
+    * description
+    * status
+    admin_note
+  }
+  entity "asset_request_items" as asset_request_items #DCFCE7 {
+    * id <<PK>>
+    --
+    * asset_request_id <<FK>>
+    handled_by <<FK>>
+    * name
+    * quantity
+    * delivered_quantity
+    * status
+    note
+  }
+  entity "password_reset_requests" as password_reset_requests #DCFCE7 {
+    * id <<PK>>
+    --
+    * user_id <<FK>>
+    resolved_by <<FK>>
+    * status
+    ip_address
+    resolved_at
+  }
+}
+
+package "Систем" {
+  entity "activity_logs" as activity_logs #F1F5F9 {
+    * id <<PK>>
+    --
+    user_id <<FK>>
+    * action
+    subject_type
+    subject_id
+    subject_label
+    changes
+    ip_address
+  }
+  entity "notifications" as notifications #F1F5F9 {
+    * id <<PK>>
+    --
+    * notifiable_id
+    * type
+    * data
+    read_at
+  }
+}
+
+branches ||--o{ units
+branches ||--o{ departments
+units |o--o{ departments
+branches |o--o{ users
+departments |o--o{ users
+branches |o--o{ computers
+departments |o--o{ computers
+users |o--o{ computers : хариуцагч
+computers |o--o{ computers : иж бүрдэл
+computers ||--o{ computer_events
+computers ||--o{ computer_transfers
+users ||--o{ asset_requests
+computers |o--o{ asset_requests
+asset_requests ||--o{ asset_request_items
+users ||--o{ password_reset_requests
+users |o--o{ activity_logs
+users ||--o{ notifications
+
+legend right
+  * — заавал бөглөх
+  <b>users, computers</b> нь unit_id-ээр мөн units-тэй холбогдоно
+  Алба, нэгжийн нэрийн текст хуулбар багануудыг харуулаагүй
+endlegend
+@enduml

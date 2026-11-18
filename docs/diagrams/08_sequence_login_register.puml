@@ -1,0 +1,53 @@
+@startuml
+title Нэвтрэх ба төхөөрөмж бүртгэх
+hide footbox
+autonumber
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundCorner 8
+skinparam ArrowColor #475569
+skinparam sequence {
+  LifeLineBorderColor #94A3B8
+  ParticipantBorderColor #94A3B8
+  ParticipantBackgroundColor #F8FAFC
+  ActorBorderColor #1E40AF
+  ActorBackgroundColor #DBEAFE
+  GroupBorderColor #CBD5E1
+  GroupBackgroundColor #F1F5F9
+}
+
+actor "Админ" as A
+participant "Хөтөч" as B
+participant "Laravel" as L
+database "MySQL" as DB
+
+== Нэвтрэх ==
+A -> B : Нэвтрэх нэр, нууц үг
+B -> L : POST /login
+activate L
+L -> DB : Хэрэглэгч хайх
+DB --> L : Хэрэглэгч
+alt Нууц үг зөв
+  L --> B : 302 → хянах самбар (session)
+else Буруу
+  L --> B : 302 → /login (алдаа)
+end
+deactivate L
+
+== Төхөөрөмж бүртгэх ==
+A -> B : Маягт бөглөх
+B -> L : POST /computers (CSRF токен)
+activate L
+L -> L : Эрх, талбар, давхардал шалгах
+alt Алдаатай
+  L --> B : 302 → форм (алдаа)
+else Зөв
+  L -> DB : INSERT computers
+  note right : Салбар, бүртгэлийн дугаар,\nQR код автоматаар
+  L -> DB : INSERT activity_logs
+  L -> DB : INSERT notifications
+  L --> B : 302 → төхөөрөмжийн хуудас
+end
+deactivate L
+B --> A : Үр дүн харуулах
+@enduml
